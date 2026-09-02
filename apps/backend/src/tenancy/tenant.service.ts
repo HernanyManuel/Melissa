@@ -30,7 +30,7 @@ export class TenantService {
       throw new ForbiddenException();
     await tx.$executeRaw`SELECT set_config('app.actor_id', ${actor.userId}, true)`;
   }
-  private async scoped<T>(
+  async scoped<T>(
     actor: Actor,
     id: string,
     permission: Permission,
@@ -50,7 +50,7 @@ export class TenantService {
       return run(tx, current.role);
     });
   }
-  private audit(
+  audit(
     tx: Prisma.TransactionClient,
     actor: Actor,
     tenantId: string,

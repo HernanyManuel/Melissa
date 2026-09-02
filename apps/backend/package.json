@@ -11,9 +11,10 @@
     "lint": "eslint src test scripts",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && node --test dist/test/unit.test.js",
-    "test:integration": "pnpm build && node --test dist/test/integration.test.js dist/test/identity.integration.test.js",
+    "test:integration": "pnpm build && node --test dist/test/integration.test.js dist/test/identity.integration.test.js dist/test/business.integration.test.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
     "openapi": "pnpm build && node dist/scripts/export-openapi.js"
   },
   "dependencies": {

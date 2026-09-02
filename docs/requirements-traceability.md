@@ -13,12 +13,12 @@ Cada PR deve citar também os subitens da secção e anexar evidência concreta 
 | 4 | Multi-tenancy | P2 | Identity/Tenants/Security | Auth/RBAC/RLS e cenários A/B | Base implementada/testada no PR #3; restantes entidades e roles de plataforma nas fases respetivas — ver phase-2.md |
 | 5 | Roles e permissões | P2 | Identity/Tenants/Security | Auth/RBAC/RLS e cenários A/B | Base implementada/testada no PR #3; restantes entidades e roles de plataforma nas fases respetivas — ver phase-2.md |
 | 6 | Estrutura de utilizadores e tenants | P2 | Identity/Tenants/Security | Auth/RBAC/RLS e cenários A/B | Base implementada/testada no PR #3; restantes entidades e roles de plataforma nas fases respetivas — ver phase-2.md |
-| 7 | Indústrias e templates | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Planeado; não implementado |
-| 8 | Onboarding | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Planeado; não implementado |
+| 7 | Indústrias e templates | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Base implementada no PR #4; ver phase-3.md |
+| 8 | Onboarding | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Passos de configuração implementados; integrações/plano/teste/ativação permanecem bloqueados para fases próprias |
 | 9 | Provisioning | P11 | Quality/Provisioning | E2E, retention, chaos e performance | Planeado; não implementado |
-| 10 | Serviços | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Planeado; não implementado |
-| 11 | Horários | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Planeado; não implementado |
-| 12 | Funcionários | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Planeado; não implementado |
+| 10 | Serviços | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | API/DB/Flutter base no PR #4; booking usa em P6 |
+| 11 | Horários | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Períodos múltiplos e exceções no PR #4; disponibilidade em P6 |
+| 12 | Funcionários | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Staff e FK composta para serviços no PR #4; agenda individual expande em P6 |
 | 13 | Clientes finais | P4 | Messaging/Customers | Webhook assinado, dedup/outbox e recovery | Planeado; não implementado |
 | 14 | Canais | P4 | Messaging/Customers | Webhook assinado, dedup/outbox e recovery | Planeado; não implementado |
 | 15 | WhatsApp | P4 | Messaging/Customers | Webhook assinado, dedup/outbox e recovery | Planeado; não implementado |

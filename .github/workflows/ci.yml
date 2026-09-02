@@ -50,6 +50,10 @@ jobs:
         run: |
           RUNTIME_PASSWORD=ci-runtime-only psql "${MIGRATION_DATABASE_URL%%\?*}" -v ON_ERROR_STOP=1 -v runtime_password=ci-runtime-only -f infra/scripts/runtime-role.sql
           DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm db:migrate
+      - name: Verify idempotent development seed
+        run: |
+          DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
+          DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
