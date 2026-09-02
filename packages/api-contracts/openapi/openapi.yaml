@@ -1962,6 +1962,7 @@ components:
       required:
       - id
       - name
+      - country_code
       - timezone
       - default_language
       - default_currency
@@ -1973,6 +1974,9 @@ components:
       additionalProperties: false
       properties: &id015
         name: *id003
+        category:
+          type: string
+          maxLength: 120
         description: &id007
           type: string
           maxLength: 2000
@@ -2059,6 +2063,16 @@ components:
         customer_id: *id001
         service_id: *id001
         resource_id: *id001
+        customer_notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Notas do cliente; visíveis apenas a atores autorizados a consultar esta reserva.
+        internal_notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Omitido sem permissão para notas internas; nunca enviado às tools do cliente ou ao LLM.
         staff_id:
           type: string
           format: uuid
@@ -2127,6 +2141,9 @@ components:
       additionalProperties: false
       properties:
         name: *id003
+        category:
+          type: string
+          maxLength: 120
         description: *id007
         price_amount: *id009
         currency: *id006
