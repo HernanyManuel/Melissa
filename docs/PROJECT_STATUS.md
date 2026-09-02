@@ -1,22 +1,11 @@
 # Estado do projeto
 
-## Entrega atual
+## Phase 1 — estabilização antes de identidade
 
-Phase 0 — arquitetura e plano preparados para revisão. Base: `c2324fe76dd5d8ec6a426403068fd8b50e2f0a3d`. Branch: `feature/phase-0-architecture`.
+Branch: feature/phase-1-infrastructure; PR #2, dependente do PR #1. A revisão do CI revelou lint falhado e a auditoria local identificou dependências vulneráveis. A estabilização precede P2 conforme o gate de não avançar com testes quebrados.
 
-Entregue: plano de fases/gates, matriz 0–135, arquitetura/módulos, ERD lógico, regras de tenant e segurança, UX Flutter, API inicial parcial, motores IA/booking, integrações, billing, testes/deploy e oito ADRs. `SPECIFICATION.md` e `REPOSITORY_STRUCTURE.md` preservados integralmente.
+Verificado localmente com Node 22.23.2/pnpm 10.11.0: Prisma generate, formatter, lint, typecheck, build e quatro testes unitários. Auditoria da nova resolução: zero findings conhecidos em todas as severidades. Lockfile pnpm gerado e versionado; installs frozen em CI/Docker. Ligação BullMQ revista para aceitar opções em vez de uma instância de cliente Redis de versão incompatível.
 
-## Verificação e limites
+CI 33577099220 do commit 1dd8b83: backend, Flutter e Compose aprovados, incluindo integração com worker, OpenAPI e audit. Lockfile Flutter capturado dessa execução e versionado; flutter pub get passa a exigir esse lock. O teste de queue retém até 100 resultados para evitar uma corrida entre conclusão imediata e registo do listener. Os checks do commit final são acompanhados no PR #2. Production continua bloqueada; nenhum dado empresarial introduzido.
 
-Verificações estruturais dos documentos e OpenAPI registadas em `docs/validation.md`. Não há backend, frontend executável, schema Prisma físico, migrations, testes de runtime ou pipeline CI nesta fase. Nada foi publicado em produção. Os ADRs são propostas para revisão, não decisões já aprovadas pelo utilizador.
-
-## Próxima sessão: P1 — primeira infraestrutura executável
-
-1. Ler SPECIFICATION, plano, arquitetura e ADRs; verificar estado real da branch/PR antes de alterar.
-2. Fixar versões compatíveis após verificar documentação e ambiente disponível; criar monorepo sem placeholders.
-3. Implementar NestJS API/worker, PostgreSQL/Redis compose, config validada, health/logging/erros, OpenAPI gerado e CI.
-4. Implementar Flutter shell acessível com localization e estados assíncronos reais.
-5. Executar build/lint/typecheck/test pertinentes; registar limitações de SDK/ambiente sem inventar sucesso.
-6. Atualizar README com comandos comprovados e este estado; abrir PR de infraestrutura. P2 fecha primeira milestone com auth/tenants/RBAC e isolamento.
-
-Bloqueios atuais: nenhum para iniciar infraestrutura local. Credenciais externas e escolhas comerciais só bloqueiam os gates próprios descritos em integrações/riscos. Não solicitar segredos pelo chat. Não continuar para live por bypass de pagamento/testes/validação.
+Próxima fase funcional: P2 users/auth/sessions/tenants/memberships/RBAC/RLS. Detalhes da correção em [phase-1-stabilization.md](phase-1-stabilization.md).

@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+coverage/
+.dart_tool/
+build/
+.flutter-plugins*
+apps/flutter_app/lib/l10n/generated/
+*.log
+.DS_Store

@@ -1,0 +1,25 @@
+{
+  "name": "melissa",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "build": "pnpm --filter @melissa/backend build",
+    "dev": "pnpm --filter @melissa/backend dev",
+    "worker": "pnpm --filter @melissa/backend worker",
+    "lint": "pnpm --filter @melissa/backend lint",
+    "typecheck": "pnpm --filter @melissa/backend typecheck",
+    "test": "pnpm --filter @melissa/backend test",
+    "test:integration": "pnpm --filter @melissa/backend test:integration",
+    "db:generate": "pnpm --filter @melissa/backend db:generate",
+    "db:migrate": "pnpm --filter @melissa/backend db:migrate",
+    "openapi": "pnpm --filter @melissa/backend openapi",
+    "format": "prettier --write apps/backend/src apps/backend/test apps/backend/scripts",
+    "format:check": "prettier --check apps/backend/src apps/backend/test apps/backend/scripts"
+  },
+  "devDependencies": {
+    "prettier": "3.5.3"
+  }
+}
