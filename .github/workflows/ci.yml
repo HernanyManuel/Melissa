@@ -2,7 +2,7 @@ name: Phase 1 checks
 on:
   pull_request:
   push:
-    branches: [main, 'feature/phase-1-infrastructure']
+    branches: [main]
 permissions:
   contents: read
 concurrency:
@@ -42,10 +42,11 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.11.0
-      - name: Resolve dependencies (bootstrap; lockfile publication pending)
-        run: pnpm install --no-frozen-lockfile
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       - run: pnpm db:migrate
+      - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
@@ -82,6 +83,11 @@ jobs:
           flutter-version: '3.35.7'
           channel: stable
       - run: flutter pub get
+      - name: Record resolved Flutter dependency lock
+        run: |
+          echo MELISSA_LOCK_BEGIN
+          cat pubspec.lock
+          echo MELISSA_LOCK_END
       - run: flutter gen-l10n
       - run: flutter analyze --fatal-infos
       - run: flutter test

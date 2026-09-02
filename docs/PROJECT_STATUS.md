@@ -1,15 +1,11 @@
 # Estado do projeto
 
-## Phase 1 — código de infraestrutura
+## Phase 1 — estabilização antes de identidade
 
-Branch: feature/phase-1-infrastructure. Base: feature/phase-0-architecture no commit db83f89a79c47c9f68ca365aac3280b5436b7b89. O PR de Phase 0 continua separado; este trabalho depende dele.
+Branch: feature/phase-1-infrastructure; PR #2, dependente do PR #1. A revisão do CI revelou lint falhado e a auditoria local identificou dependências vulneráveis. A estabilização precede P2 conforme o gate de não avançar com testes quebrados.
 
-O utilizador autorizou explicitamente gerar e guardar código mesmo sem ambiente de execução. Entregue: monorepo, API/worker, migration de infraestrutura, Redis/PostgreSQL/Compose, Flutter Web, seis idiomas, testes e CI. Detalhes em [phase-1.md](phase-1.md).
+Verificado localmente com Node 22.23.2/pnpm 10.11.0: Prisma generate, formatter, lint, typecheck, build e quatro testes unitários. Auditoria da nova resolução: zero findings conhecidos em todas as severidades. Lockfile pnpm gerado e versionado; installs frozen em CI/Docker. Ligação BullMQ revista para aceitar opções em vez de uma instância de cliente Redis de versão incompatível.
 
-Estado de validação: revisão estática durante autoria; nenhum comando Node/Docker/Flutter foi executado nesta conversa. Não afirmar testes aprovados. CI pode executar no GitHub conforme disponibilidade/permissões; verificar resultados no PR.
+CI do novo commit: pendente. O commit original 34c9afc teve Flutter e Compose aprovados; isso não substitui a verificação das alterações novas. Flutter lockfile pendente de captura da resolução CI. Production continua bloqueada; nenhum dado empresarial introduzido.
 
-Pendências: gerar/versionar lockfiles, executar formatação, resolver falhas de lint/typecheck/tests/build/audit, testar UI. Production é bloqueada no código até auth/isolation/release gates.
-
-Próximo trabalho funcional: P2 auth/users/tenants/memberships/RBAC/RLS; só após revisar resultados da infraestrutura. Dados empresariais não existem ainda. A primeira milestone completa exige P1+P2 verificados.
-
-Os documentos da Phase 0 permanecem desenho de referência. validation.md regista apenas a verificação documental daquela fase, não valida este código.
+Próxima fase funcional: P2 users/auth/sessions/tenants/memberships/RBAC/RLS. Detalhes da correção em [phase-1-stabilization.md](phase-1-stabilization.md).

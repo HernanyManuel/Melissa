@@ -4,7 +4,7 @@ import { Dependencies } from './dependencies';
 
 export class HealthResponse {
   @ApiProperty({ enum: ['ok'] })
-  status: 'ok' = 'ok';
+  status = 'ok' as const;
 }
 
 @Controller('health')
@@ -13,12 +13,16 @@ export class HealthController {
 
   @Get('live')
   @ApiOkResponse({ type: HealthResponse })
-  live(): HealthResponse { return { status: 'ok' }; }
+  live(): HealthResponse {
+    return { status: 'ok' };
+  }
 
   @Get()
   @ApiOkResponse({ type: HealthResponse })
   @ApiServiceUnavailableResponse({ description: 'Dependencies or migration unavailable.' })
-  health(): Promise<HealthResponse> { return this.ready(); }
+  health(): Promise<HealthResponse> {
+    return this.ready();
+  }
 
   @Get('ready')
   @ApiOkResponse({ type: HealthResponse })

@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { Worker } from 'bullmq';
-import Redis from 'ioredis';
+import { queueConnection } from './queue-connection';
 import { AppModule } from './app.module';
 import { CONFIG, Configuration } from './config';
 import { configureHttp } from './http';
@@ -12,12 +12,15 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { logger: false });
   const config = app.get<Configuration>(CONFIG);
   configureHttp(app, config, false);
-  const connection = new Redis(config.REDIS_URL, { maxRetriesPerRequest: null });
-  connection.on('error', () => log.warn({ event: 'worker_connection_unavailable' }));
-  const worker = new Worker('infrastructure', async (job) => {
-    if (job.name !== 'ping') throw new Error('Unsupported infrastructure job');
-    return { status: 'ok' };
-  }, { connection, concurrency: 1 });
+  const connection = queueConnection(config.REDIS_URL);
+  const worker = new Worker(
+    'infrastructure',
+    async (job) => {
+      if (job.name !== 'ping') throw new Error('Unsupported infrastructure job');
+      return { status: 'ok' };
+    },
+    { connection, concurrency: 1 },
+  );
   worker.on('error', () => log.error({ event: 'worker_error' }));
   worker.on('failed', () => log.warn({ event: 'infrastructure_job_failed' }));
   // Start probe server only once the actual consumer is ready.
@@ -28,7 +31,6 @@ async function bootstrap(): Promise<void> {
     if (stopping) return;
     stopping = true;
     await worker.close();
-    connection.disconnect();
     await app.close();
   };
   // Own shutdown order: stop consumption before closing shared dependencies.

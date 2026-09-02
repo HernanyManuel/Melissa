@@ -4,7 +4,7 @@ Plataforma SaaS de operações conversacionais: atendimento, assistente com ferr
 
 ## Estado
 
-Phase 1 em código, **sem execução local ou validação funcional nesta sessão**. Backend e Flutter de infraestrutura criados; auth, tenants e funcionalidades de negócio pertencem às fases seguintes. Production está bloqueada na configuração. Consulte [limites e gates pendentes](docs/phase-1.md).
+Phase 1 em estabilização: geração Prisma, lint, typecheck, build e quatro testes unitários passaram localmente com Node 22.23.2; auditoria atual sem findings. Integração/Flutter/Compose do novo commit ainda aguardam CI. Backend e Flutter de infraestrutura criados; auth, tenants e funcionalidades de negócio pertencem às fases seguintes. Production está bloqueada na configuração. Consulte [limites e gates pendentes](docs/phase-1.md).
 
 ## Começar
 
@@ -24,7 +24,7 @@ flutter gen-l10n
 flutter run -d chrome --web-port 8080 --dart-define=API_BASE_URL=http://localhost:3000
 ```
 
-Os comandos foram escritos mas não executados nesta conversa. [Setup completo, testes e troubleshooting](docs/phase-1.md). Lockfiles serão gerados na primeira resolução e devem ser versionados antes de aceitar a fase.
+O resultado das verificações está em [estabilização](docs/phase-1-stabilization.md). [Setup completo, testes e troubleshooting](docs/phase-1.md). O lockfile pnpm está versionado e é exigido no CI/Docker. O lockfile Flutter está a ser recuperado da resolução do CI.
 
 ## Documentação
 

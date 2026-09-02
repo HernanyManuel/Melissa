@@ -1,5 +1,7 @@
 # Phase 1 — infraestrutura em código
 
+> Registo da entrega inicial. Para o estado atualizado, consultar [estabilização](phase-1-stabilization.md) e [PROJECT_STATUS](PROJECT_STATUS.md); as limitações de execução abaixo descrevem a sessão original.
+
 Estado: código preparado sem execução local, a pedido explícito do utilizador. Não classificar a fase como validada até CI/ambiente executar os gates. Base: Phase 0 e correções do contrato no commit db83f89a79c47c9f68ca365aac3280b5436b7b89.
 
 ## Entregue

@@ -5,10 +5,7 @@ import { HealthController } from './health';
 
 @Module({
   controllers: [HealthController],
-  providers: [
-    { provide: CONFIG, useFactory: () => parseConfig(process.env) },
-    Dependencies,
-  ],
+  providers: [{ provide: CONFIG, useFactory: () => parseConfig(process.env) }, Dependencies],
   exports: [Dependencies, CONFIG],
 })
 export class AppModule {}

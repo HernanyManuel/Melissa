@@ -10,8 +10,14 @@ async function main(): Promise<void> {
   try {
     const directory = resolve(process.cwd(), '../../packages/api-contracts/generated');
     await mkdir(directory, { recursive: true });
-    await writeFile(resolve(directory, 'infrastructure.openapi.json'),
-      JSON.stringify(createOpenApi(app), null, 2) + '\n');
-  } finally { await app.close(); }
+    await writeFile(
+      resolve(directory, 'infrastructure.openapi.json'),
+      JSON.stringify(createOpenApi(app), null, 2) + '\n',
+    );
+  } finally {
+    await app.close();
+  }
 }
-void main().catch(() => { process.exitCode = 1; });
+void main().catch(() => {
+  process.exitCode = 1;
+});
