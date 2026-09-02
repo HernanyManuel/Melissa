@@ -2,7 +2,7 @@
 
 ## Controlo de escopo
 
-Fonte: `SPECIFICATION.md`, secções 0–135, commit `c2324fe76dd5d8ec6a426403068fd8b50e2f0a3d`. Estado: Phase 1 em código; execução e validação pendentes. O utilizador autorizou a autoria sem ambiente de execução; os gates de aceitação continuam por cumprir. Ver `docs/phase-1.md`. A especificação e a estrutura original permanecem inalteradas.
+Fonte: `SPECIFICATION.md`, secções 0–135, commit `c2324fe76dd5d8ec6a426403068fd8b50e2f0a3d`. Estado: Phase 1 validada em CI; Phase 2 implementada com CI aprovado e revisão final no PR #3. Ver `docs/phase-2.md` para escopo, provas e limites. Os gates completos de release continuam obrigatórios. A especificação e a estrutura original permanecem inalteradas.
 
 Cada item da [matriz](docs/requirements-traceability.md) tem fase, responsável técnico e evidência esperada. “Planeado” não significa implementado. Uma secção com múltiplos requisitos só fecha quando todos os seus critérios forem satisfeitos. Requisitos futuros ficam explicitamente diferidos, nunca eliminados.
 

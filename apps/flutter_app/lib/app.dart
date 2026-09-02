@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'connection.dart';
+import 'identity/account_page.dart';
 import 'l10n/generated/app_localizations.dart';
 
 final localeProvider = StateProvider<Locale?>((ref) => null);
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(routes: [
+    GoRoute(path: '/account', builder: (context, state) => AccountPage(action: state.uri.queryParameters['action'], token: state.uri.queryParameters['token'], tenant: state.uri.queryParameters['tenant'])),
     GoRoute(path: '/', builder: (context, state) => const WorkspacePage()),
     GoRoute(
       path: '/connection',
@@ -54,6 +56,7 @@ class WorkspacePage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Melissa'),
         actions: [
+          IconButton(tooltip: l.account, onPressed: () => context.go('/account'), icon: const Icon(Icons.account_circle_outlined)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: DropdownButton<Locale>(
@@ -121,8 +124,8 @@ class WorkspacePage extends ConsumerWidget {
                               Text(l.workspaceDescription),
                               const SizedBox(height: 16),
                               FilledButton.tonal(
-                                onPressed: () => context.go('/connection'),
-                                child: Text(l.checkConnection),
+                                onPressed: () => context.go('/account'),
+                                child: Text(l.account),
                               ),
                             ],
                           ),

@@ -17,14 +17,21 @@ class ErrorFilter implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
     const status = error instanceof HttpException ? error.getStatus() : 500;
+    const codes: Record<number, string> = {
+      401: 'UNAUTHORIZED',
+      403: 'FORBIDDEN',
+      409: 'CONFLICT',
+      429: 'RATE_LIMITED',
+    };
     const code =
-      status === 404
+      codes[status] ??
+      (status === 404
         ? 'NOT_FOUND'
         : status === 503
           ? 'TEMPORARILY_UNAVAILABLE'
           : status === 400
             ? 'VALIDATION_ERROR'
-            : 'INTERNAL_ERROR';
+            : 'INTERNAL_ERROR');
     response.status(status).json({
       error: { code, message: code, request_id: response.locals.requestId },
     });
@@ -37,11 +44,16 @@ export function configureHttp(
   shutdownHooks = true,
 ): void {
   app.use(helmet());
-  app.enableCors({ origin: config.CORS_ORIGIN, methods: ['GET'], credentials: false });
+  app.enableCors({
+    origin: config.CORS_ORIGIN,
+    methods: ['GET', 'POST', 'PATCH'],
+    credentials: true,
+  });
   app.use((_request: Request, response: Response, next: NextFunction) => {
     const requestId = randomUUID();
     response.locals.requestId = requestId;
     response.setHeader('X-Request-Id', requestId);
+    response.setHeader('Cache-Control', 'no-store');
     const start = Date.now();
     response.on('finish', () =>
       log.info({

@@ -2,14 +2,14 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { Worker } from 'bullmq';
 import { queueConnection } from './queue-connection';
-import { AppModule } from './app.module';
+import { InfrastructureModule } from './infrastructure.module';
 import { CONFIG, Configuration } from './config';
 import { configureHttp } from './http';
 import { log } from './logging';
 
 // Infrastructure queue only. No tenant/business jobs before Phase 2 isolation.
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { logger: false });
+  const app = await NestFactory.create(InfrastructureModule, { logger: false });
   const config = app.get<Configuration>(CONFIG);
   configureHttp(app, config, false);
   const connection = queueConnection(config.REDIS_URL);
