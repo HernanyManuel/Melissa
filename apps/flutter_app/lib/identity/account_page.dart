@@ -121,6 +121,10 @@ class _AccountPageState extends State<AccountPage> {
             if (selected != null) ...[
               const Divider(height: 32),
               Text('${l.selectedBusiness}: ${selected!['name']}'),
+              if (selected!['role'] != 'viewer') OutlinedButton.icon(
+                onPressed: busy ? null : () => context.go('/customers/${selected!['id']}'),
+                icon: const Icon(Icons.people_outline), label: Text(l.customers),
+              ),
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: busy ? null : () => context.go('/onboarding/${selected!['id']}'),

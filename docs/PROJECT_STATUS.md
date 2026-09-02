@@ -2,6 +2,10 @@
 
 ## Phase 4 — Rascunho parcial: clientes
 
+Continuação UI: página Flutter `/customers/:tenantId` ligada à API, acessível pela empresa selecionada. Inclui lista paginada, criação, edição, confirmação de arquivo, estados de carregamento/vazio/erro, tratamento de telefone duplicado e traduções nos seis idiomas. Os controlos de escrita respeitam o papel devolvido pelo servidor; a API continua a autoridade de permissões. Novos testes widget cobrem lista vazia, staff sem escrita e formulário com duplicado. Flutter não está instalado localmente; execução na CI pendente para esta alteração.
+
+CI do commit `99a6533` aprovada integralmente: https://github.com/HernanyManuel/Melissa/actions/runs/33637124294 (inclui novas regressões backend de clientes). Este resultado não valida a UI adicionada posteriormente.
+
 Branch `feature/phase-4-messaging`, baseada em `feature/phase-3-business-onboarding` no commit `1c5c2507bdfd350b0b4bf4a475a579786bbeda36`. Publicação em rascunho autorizada pelo utilizador; não pronta para merge ou produção.
 
 Código inicial: modelo Customer, migration com RLS forçada, telefone único por tenant, listagem paginada, criação, atualização integral e arquivo lógico, permissões específicas e auditoria transacional. CORS passa a permitir PUT/DELETE para a origem configurada. A especificação original permanece intacta.
@@ -10,7 +14,7 @@ Validação inicial: backend e Compose do commit `f4a450b` passaram na execuçã
 
 A continuação adiciona regressões HTTP/PostgreSQL para clientes à suite de integração existente: autenticação, isolamento A/B, validação, duplicados concorrentes, telefone por tenant, RLS sem contexto, paginação, atualização integral, arquivo e auditoria. Acrescenta teste unitário da matriz de permissões. Execução destas novas regressões pendente da CI do novo commit; testes HTTP de cada papel e UI ainda pendentes. Não confundir testes escritos com testes aprovados.
 
-Ainda não entregue nesta fase: interface Flutter de clientes, restantes campos do modelo especificado (incluindo consentimentos e preferências), canais, WhatsApp, conversas, mensagens, outbox, filas, debounce e media. Nenhum envio real, merge ou deploy efetuado. A Phase 4 permanece incompleta, mesmo que os checks existentes passem.
+Ainda não entregue nesta fase: restantes campos do modelo especificado (incluindo consentimentos e preferências), canais, WhatsApp, conversas, mensagens, outbox, filas, debounce e media. Testes UI completos de edição/arquivo/paginação e testes HTTP por papel ainda pendentes. Nenhum envio real, merge ou deploy efetuado. A Phase 4 permanece incompleta, mesmo que os checks existentes passem.
 
 Contrato inicial: `/api/v1/tenants/:tenantId/customers` aceita GET (50 itens e cursor `after`) e POST; `/:id` aceita PUT e DELETE (arquivo lógico). Owner/admin/manager podem ler e escrever; staff apenas ler; viewer sem acesso. O telefone continua reservado após arquivo. PUT substitui os campos editáveis e limpa email/notas omitidos; não constitui PATCH parcial. Arquivo não é eliminação definitiva de dados pessoais.
 
