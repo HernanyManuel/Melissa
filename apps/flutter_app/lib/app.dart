@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'connection.dart';
+import 'conversations/conversations_page.dart';
 import 'customers/customers_page.dart';
 import 'identity/account_page.dart';
 import 'onboarding/onboarding_page.dart';
@@ -10,6 +11,7 @@ import 'l10n/generated/app_localizations.dart';
 final localeProvider = StateProvider<Locale?>((ref) => null);
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(routes: [
+    GoRoute(path: '/conversations/:tenantId', builder: (context, state) => ConversationsPage(key: ValueKey(state.pathParameters['tenantId']), tenantId: state.pathParameters['tenantId']!)),
     GoRoute(path: '/customers/:tenantId', builder: (context, state) => CustomersPage(tenantId: state.pathParameters['tenantId']!)),
     GoRoute(path: '/account', builder: (context, state) => AccountPage(action: state.uri.queryParameters['action'], token: state.uri.queryParameters['token'], tenant: state.uri.queryParameters['tenant'])),
     GoRoute(path: '/onboarding/:tenantId', builder: (context, state) =>

@@ -2,6 +2,8 @@
 
 ## Phase 4 — Rascunho parcial: clientes
 
+Continuação UI de conversas: `/conversations/:tenantId`, lista e histórico apenas de leitura, paginação, layout adaptado a mobile/desktop, seis idiomas, estados vazio/erro/loading e proteção contra respostas atrasadas após trocar conversa/empresa. Ações de envio e handoff não implementadas. Novos testes widget de recuperação de erro, leitura mobile/paginação e resposta atrasada. CI desta alteração pendente; Flutter indisponível localmente. CI do backend de mensagens `91c2197` aprovada: https://github.com/HernanyManuel/Melissa/actions/runs/33640469877.
+
 Continuação mensagens: persistência transacional de eventos/conversas/mensagens para canais mock, dedupe, conflito de payload auditado, APIs de histórico paginado e testes. Ver [contrato e limitações](messaging-sandbox.md). Sem queue ou WhatsApp real nesta entrega; CI do novo commit pendente. CI do cadastro de canais `7d112dc` aprovada integralmente: https://github.com/HernanyManuel/Melissa/actions/runs/33638991311.
 
 Continuação canais: cadastro/revogação de simulações WhatsApp com migration/RLS, IDs externos gerados, respostas sem secrets, permissões owner/admin e auditoria idempotente. Testes adicionados; ver [contrato e limites](channels.md). Não envia mensagens e não liga WhatsApp real. Validação local interrompida por autorização de rede; CI do novo commit pendente.

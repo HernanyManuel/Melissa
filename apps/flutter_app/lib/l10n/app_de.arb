@@ -1,4 +1,10 @@
 {
+  "conversations": "Unterhaltungen",
+  "noConversations": "Noch keine Unterhaltungen.",
+  "selectConversation": "Wähle eine Unterhaltung.",
+  "noMessages": "Noch keine Nachrichten.",
+  "readOnlyConversation": "Verlauf nur zum Lesen. Senden und automatische Antworten sind noch nicht verfügbar.",
+  "testChannel": "Testkanal",
   "customers": "Kunden",
   "addCustomer": "Neuer Kunde",
   "editCustomer": "Kunden bearbeiten",

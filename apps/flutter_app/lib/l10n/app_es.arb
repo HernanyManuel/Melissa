@@ -1,4 +1,10 @@
 {
+  "conversations": "Conversaciones",
+  "noConversations": "Todavía no hay conversaciones.",
+  "selectConversation": "Selecciona una conversación.",
+  "noMessages": "Todavía no hay mensajes.",
+  "readOnlyConversation": "Historial de solo lectura. Envío y respuestas automáticas aún no disponibles.",
+  "testChannel": "Canal de prueba",
   "customers": "Clientes",
   "addCustomer": "Nuevo cliente",
   "editCustomer": "Editar cliente",
