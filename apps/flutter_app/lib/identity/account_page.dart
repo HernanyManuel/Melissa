@@ -121,6 +121,12 @@ class _AccountPageState extends State<AccountPage> {
             if (selected != null) ...[
               const Divider(height: 32),
               Text('${l.selectedBusiness}: ${selected!['name']}'),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: busy ? null : () => context.go('/onboarding/${selected!['id']}'),
+                icon: const Icon(Icons.checklist_outlined),
+                label: Text(l.configureBusiness),
+              ),
               if (selected!['role'] == 'owner' || selected!['role'] == 'admin') ...[
                 const SizedBox(height: 16), Text(l.team, style: Theme.of(context).textTheme.titleLarge),
                 for (final member in members) ListTile(title: Text(member['user']['name'] as String), subtitle: Text('${member['user']['email']} · ${roleLabel(l, member['role'] as String)}'), trailing: member['role'] == 'owner' || (selected!['role'] == 'admin' && member['role'] == 'admin') ? null : Switch(value: member['active'] as bool, onChanged: busy ? null : (value) => run(() async {

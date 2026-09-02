@@ -7,9 +7,18 @@ import { IdentityMail } from './identity/mail';
 import { IdentityRateLimit } from './identity/rate-limit';
 import { TenantService } from './tenancy/tenant.service';
 import { TenantController } from './tenancy/tenant.controller';
+import { BusinessController } from './business/business.controller';
+import { BusinessService } from './business/business.service';
 @Module({
   imports: [InfrastructureModule],
-  controllers: [AuthController, TenantController],
-  providers: [AuthService, AuthGuard, IdentityMail, IdentityRateLimit, TenantService],
+  controllers: [AuthController, TenantController, BusinessController],
+  providers: [
+    AuthService,
+    AuthGuard,
+    IdentityMail,
+    IdentityRateLimit,
+    TenantService,
+    BusinessService,
+  ],
 })
 export class AppModule {}

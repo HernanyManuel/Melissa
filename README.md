@@ -4,7 +4,7 @@ Plataforma SaaS de operações conversacionais: atendimento, assistente com ferr
 
 ## Estado
 
-Phase 2: contas, verificação de email, sessões revogáveis, empresas, memberships, convites, RBAC e isolamento PostgreSQL. Frontend Flutter Web ligado às APIs. [PR #3](https://github.com/HernanyManuel/Melissa/pull/3) contém a entrega e os checks. Produção continua bloqueada. [Setup e limites da Phase 2](docs/phase-2.md).
+Phase 3: onboarding e configuração empresarial sobre contas, sessões revogáveis e isolamento PostgreSQL. Perfil, serviços, horários, exceções, equipa, FAQs, políticas e personalidade têm API/DB; Flutter inclui wizard em seis idiomas. Produção continua bloqueada. Ver [Phase 3](docs/phase-3.md).
 
 ## Começar
 

@@ -54,5 +54,15 @@
   "acceptTerms": "Ich akzeptiere die Entwicklungsbedingungen",
   "termsTitle": "Entwicklungsbedingungen",
   "termsBody": "Dies ist eine Entwicklungsumgebung. Verwende nur Testdaten. Konten und Testdaten können gelöscht werden. Geschäftsbedingungen und Datenschutzhinweise müssen vor dem Start genehmigt werden. Version: development-2026-09-02.",
-  "close": "Schließen"
+  "close": "Schließen",
+  "configureBusiness": "Unternehmen einrichten", "businessDetails": "Unternehmen", "servicesSetup": "Leistungen",
+  "hoursSetup": "Öffnungszeiten", "staffSetup": "Team", "faqSetup": "FAQ", "preferencesSetup": "Regeln und Stil",
+  "city": "Stadt", "businessType": "Unternehmensart", "primaryLanguage": "Hauptsprache", "currency": "Währung",
+  "saveContinue": "Speichern und weiter", "serviceName": "Leistungsname", "price": "Preis",
+  "durationMinutes": "Dauer (Minuten)", "addService": "Leistung hinzufügen",
+  "defaultHoursHint": "Prüfe die vorgeschlagenen Zeiten. Mehrere Zeiträume pro Tag sind möglich.",
+  "staffName": "Name des Teammitglieds", "staffOptionalHint": "Optional bei nur einem Kalender.",
+  "skip": "Vorerst überspringen", "question": "Frage", "answer": "Antwort",
+  "cancellationPolicy": "Stornierungsregeln", "tone": "Kommunikationsstil", "useEmojis": "Emojis verwenden",
+  "finishSetup": "Konfiguration speichern", "activationPending": "Die Aktivierung bleibt geschützt, bis Kanal, Kalender, Abonnement und Agententests bereit sind."
 }

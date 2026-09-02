@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'connection.dart';
 import 'identity/account_page.dart';
+import 'onboarding/onboarding_page.dart';
 import 'l10n/generated/app_localizations.dart';
 
 final localeProvider = StateProvider<Locale?>((ref) => null);
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(routes: [
     GoRoute(path: '/account', builder: (context, state) => AccountPage(action: state.uri.queryParameters['action'], token: state.uri.queryParameters['token'], tenant: state.uri.queryParameters['tenant'])),
+    GoRoute(path: '/onboarding/:tenantId', builder: (context, state) =>
+      OnboardingPage(tenantId: state.pathParameters['tenantId']!)),
     GoRoute(path: '/', builder: (context, state) => const WorkspacePage()),
     GoRoute(
       path: '/connection',

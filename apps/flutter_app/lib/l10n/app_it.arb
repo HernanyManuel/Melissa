@@ -54,5 +54,15 @@
   "acceptTerms": "Accetto i termini di sviluppo",
   "termsTitle": "Termini di sviluppo",
   "termsBody": "Questo è un ambiente di sviluppo. Utilizza solo dati di prova. Account e dati di prova possono essere eliminati. Termini commerciali e informativa sulla privacy devono essere approvati prima del lancio. Versione: development-2026-09-02.",
-  "close": "Chiudi"
+  "close": "Chiudi",
+  "configureBusiness": "Configura azienda", "businessDetails": "Azienda", "servicesSetup": "Servizi",
+  "hoursSetup": "Orari", "staffSetup": "Team", "faqSetup": "Domande frequenti", "preferencesSetup": "Politiche e stile",
+  "city": "Città", "businessType": "Tipo di attività", "primaryLanguage": "Lingua principale", "currency": "Valuta",
+  "saveContinue": "Salva e continua", "serviceName": "Nome del servizio", "price": "Prezzo",
+  "durationMinutes": "Durata (minuti)", "addService": "Aggiungi servizio",
+  "defaultHoursHint": "Controlla gli orari suggeriti. Sono supportati più periodi al giorno.",
+  "staffName": "Nome del collaboratore", "staffOptionalHint": "Facoltativo per attività con un solo calendario.",
+  "skip": "Salta per ora", "question": "Domanda", "answer": "Risposta",
+  "cancellationPolicy": "Politica di cancellazione", "tone": "Stile di comunicazione", "useEmojis": "Usa emoji",
+  "finishSetup": "Salva configurazione", "activationPending": "L’attivazione resta protetta finché canale, calendario, abbonamento e test dell’agente non sono pronti."
 }

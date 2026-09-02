@@ -54,5 +54,15 @@
   "acceptTerms": "I accept the development terms",
   "termsTitle": "Development terms",
   "termsBody": "This is a development environment. Use test data only. Accounts and test data may be deleted. Commercial service terms and privacy notices must be approved before launch. Version: development-2026-09-02.",
-  "close": "Close"
+  "close": "Close",
+  "configureBusiness": "Configure business", "businessDetails": "Business", "servicesSetup": "Services",
+  "hoursSetup": "Hours", "staffSetup": "Team", "faqSetup": "FAQs", "preferencesSetup": "Policies & style",
+  "city": "City", "businessType": "Business type", "primaryLanguage": "Primary language", "currency": "Currency",
+  "saveContinue": "Save and continue", "serviceName": "Service name", "price": "Price",
+  "durationMinutes": "Duration (minutes)", "addService": "Add service",
+  "defaultHoursHint": "Review the suggested opening hours. Multiple periods per day are supported.",
+  "staffName": "Team member name", "staffOptionalHint": "Optional for businesses with a single calendar.",
+  "skip": "Skip for now", "question": "Question", "answer": "Answer",
+  "cancellationPolicy": "Cancellation policy", "tone": "Communication style", "useEmojis": "Use emojis",
+  "finishSetup": "Save configuration", "activationPending": "Activation remains protected until channel, calendar, subscription and agent tests are ready."
 }
