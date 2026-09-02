@@ -22,7 +22,7 @@ import { MessagePageDto, MockInboundDto } from './dto';
 export class MessagingController {
   constructor(private readonly messaging: MessagingService) {}
   @Post('channels/:id/mock-inbound')
-  @HttpCode(200)
+  @HttpCode(202)
   receive(
     @Req() req: AuthRequest,
     @Param('tenantId', ParseUUIDPipe) tenant: string,
@@ -38,6 +38,14 @@ export class MessagingController {
     @Query() page: MessagePageDto,
   ) {
     return this.messaging.conversations(req.actor, tenant, page);
+  }
+  @Get('message-receipts/:id')
+  receipt(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.messaging.receipt(req.actor, tenant, id);
   }
   @Get('conversations/:id/messages')
   messages(

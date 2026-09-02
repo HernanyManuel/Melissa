@@ -37,29 +37,8 @@ export class MessagingService {
           );
           return { conflict: true as const };
         }
-        const message = await tx.message.findUniqueOrThrow({
-          where: { externalEventId: previous.id },
-        });
-        return { conflict: false as const, duplicate: true, message };
+        return { conflict: false as const, duplicate: true, eventId: previous.id };
       }
-      const now = new Date();
-      const conversation = await tx.conversation.upsert({
-        where: {
-          tenantId_channelConnectionId_customerId: {
-            tenantId,
-            channelConnectionId: channel.id,
-            customerId: customer.id,
-          },
-        },
-        create: {
-          tenantId,
-          customerId: customer.id,
-          channelConnectionId: channel.id,
-          language: customer.language,
-          lastMessageAt: now,
-        },
-        update: { lastMessageAt: now },
-      });
       const event = await tx.externalEvent.create({
         data: {
           tenantId,
@@ -67,23 +46,35 @@ export class MessagingService {
           externalEventId,
           eventType: 'message.received',
           payloadHash,
-          processedAt: now,
         },
       });
-      const message = await tx.message.create({
+      await tx.inboundOutbox.create({
         data: {
           tenantId,
-          conversationId: conversation.id,
-          externalEventId: event.id,
+          id: event.id,
+          channelId,
+          customerId: customer.id,
+          actorId: actor.userId,
           contentText: input.text,
         },
       });
-      await this.tenants.audit(tx, actor, tenantId, 'message.mock_received', message.id);
-      return { conflict: false as const, duplicate: false, message };
+      await tx.inboundDispatch.create({ data: { id: event.id, tenantId } });
+      await this.tenants.audit(tx, actor, tenantId, 'message.mock_accepted', event.id);
+      return { conflict: false as const, duplicate: false, eventId: event.id };
     });
     // Throw after commit so conflict evidence is retained, without recording message content.
     if (result.conflict) throw new ConflictException();
-    return { duplicate: result.duplicate, message: result.message };
+    return { duplicate: result.duplicate, eventId: result.eventId };
+  }
+
+  receipt(actor: Actor, tenantId: string, id: string) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      const event = await tx.externalEvent.findUnique({ where: { tenantId_id: { tenantId, id } } });
+      if (!event) throw new NotFoundException();
+      const route = await tx.inboundDispatch.findFirst({ where: { id, tenantId } });
+      const message = await tx.message.findUnique({ where: { externalEventId: id } });
+      return { eventId: id, state: route?.state ?? 'processed', message };
+    });
   }
 
   conversations(actor: Actor, tenantId: string, page: MessagePageDto) {

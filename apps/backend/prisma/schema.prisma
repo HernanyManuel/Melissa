@@ -379,10 +379,33 @@ model ExternalEvent {
   externalEventId String @map("external_event_id")
   eventType String @map("event_type")
   payloadHash String @map("payload_hash") @db.VarChar(64)
-  processedAt DateTime @map("processed_at") @db.Timestamptz(6)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   message Message?
   @@id([tenantId,id])
   @@unique([provider,externalEventId])
   @@map("external_events")
+}
+
+model InboundOutbox {
+  tenantId String @map("tenant_id") @db.Uuid
+  id String @db.Uuid
+  channelId String @map("channel_id") @db.Uuid
+  customerId String @map("customer_id") @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  contentText String? @map("content_text") @db.VarChar(4096)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@id([tenantId,id])
+  @@map("inbound_outbox")
+}
+
+// Internal routing envelope only: no content, customer ID, phone or credentials.
+model InboundDispatch {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  state String @default("pending")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  @@index([state,nextAttemptAt,id])
+  @@map("inbound_dispatch")
 }

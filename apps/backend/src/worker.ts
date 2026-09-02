@@ -6,8 +6,10 @@ import { InfrastructureModule } from './infrastructure.module';
 import { CONFIG, Configuration } from './config';
 import { configureHttp } from './http';
 import { log } from './logging';
+import { Dependencies } from './dependencies';
+import { startInboundQueue } from './messaging/inbound-queue';
 
-// Infrastructure queue only. No tenant/business jobs before Phase 2 isolation.
+// Isolated probe and durable inbound consumers; no public product API on this process.
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(InfrastructureModule, { logger: false });
   const config = app.get<Configuration>(CONFIG);
@@ -25,11 +27,13 @@ async function bootstrap(): Promise<void> {
   worker.on('failed', () => log.warn({ event: 'infrastructure_job_failed' }));
   // Start probe server only once the actual consumer is ready.
   await worker.waitUntilReady();
+  const stopInbound = await startInboundQueue(app.get(Dependencies), config.REDIS_URL);
   await app.listen(config.WORKER_PORT, '0.0.0.0');
   let stopping = false;
   const stop = async (): Promise<void> => {
     if (stopping) return;
     stopping = true;
+    await stopInbound();
     await worker.close();
     await app.close();
   };

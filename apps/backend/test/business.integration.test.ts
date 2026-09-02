@@ -8,6 +8,10 @@ import { CONFIG, Configuration } from '../src/config';
 import { configureHttp } from '../src/http';
 import { IdentityMail } from '../src/identity/mail';
 import { Dependencies } from '../src/dependencies';
+import { Queue } from 'bullmq';
+import { queueConnection } from '../src/queue-connection';
+import { setTimeout as delay } from 'node:timers/promises';
+import { InboundProcessor } from '../src/messaging/inbound-processor';
 
 test(
   'business onboarding persists validated tenant-scoped configuration',
@@ -195,12 +199,45 @@ test(
         deliveries.map((r) =>
           data<{
             duplicate: boolean;
-            message: { id: string; conversationId: string; contentText: string };
-          }>(r, 200),
+            eventId: string;
+          }>(r, 202),
         ),
       );
       assert.deepEqual(received.map((r) => r.duplicate).sort(), [false, true]);
-      assert.equal(received[0]!.message.id, received[1]!.message.id);
+      assert.equal(received[0]!.eventId, received[1]!.eventId);
+      const waitReceipt = async (id: string, expected: string) => {
+        for (let i = 0; i < 100; i++) {
+          const receipt = await data<{
+            state: string;
+            message: { id: string; conversationId: string } | null;
+          }>(
+            await call(
+              'GET',
+              `/tenants/${tenantA.id}/message-receipts/${id}`,
+              undefined,
+              actorA.access_token,
+            ),
+            200,
+          );
+          if (receipt.state === expected) return receipt;
+          await delay(100);
+        }
+        throw new Error(`Receipt did not become ${expected}`);
+      };
+      const completed = await waitReceipt(received[0]!.eventId, 'processed');
+      assert(completed.message);
+      await Promise.all([1, 2].map(() => new InboundProcessor(deps).process(received[0]!.eventId)));
+      assert.equal(
+        (
+          await call(
+            'GET',
+            `/tenants/${tenantA.id}/message-receipts/${received[0]!.eventId}`,
+            undefined,
+            actorB.access_token,
+          )
+        ).status,
+        404,
+      );
       assert.equal(
         (await call('POST', inboundPath, { ...inbound, text: 'Changed' }, actorA.access_token))
           .status,
@@ -218,7 +255,7 @@ test(
         ).status,
         404,
       );
-      const conversationId = received[0]!.message.conversationId;
+      const conversationId = completed.message.conversationId;
       const messagePath = `/tenants/${tenantA.id}/conversations/${conversationId}/messages`;
       const history = await data<{ items: { contentText: string }[]; next: null }>(
         await call('GET', messagePath, undefined, actorA.access_token),
@@ -249,7 +286,82 @@ test(
           1,
         );
       });
-      await call('POST', `${channelsA}/${inboxChannel.id}/disconnect`, {}, actorA.access_token);
+      const testQueue = new Queue('incoming-messages', {
+        connection: queueConnection(config.REDIS_URL),
+      });
+      let rejectedId = '';
+      let recoveryId = '';
+      try {
+        await testQueue.pause();
+        const pending = await data<{ eventId: string }>(
+          await call(
+            'POST',
+            inboundPath,
+            { ...inbound, eventId: randomUUID() },
+            actorA.access_token,
+          ),
+          202,
+        );
+        rejectedId = pending.eventId;
+        const pendingReceipt = await waitReceipt(rejectedId, 'pending');
+        assert.equal(pendingReceipt.message, null);
+        assert.equal(
+          (await deps.db.inboundOutbox.findMany()).length,
+          0,
+          'Outbox payload requires tenant context',
+        );
+        const recoveryChannel = await data<{ id: string }>(
+          await call('POST', `${channelsA}/mock`, { displayName: 'Recovery' }, actorA.access_token),
+          201,
+        );
+        const recovery = await data<{ eventId: string }>(
+          await call(
+            'POST',
+            `${channelsA}/${recoveryChannel.id}/mock-inbound`,
+            { ...inbound, eventId: randomUUID() },
+            actorA.access_token,
+          ),
+          202,
+        );
+        recoveryId = recovery.eventId;
+        const exhausted = await data<{ eventId: string }>(
+          await call(
+            'POST',
+            `${channelsA}/${recoveryChannel.id}/mock-inbound`,
+            { ...inbound, eventId: randomUUID() },
+            actorA.access_token,
+          ),
+          202,
+        );
+        for (let attempt = 0; attempt < 5; attempt++)
+          await new InboundProcessor(deps).recordFailure(exhausted.eventId);
+        assert.equal((await waitReceipt(exhausted.eventId, 'failed')).message, null);
+        await call('POST', `${channelsA}/${inboxChannel.id}/disconnect`, {}, actorA.access_token);
+      } finally {
+        await testQueue.resume();
+        await testQueue.close();
+      }
+      assert.equal((await waitReceipt(rejectedId, 'rejected')).message, null);
+      assert((await waitReceipt(recoveryId, 'processed')).message);
+      await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id',${tenantA.id},true)`;
+        assert.equal(
+          (
+            await tx.inboundOutbox.findUniqueOrThrow({
+              where: { tenantId_id: { tenantId: tenantA.id, id: recoveryId } },
+            })
+          ).contentText,
+          null,
+        );
+        assert.equal(
+          (
+            await tx.inboundOutbox.findUniqueOrThrow({
+              where: { tenantId_id: { tenantId: tenantA.id, id: rejectedId } },
+            })
+          ).contentText,
+          null,
+        );
+      });
       assert.equal(
         (
           await call(

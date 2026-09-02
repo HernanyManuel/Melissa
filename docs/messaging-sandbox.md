@@ -1,5 +1,13 @@
 # Conversas e mensagens — persistência de teste
 
+## Atualização: entrada assíncrona (schema 7)
+
+`POST .../channels/:id/mock-inbound` passa a devolver **202** com `{ duplicate, eventId }`, não uma mensagem imediata. Repetir o evento devolve o mesmo recibo; conteúdo divergente continua a devolver 409. Consultar `GET /api/v1/tenants/:tenantId/message-receipts/:eventId`: `{ eventId, state, message }`, com estados pending/processed/rejected/failed e message nula enquanto não processada. Endpoint protegido por messages:read; recibos alheios devolvem 404. Recibos anteriores à migration, sem envelope, mantêm state processed.
+
+O worker já consome incoming-messages via BullMQ. O HTTP apenas confirma evento/outbox/envelope no PostgreSQL; depois o dispatcher publica o ID na fila e o worker cria conversa/mensagem. Ver [ADR-010](decisions/ADR-010-inbound-outbox.md) para limites e autorização. Executar migration antes de reiniciar API/worker; readiness exige schema 7. Não reutilizar a resposta HTTP antiga nos clientes de simulação.
+
+As secções abaixo documentam o contrato anterior e invariantes; a entrada síncrona foi substituída por esta outbox. Ainda não existem WhatsApp real, outbound, debounce ou IA.
+
 Entrega parcial da Phase 4 (§§16–18). Não é webhook WhatsApp nem motor de IA. Usa apenas canais mock e clientes existentes. Nenhum envio externo.
 
 ## Contrato
