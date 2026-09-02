@@ -1,6 +1,6 @@
 # Modelo de dados e ERD
 
-Modelo lógico v1. Os campos mínimos de cada tabela em `SPECIFICATION.md` continuam obrigatórios; este documento acrescenta relações, invariantes e tabelas de suporte. Schema Prisma físico e SQL de migration serão implementados e validados em P1/P2, incrementalmente por módulo. Não existe migration executável nesta entrega.
+Modelo lógico v1. Os campos mínimos de cada tabela em `SPECIFICATION.md` continuam obrigatórios; este documento acrescenta relações, invariantes e tabelas de suporte. P1/P2 já incluem schema físico e migrations executáveis para infraestrutura, identidade, sessões, tenants, memberships, convites e auditoria. O restante ERD continua a ser o modelo alvo, implementado incrementalmente. Ver [Phase 2](phase-2.md).
 
 ## Convenções
 

@@ -25,14 +25,14 @@ enum TenantRole {
 }
 
 model User {
-  termsVersion    String
-  termsAcceptedAt DateTime        @db.Timestamptz(6)
+  termsVersion    String          @map("terms_version")
+  termsAcceptedAt DateTime        @map("terms_accepted_at") @db.Timestamptz(6)
   id              String          @id @default(uuid()) @db.Uuid
   email           String          @unique
-  passwordHash    String
+  passwordHash    String          @map("password_hash")
   name            String
-  verifiedAt      DateTime?       @db.Timestamptz(6)
-  createdAt       DateTime        @default(now()) @db.Timestamptz(6)
+  verifiedAt      DateTime?       @map("verified_at") @db.Timestamptz(6)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   sessions        Session[]
   tokens          IdentityToken[]
   memberships     Membership[]
@@ -42,11 +42,11 @@ model User {
 
 model Session {
   id            String         @id @default(uuid()) @db.Uuid
-  userId        String         @db.Uuid
+  userId        String         @map("user_id") @db.Uuid
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt     DateTime       @db.Timestamptz(6)
-  revokedAt     DateTime?      @db.Timestamptz(6)
-  createdAt     DateTime       @default(now()) @db.Timestamptz(6)
+  expiresAt     DateTime       @map("expires_at") @db.Timestamptz(6)
+  revokedAt     DateTime?      @map("revoked_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   refreshTokens RefreshToken[]
 
   @@index([userId])
@@ -55,9 +55,9 @@ model Session {
 
 model RefreshToken {
   hash      String    @id
-  sessionId String    @db.Uuid
+  sessionId String    @map("session_id") @db.Uuid
   session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  usedAt    DateTime? @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
 
   @@index([sessionId])
   @@map("refresh_tokens")
@@ -65,11 +65,11 @@ model RefreshToken {
 
 model IdentityToken {
   hash      String    @id
-  userId    String    @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   purpose   String
-  expiresAt DateTime  @db.Timestamptz(6)
-  usedAt    DateTime? @db.Timestamptz(6)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
 
   @@index([userId, purpose])
   @@map("identity_tokens")
@@ -78,9 +78,9 @@ model IdentityToken {
 model Tenant {
   id          String       @id @default(uuid()) @db.Uuid
   name        String
-  countryCode String
+  countryCode String       @map("country_code")
   timezone    String
-  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   memberships Membership[]
   invitations Invitation[]
   audit       AuditEvent[]
@@ -90,8 +90,8 @@ model Tenant {
 
 model Membership {
   id       String     @id @default(uuid()) @db.Uuid
-  tenantId String     @db.Uuid
-  userId   String     @db.Uuid
+  tenantId String     @map("tenant_id") @db.Uuid
+  userId   String     @map("user_id") @db.Uuid
   tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   user     User       @relation(fields: [userId], references: [id], onDelete: Restrict)
   role     TenantRole
@@ -105,13 +105,13 @@ model Membership {
 
 model Invitation {
   id         String     @id @default(uuid()) @db.Uuid
-  tenantId   String     @db.Uuid
+  tenantId   String     @map("tenant_id") @db.Uuid
   tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   email      String
   role       TenantRole
-  tokenHash  String     @unique
-  expiresAt  DateTime   @db.Timestamptz(6)
-  acceptedAt DateTime?  @db.Timestamptz(6)
+  tokenHash  String     @unique @map("token_hash")
+  expiresAt  DateTime   @map("expires_at") @db.Timestamptz(6)
+  acceptedAt DateTime?  @map("accepted_at") @db.Timestamptz(6)
 
   @@unique([tenantId, id])
   @@map("invitations")
@@ -119,12 +119,12 @@ model Invitation {
 
 model AuditEvent {
   id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  actorId   String   @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
   action    String
-  targetId  String   @db.Uuid
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  targetId  String   @map("target_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([tenantId, createdAt])
   @@map("audit_events")

@@ -47,7 +47,7 @@ Tenants: GET/POST `/api/v1/tenants`, GET/PATCH `/:id`, GET/PATCH memberships, PO
 
 `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:integration` com PostgreSQL/Redis e worker real. CI valida explicitamente a role runtime e RLS, recusa cross-tenant, alterações do último owner, convites com email errado/reutilizados, revogação de memberships, CSRF, refresh replay e reset/logout. Flutter testa serialização de refresh, logout falhado/sucesso e formulário com consentimento além dos testes da infraestrutura.
 
-Docker Compose e Flutter passaram na primeira execução do PR; o primeiro job backend detetou uma incompatibilidade de parâmetros Prisma na chamada psql de bootstrap, corrigida no follow-up. Consultar os checks do commit atual no PR #3 para o resultado final.
+Backend, Flutter e Compose passaram no [CI 33579326319](https://github.com/HernanyManuel/Melissa/actions/runs/33579326319), commit 357d681. Auditoria sem vulnerabilidades conhecidas após atualização de Nodemailer para 9.0.1. A revisão final alinha todos os campos físicos com snake_case, preservando os nomes TypeScript/Dart; os checks do commit atual estão no PR #3.
 
 ## Limites preservados
 

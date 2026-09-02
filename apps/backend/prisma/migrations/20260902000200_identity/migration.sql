@@ -6,14 +6,14 @@ CREATE TYPE "TenantRole" AS ENUM ('owner', 'admin', 'manager', 'staff', 'viewer'
 
 -- CreateTable
 CREATE TABLE "users" (
-    "termsVersion" TEXT NOT NULL,
-    "termsAcceptedAt" TIMESTAMPTZ(6) NOT NULL,
+    "terms_version" TEXT NOT NULL,
+    "terms_accepted_at" TIMESTAMPTZ(6) NOT NULL,
     "id" UUID NOT NULL,
     "email" TEXT NOT NULL,
-    "passwordHash" TEXT NOT NULL,
+    "password_hash" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "verifiedAt" TIMESTAMPTZ(6),
-    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "verified_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -21,10 +21,10 @@ CREATE TABLE "users" (
 -- CreateTable
 CREATE TABLE "sessions" (
     "id" UUID NOT NULL,
-    "userId" UUID NOT NULL,
-    "expiresAt" TIMESTAMPTZ(6) NOT NULL,
-    "revokedAt" TIMESTAMPTZ(6),
-    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "user_id" UUID NOT NULL,
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "revoked_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "sessions_pkey" PRIMARY KEY ("id")
 );
@@ -32,8 +32,8 @@ CREATE TABLE "sessions" (
 -- CreateTable
 CREATE TABLE "refresh_tokens" (
     "hash" TEXT NOT NULL,
-    "sessionId" UUID NOT NULL,
-    "usedAt" TIMESTAMPTZ(6),
+    "session_id" UUID NOT NULL,
+    "used_at" TIMESTAMPTZ(6),
 
     CONSTRAINT "refresh_tokens_pkey" PRIMARY KEY ("hash")
 );
@@ -41,10 +41,10 @@ CREATE TABLE "refresh_tokens" (
 -- CreateTable
 CREATE TABLE "identity_tokens" (
     "hash" TEXT NOT NULL,
-    "userId" UUID NOT NULL,
+    "user_id" UUID NOT NULL,
     "purpose" TEXT NOT NULL,
-    "expiresAt" TIMESTAMPTZ(6) NOT NULL,
-    "usedAt" TIMESTAMPTZ(6),
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "used_at" TIMESTAMPTZ(6),
 
     CONSTRAINT "identity_tokens_pkey" PRIMARY KEY ("hash")
 );
@@ -53,9 +53,9 @@ CREATE TABLE "identity_tokens" (
 CREATE TABLE "tenants" (
     "id" UUID NOT NULL,
     "name" TEXT NOT NULL,
-    "countryCode" TEXT NOT NULL,
+    "country_code" TEXT NOT NULL,
     "timezone" TEXT NOT NULL,
-    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "tenants_pkey" PRIMARY KEY ("id")
 );
@@ -63,8 +63,8 @@ CREATE TABLE "tenants" (
 -- CreateTable
 CREATE TABLE "memberships" (
     "id" UUID NOT NULL,
-    "tenantId" UUID NOT NULL,
-    "userId" UUID NOT NULL,
+    "tenant_id" UUID NOT NULL,
+    "user_id" UUID NOT NULL,
     "role" "TenantRole" NOT NULL,
     "active" BOOLEAN NOT NULL DEFAULT true,
 
@@ -74,12 +74,12 @@ CREATE TABLE "memberships" (
 -- CreateTable
 CREATE TABLE "invitations" (
     "id" UUID NOT NULL,
-    "tenantId" UUID NOT NULL,
+    "tenant_id" UUID NOT NULL,
     "email" TEXT NOT NULL,
     "role" "TenantRole" NOT NULL,
-    "tokenHash" TEXT NOT NULL,
-    "expiresAt" TIMESTAMPTZ(6) NOT NULL,
-    "acceptedAt" TIMESTAMPTZ(6),
+    "token_hash" TEXT NOT NULL,
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "accepted_at" TIMESTAMPTZ(6),
 
     CONSTRAINT "invitations_pkey" PRIMARY KEY ("id")
 );
@@ -87,11 +87,11 @@ CREATE TABLE "invitations" (
 -- CreateTable
 CREATE TABLE "audit_events" (
     "id" UUID NOT NULL,
-    "tenantId" UUID NOT NULL,
-    "actorId" UUID NOT NULL,
+    "tenant_id" UUID NOT NULL,
+    "actor_id" UUID NOT NULL,
     "action" TEXT NOT NULL,
-    "targetId" UUID NOT NULL,
-    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "target_id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "audit_events_pkey" PRIMARY KEY ("id")
 );
@@ -100,52 +100,52 @@ CREATE TABLE "audit_events" (
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
-CREATE INDEX "sessions_userId_idx" ON "sessions"("userId");
+CREATE INDEX "sessions_user_id_idx" ON "sessions"("user_id");
 
 -- CreateIndex
-CREATE INDEX "refresh_tokens_sessionId_idx" ON "refresh_tokens"("sessionId");
+CREATE INDEX "refresh_tokens_session_id_idx" ON "refresh_tokens"("session_id");
 
 -- CreateIndex
-CREATE INDEX "identity_tokens_userId_purpose_idx" ON "identity_tokens"("userId", "purpose");
+CREATE INDEX "identity_tokens_user_id_purpose_idx" ON "identity_tokens"("user_id", "purpose");
 
 -- CreateIndex
-CREATE INDEX "memberships_userId_idx" ON "memberships"("userId");
+CREATE INDEX "memberships_user_id_idx" ON "memberships"("user_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "memberships_tenantId_userId_key" ON "memberships"("tenantId", "userId");
+CREATE UNIQUE INDEX "memberships_tenant_id_user_id_key" ON "memberships"("tenant_id", "user_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "memberships_tenantId_id_key" ON "memberships"("tenantId", "id");
+CREATE UNIQUE INDEX "memberships_tenant_id_id_key" ON "memberships"("tenant_id", "id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "invitations_tokenHash_key" ON "invitations"("tokenHash");
+CREATE UNIQUE INDEX "invitations_token_hash_key" ON "invitations"("token_hash");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "invitations_tenantId_id_key" ON "invitations"("tenantId", "id");
+CREATE UNIQUE INDEX "invitations_tenant_id_id_key" ON "invitations"("tenant_id", "id");
 
 -- CreateIndex
-CREATE INDEX "audit_events_tenantId_createdAt_idx" ON "audit_events"("tenantId", "createdAt");
+CREATE INDEX "audit_events_tenant_id_created_at_idx" ON "audit_events"("tenant_id", "created_at");
 
 -- AddForeignKey
-ALTER TABLE "sessions" ADD CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "identity_tokens" ADD CONSTRAINT "identity_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "identity_tokens" ADD CONSTRAINT "identity_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "memberships" ADD CONSTRAINT "memberships_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "memberships" ADD CONSTRAINT "memberships_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "memberships" ADD CONSTRAINT "memberships_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "memberships" ADD CONSTRAINT "memberships_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "invitations" ADD CONSTRAINT "invitations_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "invitations" ADD CONSTRAINT "invitations_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "audit_events" ADD CONSTRAINT "audit_events_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "audit_events" ADD CONSTRAINT "audit_events_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 
 -- Application role is provisioned separately from the migration owner.
@@ -167,21 +167,21 @@ ALTER TABLE audit_events FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_read ON tenants FOR SELECT TO melissa_runtime USING (
  id::text = current_setting('app.tenant_id', true)
- OR EXISTS (SELECT 1 FROM memberships m WHERE m."tenantId"=tenants.id AND m."userId"::text=current_setting('app.actor_id', true) AND m.active)
+ OR EXISTS (SELECT 1 FROM memberships m WHERE m."tenant_id"=tenants.id AND m."user_id"::text=current_setting('app.actor_id', true) AND m.active)
 );
 CREATE POLICY tenant_insert ON tenants FOR INSERT TO melissa_runtime WITH CHECK (id::text=current_setting('app.tenant_id', true));
 CREATE POLICY tenant_update ON tenants FOR UPDATE TO melissa_runtime USING (id::text=current_setting('app.tenant_id',true)) WITH CHECK (id::text=current_setting('app.tenant_id',true));
 CREATE POLICY membership_read ON memberships FOR SELECT TO melissa_runtime USING (
- "tenantId"::text=current_setting('app.tenant_id',true) OR "userId"::text=current_setting('app.actor_id',true)
+ "tenant_id"::text=current_setting('app.tenant_id',true) OR "user_id"::text=current_setting('app.actor_id',true)
 );
-CREATE POLICY membership_insert ON memberships FOR INSERT TO melissa_runtime WITH CHECK ("tenantId"::text=current_setting('app.tenant_id',true));
-CREATE POLICY membership_update ON memberships FOR UPDATE TO melissa_runtime USING ("tenantId"::text=current_setting('app.tenant_id',true)) WITH CHECK ("tenantId"::text=current_setting('app.tenant_id',true));
+CREATE POLICY membership_insert ON memberships FOR INSERT TO melissa_runtime WITH CHECK ("tenant_id"::text=current_setting('app.tenant_id',true));
+CREATE POLICY membership_update ON memberships FOR UPDATE TO melissa_runtime USING ("tenant_id"::text=current_setting('app.tenant_id',true)) WITH CHECK ("tenant_id"::text=current_setting('app.tenant_id',true));
 CREATE POLICY invitation_read ON invitations FOR SELECT TO melissa_runtime USING (
- "tenantId"::text=current_setting('app.tenant_id',true) OR "tokenHash"=current_setting('app.invite_hash',true)
+ "tenant_id"::text=current_setting('app.tenant_id',true) OR "token_hash"=current_setting('app.invite_hash',true)
 );
-CREATE POLICY invitation_insert ON invitations FOR INSERT TO melissa_runtime WITH CHECK ("tenantId"::text=current_setting('app.tenant_id',true));
-CREATE POLICY invitation_update ON invitations FOR UPDATE TO melissa_runtime USING ("tenantId"::text=current_setting('app.tenant_id',true)) WITH CHECK ("tenantId"::text=current_setting('app.tenant_id',true));
-CREATE POLICY audit_read ON audit_events FOR SELECT TO melissa_runtime USING ("tenantId"::text=current_setting('app.tenant_id',true));
-CREATE POLICY audit_insert ON audit_events FOR INSERT TO melissa_runtime WITH CHECK ("tenantId"::text=current_setting('app.tenant_id',true));
+CREATE POLICY invitation_insert ON invitations FOR INSERT TO melissa_runtime WITH CHECK ("tenant_id"::text=current_setting('app.tenant_id',true));
+CREATE POLICY invitation_update ON invitations FOR UPDATE TO melissa_runtime USING ("tenant_id"::text=current_setting('app.tenant_id',true)) WITH CHECK ("tenant_id"::text=current_setting('app.tenant_id',true));
+CREATE POLICY audit_read ON audit_events FOR SELECT TO melissa_runtime USING ("tenant_id"::text=current_setting('app.tenant_id',true));
+CREATE POLICY audit_insert ON audit_events FOR INSERT TO melissa_runtime WITH CHECK ("tenant_id"::text=current_setting('app.tenant_id',true));
 
 UPDATE infrastructure_metadata SET value='2' WHERE key='schema_version';

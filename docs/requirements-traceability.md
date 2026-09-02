@@ -10,9 +10,9 @@ Cada PR deve citar também os subitens da secção e anexar evidência concreta 
 | 1 | Objetivo do produto | P0 | Architecture | Revisão documental/ADRs e rastreabilidade | Planeado; não implementado |
 | 2 | Arquitetura geral | P0 | Architecture | Revisão documental/ADRs e rastreabilidade | Planeado; não implementado |
 | 3 | Stack tecnológica | P0 | Architecture | Revisão documental/ADRs e rastreabilidade | Planeado; não implementado |
-| 4 | Multi-tenancy | P2 | Identity/Tenants/Security | Auth/RBAC/RLS e cenários A/B | Planeado; não implementado |
-| 5 | Roles e permissões | P2 | Identity/Tenants/Security | Auth/RBAC/RLS e cenários A/B | Planeado; não implementado |
-| 6 | Estrutura de utilizadores e tenants | P2 | Identity/Tenants/Security | Auth/RBAC/RLS e cenários A/B | Planeado; não implementado |
+| 4 | Multi-tenancy | P2 | Identity/Tenants/Security | Auth/RBAC/RLS e cenários A/B | Base implementada/testada no PR #3; restantes entidades e roles de plataforma nas fases respetivas — ver phase-2.md |
+| 5 | Roles e permissões | P2 | Identity/Tenants/Security | Auth/RBAC/RLS e cenários A/B | Base implementada/testada no PR #3; restantes entidades e roles de plataforma nas fases respetivas — ver phase-2.md |
+| 6 | Estrutura de utilizadores e tenants | P2 | Identity/Tenants/Security | Auth/RBAC/RLS e cenários A/B | Base implementada/testada no PR #3; restantes entidades e roles de plataforma nas fases respetivas — ver phase-2.md |
 | 7 | Indústrias e templates | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Planeado; não implementado |
 | 8 | Onboarding | P3 | Business/Onboarding | Forms, autosave, timezone, configuração e traduções | Planeado; não implementado |
 | 9 | Provisioning | P11 | Quality/Provisioning | E2E, retention, chaos e performance | Planeado; não implementado |

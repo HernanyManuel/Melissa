@@ -12,3 +12,5 @@ Propostas documentadas para revisão; aceitação é registada no PR, substitui�
 - [ADR-006 — Sandbox e controlo determinístico da IA](ADR-006.md)
 - [ADR-007 — Flutter Web acessível e contratos](ADR-007.md)
 - [ADR-008 — Dinheiro e medição de utilização](ADR-008.md)
+
+- [ADR-009 — Sessões e contexto transacional](ADR-009-identity-runtime.md)
