@@ -100,6 +100,7 @@ model Tenant {
   staff              Staff[]
   configuration      TenantConfiguration?
   customers          Customer[]
+  channels           ChannelConnection[]
 
   @@map("tenants")
 }
@@ -300,4 +301,27 @@ model Customer {
   @@unique([tenantId, phoneE164])
   @@index([tenantId, deletedAt, id])
   @@map("customers")
+}
+
+model ChannelConnection {
+  id String @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  channelType String @map("channel_type") @db.VarChar(24)
+  mode String @db.VarChar(12)
+  externalAccountId String @map("external_account_id") @db.VarChar(160)
+  externalPhoneId String @map("external_phone_id") @db.VarChar(160)
+  displayName String @map("display_name") @db.VarChar(160)
+  status String @default("active") @db.VarChar(24)
+  credentialsReference String? @map("credentials_reference")
+  webhookSecretReference String? @map("webhook_secret_reference")
+  metadata Json @default("{}") @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  connectedAt DateTime @default(now()) @map("connected_at") @db.Timestamptz(6)
+  disconnectedAt DateTime? @map("disconnected_at") @db.Timestamptz(6)
+  @@id([tenantId, id])
+  @@unique([mode, channelType, externalPhoneId])
+  @@index([tenantId, status, id])
+  @@map("channel_connections")
 }

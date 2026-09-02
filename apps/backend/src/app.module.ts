@@ -11,9 +11,17 @@ import { BusinessController } from './business/business.controller';
 import { BusinessService } from './business/business.service';
 import { CustomerController } from './customers/customer.controller';
 import { CustomerService } from './customers/customer.service';
+import { ChannelController } from './channels/channel.controller';
+import { ChannelService } from './channels/channel.service';
 @Module({
   imports: [InfrastructureModule],
-  controllers: [AuthController, TenantController, BusinessController, CustomerController],
+  controllers: [
+    AuthController,
+    TenantController,
+    BusinessController,
+    CustomerController,
+    ChannelController,
+  ],
   providers: [
     AuthService,
     AuthGuard,
@@ -22,6 +30,7 @@ import { CustomerService } from './customers/customer.service';
     TenantService,
     BusinessService,
     CustomerService,
+    ChannelService,
   ],
 })
 export class AppModule {}

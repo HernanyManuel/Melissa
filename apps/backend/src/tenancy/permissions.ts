@@ -1,5 +1,6 @@
 import { TenantRole } from '@prisma/client';
 export type Permission =
+  | 'channels:manage'
   | 'customers:read'
   | 'customers:write'
   | 'tenant:read'
@@ -11,6 +12,7 @@ export type Permission =
   | 'business:write';
 const permissions: Record<TenantRole, readonly Permission[]> = {
   owner: [
+    'channels:manage',
     'customers:read',
     'customers:write',
     'tenant:read',
@@ -22,6 +24,7 @@ const permissions: Record<TenantRole, readonly Permission[]> = {
     'business:write',
   ],
   admin: [
+    'channels:manage',
     'customers:read',
     'customers:write',
     'tenant:read',

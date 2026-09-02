@@ -84,6 +84,74 @@ test(
       );
       // Customer security regression: use real HTTP, runtime role and PostgreSQL RLS.
       const customersA = `/tenants/${tenantA.id}/customers`;
+      const channelsA = `/tenants/${tenantA.id}/channels`;
+      const channelsB = `/tenants/${tenantB.id}/channels`;
+      assert.equal((await call('GET', channelsA)).status, 401);
+      assert.equal((await call('GET', channelsA, undefined, actorB.access_token)).status, 404);
+      assert.equal(
+        (
+          await call(
+            'POST',
+            `${channelsA}/mock`,
+            { displayName: 'Test', externalPhoneId: 'stolen-number' },
+            actorA.access_token,
+          )
+        ).status,
+        400,
+      );
+      assert.equal(
+        (await call('POST', `${channelsA}/mock`, { displayName: '   ' }, actorA.access_token))
+          .status,
+        400,
+      );
+      const channel = await data<{ id: string; mode: string; status: string }>(
+        await call(
+          'POST',
+          `${channelsA}/mock`,
+          { displayName: 'Test channel' },
+          actorA.access_token,
+        ),
+        201,
+      );
+      assert.equal(channel.mode, 'mock');
+      assert.equal(channel.status, 'active');
+      assert.equal('credentialsReference' in channel, false);
+      assert.equal('externalPhoneId' in channel, false);
+      assert.equal('metadata' in channel, false);
+      assert.equal(
+        (await call('POST', `${channelsB}/${channel.id}/disconnect`, {}, actorB.access_token))
+          .status,
+        404,
+      );
+      const disconnects = await Promise.all(
+        [1, 2].map(() =>
+          call('POST', `${channelsA}/${channel.id}/disconnect`, {}, actorA.access_token),
+        ),
+      );
+      for (const response of disconnects) {
+        const revoked = await data<{ status: string; disconnectedAt: string }>(response, 200);
+        assert.equal(revoked.status, 'disconnected');
+        assert(revoked.disconnectedAt);
+      }
+      assert.equal((await deps.db.channelConnection.findMany()).length, 0);
+      await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id',${tenantA.id},true)`;
+        assert.equal(
+          (await tx.channelConnection.findMany({ where: { tenantId: tenantB.id } })).length,
+          0,
+        );
+        const stored = await tx.channelConnection.findUniqueOrThrow({
+          where: { tenantId_id: { tenantId: tenantA.id, id: channel.id } },
+        });
+        assert.equal(stored.externalPhoneId, `mock:${channel.id}`);
+        assert.equal(stored.credentialsReference, null);
+        assert.equal(
+          await tx.auditEvent.count({
+            where: { targetId: channel.id, action: 'channel.disconnected' },
+          }),
+          1,
+        );
+      });
       const customersB = `/tenants/${tenantB.id}/customers`;
       const customerInput = {
         displayName: '  Cliente  ',

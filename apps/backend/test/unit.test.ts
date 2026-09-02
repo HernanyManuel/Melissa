@@ -4,6 +4,13 @@ import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
 import { allows } from '../src/tenancy/permissions';
 
+test('only owners and admins manage channels', () => {
+  assert(allows('owner', 'channels:manage'));
+  assert(allows('admin', 'channels:manage'));
+  for (const role of ['manager', 'staff', 'viewer'] as const)
+    assert(!allows(role, 'channels:manage'));
+});
+
 test('customer permissions grant least privilege by role', () => {
   for (const role of ['owner', 'admin', 'manager'] as const) {
     assert(allows(role, 'customers:read'));

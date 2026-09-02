@@ -2,6 +2,10 @@
 
 ## Phase 4 — Rascunho parcial: clientes
 
+Continuação canais: cadastro/revogação de simulações WhatsApp com migration/RLS, IDs externos gerados, respostas sem secrets, permissões owner/admin e auditoria idempotente. Testes adicionados; ver [contrato e limites](channels.md). Não envia mensagens e não liga WhatsApp real. Validação local interrompida por autorização de rede; CI do novo commit pendente.
+
+Interface de clientes no commit `93a1b33`: CI integral aprovada em https://github.com/HernanyManuel/Melissa/actions/runs/33638043602. As referências anteriores a UI pendente descrevem o estado antes desta execução.
+
 Continuação UI: página Flutter `/customers/:tenantId` ligada à API, acessível pela empresa selecionada. Inclui lista paginada, criação, edição, confirmação de arquivo, estados de carregamento/vazio/erro, tratamento de telefone duplicado e traduções nos seis idiomas. Os controlos de escrita respeitam o papel devolvido pelo servidor; a API continua a autoridade de permissões. Novos testes widget cobrem lista vazia, staff sem escrita e formulário com duplicado. Flutter não está instalado localmente; execução na CI pendente para esta alteração.
 
 CI do commit `99a6533` aprovada integralmente: https://github.com/HernanyManuel/Melissa/actions/runs/33637124294 (inclui novas regressões backend de clientes). Este resultado não valida a UI adicionada posteriormente.
