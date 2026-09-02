@@ -1,0 +1,105 @@
+name: Phase 1 checks
+on:
+  pull_request:
+  push:
+    branches: [main, 'feature/phase-1-infrastructure']
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-bookworm
+        env:
+          POSTGRES_USER: melissa
+          POSTGRES_PASSWORD: ci-disposable-only
+          POSTGRES_DB: melissa_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U melissa -d melissa_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7.4-bookworm
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://melissa:ci-disposable-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
+      REDIS_URL: redis://localhost:6379
+      LOG_LEVEL: silent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+      - name: Resolve dependencies (bootstrap; lockfile publication pending)
+        run: pnpm install --no-frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm db:migrate
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Integration with a separate real worker process
+        run: |
+          node apps/backend/dist/src/worker.js &
+          worker_pid=$!
+          trap 'kill "$worker_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:3001/health/ready; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:3001/health/ready
+          pnpm test:integration
+      - run: pnpm openapi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-bootstrap-artifacts
+          path: |
+            pnpm-lock.yaml
+            packages/api-contracts/generated/infrastructure.openapi.json
+      - name: Dependency audit
+        run: pnpm audit --audit-level high
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: stable
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - run: flutter analyze --fatal-infos
+      - run: flutter test
+      - run: flutter build web --dart-define=API_BASE_URL=http://localhost:3000
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flutter-bootstrap-artifacts
+          path: |
+            apps/flutter_app/pubspec.lock
+            apps/flutter_app/build/web
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose config --quiet
+      - run: docker compose up --build --wait --wait-timeout 180
+      - run: curl --fail http://localhost:3000/health/ready
+      - if: always()
+        run: docker compose down --volumes

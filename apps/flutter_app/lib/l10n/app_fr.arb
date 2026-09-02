@@ -1,0 +1,18 @@
+{
+  "@@locale": "fr",
+  "overview": "Vue d’ensemble",
+  "connection": "Connexion",
+  "language": "Langue",
+  "welcome": "Bienvenue sur Melissa",
+  "subtitle": "Une manière plus simple de prendre soin de vos clients.",
+  "workspaceTitle": "Votre espace de travail",
+  "workspaceDescription": "La configuration de l’entreprise sera bientôt disponible. Vous pouvez vérifier la connexion au service ici.",
+  "checkConnection": "Vérifier la connexion",
+  "connectionDescription": "Vérifiez si Melissa est disponible.",
+  "connecting": "Vérification de la connexion…",
+  "connected": "Service connecté",
+  "unavailable": "Service indisponible",
+  "readyDescription": "Le service répond. Votre connexion est prête.",
+  "retryDescription": "Connexion impossible. Vérifiez le service et réessayez.",
+  "retry": "Actualiser"
+}

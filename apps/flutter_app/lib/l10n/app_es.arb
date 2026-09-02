@@ -1,0 +1,18 @@
+{
+  "@@locale": "es",
+  "overview": "Resumen",
+  "connection": "Conexión",
+  "language": "Idioma",
+  "welcome": "Bienvenido a Melissa",
+  "subtitle": "Una forma más sencilla de atender a sus clientes.",
+  "workspaceTitle": "Su espacio de trabajo",
+  "workspaceDescription": "La configuración de la empresa estará disponible pronto. Aquí puede comprobar la conexión al servicio.",
+  "checkConnection": "Comprobar conexión",
+  "connectionDescription": "Compruebe si Melissa está disponible.",
+  "connecting": "Comprobando conexión…",
+  "connected": "Servicio conectado",
+  "unavailable": "Servicio no disponible",
+  "readyDescription": "El servicio responde. La conexión está lista.",
+  "retryDescription": "No se ha podido conectar. Compruebe el servicio e inténtelo de nuevo.",
+  "retry": "Actualizar"
+}

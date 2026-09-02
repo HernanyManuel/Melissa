@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Global bootstrap metadata only. Business data and RLS arrive in Phase 2.
+model InfrastructureMetadata {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("infrastructure_metadata")
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Melissa",
+  "short_name": "Melissa",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F6F7FB",
+  "theme_color": "#4255B5",
+  "description": "Melissa workspace",
+  "prefer_related_applications": false
+}

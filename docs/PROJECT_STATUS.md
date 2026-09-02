@@ -1,22 +1,15 @@
 # Estado do projeto
 
-## Entrega atual
+## Phase 1 — código de infraestrutura
 
-Phase 0 — arquitetura e plano preparados para revisão. Base: `c2324fe76dd5d8ec6a426403068fd8b50e2f0a3d`. Branch: `feature/phase-0-architecture`.
+Branch: feature/phase-1-infrastructure. Base: feature/phase-0-architecture no commit db83f89a79c47c9f68ca365aac3280b5436b7b89. O PR de Phase 0 continua separado; este trabalho depende dele.
 
-Entregue: plano de fases/gates, matriz 0–135, arquitetura/módulos, ERD lógico, regras de tenant e segurança, UX Flutter, API inicial parcial, motores IA/booking, integrações, billing, testes/deploy e oito ADRs. `SPECIFICATION.md` e `REPOSITORY_STRUCTURE.md` preservados integralmente.
+O utilizador autorizou explicitamente gerar e guardar código mesmo sem ambiente de execução. Entregue: monorepo, API/worker, migration de infraestrutura, Redis/PostgreSQL/Compose, Flutter Web, seis idiomas, testes e CI. Detalhes em [phase-1.md](phase-1.md).
 
-## Verificação e limites
+Estado de validação: revisão estática durante autoria; nenhum comando Node/Docker/Flutter foi executado nesta conversa. Não afirmar testes aprovados. CI pode executar no GitHub conforme disponibilidade/permissões; verificar resultados no PR.
 
-Verificações estruturais dos documentos e OpenAPI registadas em `docs/validation.md`. Não há backend, frontend executável, schema Prisma físico, migrations, testes de runtime ou pipeline CI nesta fase. Nada foi publicado em produção. Os ADRs são propostas para revisão, não decisões já aprovadas pelo utilizador.
+Pendências: gerar/versionar lockfiles, executar formatação, resolver falhas de lint/typecheck/tests/build/audit, testar UI. Production é bloqueada no código até auth/isolation/release gates.
 
-## Próxima sessão: P1 — primeira infraestrutura executável
+Próximo trabalho funcional: P2 auth/users/tenants/memberships/RBAC/RLS; só após revisar resultados da infraestrutura. Dados empresariais não existem ainda. A primeira milestone completa exige P1+P2 verificados.
 
-1. Ler SPECIFICATION, plano, arquitetura e ADRs; verificar estado real da branch/PR antes de alterar.
-2. Fixar versões compatíveis após verificar documentação e ambiente disponível; criar monorepo sem placeholders.
-3. Implementar NestJS API/worker, PostgreSQL/Redis compose, config validada, health/logging/erros, OpenAPI gerado e CI.
-4. Implementar Flutter shell acessível com localization e estados assíncronos reais.
-5. Executar build/lint/typecheck/test pertinentes; registar limitações de SDK/ambiente sem inventar sucesso.
-6. Atualizar README com comandos comprovados e este estado; abrir PR de infraestrutura. P2 fecha primeira milestone com auth/tenants/RBAC e isolamento.
-
-Bloqueios atuais: nenhum para iniciar infraestrutura local. Credenciais externas e escolhas comerciais só bloqueiam os gates próprios descritos em integrações/riscos. Não solicitar segredos pelo chat. Não continuar para live por bypass de pagamento/testes/validação.
+Os documentos da Phase 0 permanecem desenho de referência. validation.md regista apenas a verificação documental daquela fase, não valida este código.
