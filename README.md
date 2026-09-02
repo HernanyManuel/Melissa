@@ -4,7 +4,7 @@ Plataforma SaaS de operações conversacionais: atendimento, assistente com ferr
 
 ## Estado
 
-Phase 1 em estabilização: geração Prisma, lint, typecheck, build e quatro testes unitários passaram localmente com Node 22.23.2; auditoria atual sem findings. Integração/Flutter/Compose do novo commit ainda aguardam CI. Backend e Flutter de infraestrutura criados; auth, tenants e funcionalidades de negócio pertencem às fases seguintes. Production está bloqueada na configuração. Consulte [limites e gates pendentes](docs/phase-1.md).
+Phase 1 em estabilização: geração Prisma, lint, typecheck, build e quatro testes unitários passaram localmente com Node 22.23.2; auditoria atual sem findings. Backend, integração com worker, Flutter e Compose passaram no [CI de estabilização](https://github.com/HernanyManuel/Melissa/actions/runs/33577099220). Consulte o PR #2 para os checks do commit mais recente. Backend e Flutter de infraestrutura criados; auth, tenants e funcionalidades de negócio pertencem às fases seguintes. Production está bloqueada na configuração. Consulte [limites e gates pendentes](docs/phase-1.md).
 
 ## Começar
 
@@ -19,12 +19,12 @@ API: http://localhost:3000/health/ready. Swagger: http://localhost:3000/api/docs
 
 ```sh
 cd apps/flutter_app
-flutter pub get
+flutter pub get --enforce-lockfile
 flutter gen-l10n
 flutter run -d chrome --web-port 8080 --dart-define=API_BASE_URL=http://localhost:3000
 ```
 
-O resultado das verificações está em [estabilização](docs/phase-1-stabilization.md). [Setup completo, testes e troubleshooting](docs/phase-1.md). O lockfile pnpm está versionado e é exigido no CI/Docker. O lockfile Flutter está a ser recuperado da resolução do CI.
+O resultado das verificações está em [estabilização](docs/phase-1-stabilization.md). [Setup completo, testes e troubleshooting](docs/phase-1.md). O lockfile pnpm está versionado e é exigido no CI/Docker. O lockfile Flutter foi recuperado da resolução verificada do CI e também é exigido.
 
 ## Documentação
 

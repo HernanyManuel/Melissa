@@ -82,12 +82,7 @@ jobs:
         with:
           flutter-version: '3.35.7'
           channel: stable
-      - run: flutter pub get
-      - name: Record resolved Flutter dependency lock
-        run: |
-          echo MELISSA_LOCK_BEGIN
-          cat pubspec.lock
-          echo MELISSA_LOCK_END
+      - run: flutter pub get --enforce-lockfile
       - run: flutter gen-l10n
       - run: flutter analyze --fatal-infos
       - run: flutter test

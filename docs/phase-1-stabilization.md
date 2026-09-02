@@ -20,3 +20,7 @@ Verificado localmente: Prisma generate; Prettier; lint; typecheck; build; quatro
 A implementação de auth/tenants/RBAC/RLS permanece a próxima fase funcional. Nenhum endpoint de identidade ou dado empresarial foi introduzido nesta estabilização.
 
 A atualização de BullMQ exigiu uma correção de compatibilidade: passar opções de conexão, deixando BullMQ criar/fechar os seus clientes. O teste unitário cobre TLS, credenciais percent-encoded, seleção de DB e rejeição de protocolo/DB inválidos; o teste de integração comprova round-trip num worker separado.
+
+O CI [33577099220](https://github.com/HernanyManuel/Melissa/actions/runs/33577099220), no commit 1dd8b83, aprovou backend, Flutter e Compose: inclui geração, migração, formatação, lint, typecheck, unit, integração real com worker, OpenAPI e audit. O lockfile Flutter é obtido da resolução do job Flutter do mesmo run; os resultados do commit que fixa esse lockfile são acompanhados no PR #2.
+
+Lockfile Flutter: 38 packages capturados diretamente do log do job Flutter aprovado, com parsing YAML verificado. CI exige --enforce-lockfile. O smoke test retém um conjunto limitado de 100 resultados para evitar apagar o resultado antes de o listener se registar.

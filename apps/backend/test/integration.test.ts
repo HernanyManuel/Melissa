@@ -44,7 +44,9 @@ test(
           {
             attempts: 3,
             backoff: { type: 'exponential', delay: 200 },
-            removeOnComplete: true,
+            // Retain a bounded result set so a fast worker cannot delete the result
+            // before waitUntilFinished registers its listener.
+            removeOnComplete: 100,
             removeOnFail: 10,
           },
         );
