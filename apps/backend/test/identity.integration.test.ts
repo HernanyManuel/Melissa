@@ -7,6 +7,7 @@ import { AppModule } from '../src/app.module';
 import { CONFIG, Configuration } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 import { IdentityMail } from '../src/identity/mail';
+import { IdentityRateLimit } from '../src/identity/rate-limit';
 import { configureHttp } from '../src/http';
 
 test(
@@ -71,7 +72,14 @@ test(
       }
       for (const email of [emailA, emailB, emailC]) {
         assert.equal(
-          (await call('POST', '/auth/register', { email, password, name: 'Test User' })).status,
+          (
+            await call('POST', '/auth/register', {
+              email,
+              password,
+              name: 'Test User',
+              termsAccepted: true,
+            })
+          ).status,
           202,
         );
         assert.equal((await call('POST', '/auth/login', { email, password })).status, 401);
@@ -80,8 +88,14 @@ test(
         assert.equal((await call('POST', '/auth/verify', { token: verification })).status, 400);
       }
       assert.equal(
-        (await call('POST', '/auth/register', { email: emailA, password, name: 'Duplicate' }))
-          .status,
+        (
+          await call('POST', '/auth/register', {
+            email: emailA,
+            password,
+            name: 'Duplicate',
+            termsAccepted: true,
+          })
+        ).status,
         202,
       );
       const loginA = await call('POST', '/auth/login', { email: emailA, password });
@@ -345,6 +359,26 @@ test(
       )) as { access_token: string };
       assert.equal((await call('POST', '/auth/logout', undefined, fresh.access_token)).status, 204);
       assert.equal((await call('GET', '/auth/me', undefined, fresh.access_token)).status, 401);
+      const rate = app.get(IdentityRateLimit);
+      const rateKey = randomUUID();
+      for (let i = 0; i < 20; i++) await rate.check(rateKey, rateKey);
+      await assert.rejects(rate.check(rateKey, rateKey), { status: 429 });
+      const concurrentLogin = await call('POST', '/auth/login', { email: emailC, password });
+      const concurrentCookie = concurrentLogin.headers.get('set-cookie')!.split(';')[0]!;
+      const concurrentBody = (await json(concurrentLogin, 200)) as { csrf_token: string };
+      const responses = await Promise.all(
+        [1, 2].map(() =>
+          call('POST', '/auth/refresh', undefined, undefined, {
+            Cookie: concurrentCookie,
+            'X-CSRF-Token': concurrentBody.csrf_token,
+          }),
+        ),
+      );
+      assert.deepEqual(responses.map((r) => r.status).sort(), [200, 401]);
+      const winner = (await responses.find((r) => r.status === 200)!.json()) as {
+        access_token: string;
+      };
+      assert.equal((await call('GET', '/auth/me', undefined, winner.access_token)).status, 401);
       const stored = await deps.db.user.findUniqueOrThrow({ where: { email: emailA } });
       assert(stored.passwordHash.startsWith('$argon2id$'));
       assert(!stored.passwordHash.includes(password));

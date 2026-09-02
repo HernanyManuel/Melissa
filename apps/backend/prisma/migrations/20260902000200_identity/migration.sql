@@ -6,6 +6,8 @@ CREATE TYPE "TenantRole" AS ENUM ('owner', 'admin', 'manager', 'staff', 'viewer'
 
 -- CreateTable
 CREATE TABLE "users" (
+    "termsVersion" TEXT NOT NULL,
+    "termsAcceptedAt" TIMESTAMPTZ(6) NOT NULL,
     "id" UUID NOT NULL,
     "email" TEXT NOT NULL,
     "passwordHash" TEXT NOT NULL,
@@ -181,3 +183,5 @@ CREATE POLICY invitation_insert ON invitations FOR INSERT TO melissa_runtime WIT
 CREATE POLICY invitation_update ON invitations FOR UPDATE TO melissa_runtime USING ("tenantId"::text=current_setting('app.tenant_id',true)) WITH CHECK ("tenantId"::text=current_setting('app.tenant_id',true));
 CREATE POLICY audit_read ON audit_events FOR SELECT TO melissa_runtime USING ("tenantId"::text=current_setting('app.tenant_id',true));
 CREATE POLICY audit_insert ON audit_events FOR INSERT TO melissa_runtime WITH CHECK ("tenantId"::text=current_setting('app.tenant_id',true));
+
+UPDATE infrastructure_metadata SET value='2' WHERE key='schema_version';

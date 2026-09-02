@@ -31,7 +31,11 @@ export class AuthController {
     @Inject(CONFIG) private readonly config: Configuration,
   ) {}
   private origin(req: Request): void {
-    if (req.headers.origin !== this.config.CORS_ORIGIN) throw new ForbiddenException();
+    if (
+      req.headers.origin !== this.config.CORS_ORIGIN &&
+      !(req.headers.origin === undefined && req.headers['sec-fetch-site'] === 'same-origin')
+    )
+      throw new ForbiddenException();
   }
   private cookie(req: Request): string {
     const token = req.headers.cookie
@@ -97,7 +101,7 @@ export class AuthController {
     const expected = this.csrf(token);
     if (
       typeof supplied !== 'string' ||
-      supplied.length !== expected.length ||
+      !/^[a-f0-9]{64}$/.test(supplied) ||
       !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
     )
       throw new ForbiddenException();

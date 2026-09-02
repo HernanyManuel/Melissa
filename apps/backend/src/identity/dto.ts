@@ -1,4 +1,4 @@
-import { IsEmail, IsString, Length, Matches } from 'class-validator';
+import { Equals, IsEmail, IsString, Length, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class EmailDto {
@@ -8,6 +8,7 @@ export class LoginDto extends EmailDto {
   @ApiProperty({ minLength: 12, maxLength: 128 }) @IsString() @Length(12, 128) password!: string;
 }
 export class RegisterDto extends LoginDto {
+  @ApiProperty({ example: true }) @Equals(true) termsAccepted!: boolean;
   @ApiProperty() @IsString() @Length(1, 100) @Matches(/\S/) name!: string;
 }
 export class TokenDto {

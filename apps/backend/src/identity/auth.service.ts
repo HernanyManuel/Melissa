@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { CONFIG, Configuration } from '../config';
 import { Dependencies } from '../dependencies';
+import { log } from '../logging';
 import { IdentityMail } from './mail';
 import { passwordHash, passwordMatches, opaqueToken, tokenHash } from './password';
 import { RegisterDto } from './dto';
@@ -38,7 +39,13 @@ export class AuthService {
     let user;
     try {
       user = await this.deps.db.user.create({
-        data: { email, name: input.name.trim(), passwordHash: encoded },
+        data: {
+          email,
+          name: input.name.trim(),
+          passwordHash: encoded,
+          termsVersion: 'development-2026-09-02',
+          termsAcceptedAt: new Date(),
+        },
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return;
@@ -56,7 +63,11 @@ export class AuthService {
         expiresAt: new Date(Date.now() + (purpose === 'reset' ? 30 : 1440) * 60000),
       },
     });
-    await this.mail.send(email, purpose, token);
+    try {
+      await this.mail.send(email, purpose, token);
+    } catch {
+      log.warn({ event: 'identity_email_failed' });
+    }
   }
   async requestToken(email: string, purpose: 'verify' | 'reset'): Promise<void> {
     const user = await this.deps.db.user.findUnique({

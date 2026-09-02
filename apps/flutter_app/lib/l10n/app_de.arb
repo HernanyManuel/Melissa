@@ -50,5 +50,9 @@
   "roleAdmin": "Administrator",
   "roleManager": "Manager",
   "roleStaff": "Mitarbeiter",
-  "roleViewer": "Leser"
+  "roleViewer": "Leser",
+  "acceptTerms": "Ich akzeptiere die Entwicklungsbedingungen",
+  "termsTitle": "Entwicklungsbedingungen",
+  "termsBody": "Dies ist eine Entwicklungsumgebung. Verwende nur Testdaten. Konten und Testdaten können gelöscht werden. Geschäftsbedingungen und Datenschutzhinweise müssen vor dem Start genehmigt werden. Version: development-2026-09-02.",
+  "close": "Schließen"
 }

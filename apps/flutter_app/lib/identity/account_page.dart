@@ -4,7 +4,8 @@ import '../l10n/generated/app_localizations.dart';
 import 'api.dart';
 
 class AccountPage extends StatefulWidget {
-  const AccountPage({super.key, this.action, this.token, this.tenant});
+  const AccountPage({super.key, this.action, this.token, this.tenant, this.api});
+  final IdentityApi? api;
   final String? action;
   final String? token;
   final String? tenant;
@@ -13,7 +14,8 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
-  final api = IdentityApi();
+  late final IdentityApi api;
+  bool termsAccepted = false;
   final form = GlobalKey<FormState>();
   final email = TextEditingController();
   final password = TextEditingController();
@@ -31,8 +33,9 @@ class _AccountPageState extends State<AccountPage> {
   @override
   void initState() {
     super.initState();
+    api = widget.api ?? IdentityApi();
     mode = widget.action == 'reset' ? 'reset' : 'login';
-    restore();
+    if (widget.action == 'reset') { busy = false; } else { restore(); }
   }
   Future<void> restore() async {
     try { await api.refresh(); await loadTenants(); } catch (_) { api.clear(); }
@@ -72,7 +75,7 @@ class _AccountPageState extends State<AccountPage> {
   Future<void> submit() async {
     final l = AppLocalizations.of(context)!;
     if (mode == 'login') { await api.login(email.text.trim(), password.text); password.clear(); await loadTenants(); }
-    else if (mode == 'register') { await api.request('POST', '/auth/register', {'email':email.text.trim(),'password':password.text,'name':name.text.trim()}); password.clear(); notice = l.checkEmail; mode = 'login'; }
+    else if (mode == 'register') { await api.request('POST', '/auth/register', {'email':email.text.trim(),'password':password.text,'name':name.text.trim(),'termsAccepted':termsAccepted}); password.clear(); notice = l.checkEmail; mode = 'login'; }
     else if (mode == 'reset') { await api.request('POST','/auth/reset-password',{'token':widget.token,'password':password.text}); password.clear(); notice = l.passwordUpdated; mode = 'login'; }
     else { await api.request('POST', '/auth/forgot-password', {'email':email.text.trim()}); notice = l.checkEmail; }
   }
@@ -94,10 +97,10 @@ class _AccountPageState extends State<AccountPage> {
           if (!api.authenticated) ...[
             Text(mode == 'register' ? l.register : mode == 'forgot' ? l.forgotPassword : mode == 'reset' ? l.resetPassword : l.signIn, style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 24),
-            if (mode == 'register') field(name, l.yourName),
+            if (mode == 'register') ...[field(name, l.yourName), CheckboxListTile(value: termsAccepted, onChanged: busy ? null : (value) => setState(() => termsAccepted = value ?? false), title: Text(l.acceptTerms)), TextButton(onPressed: () => showDialog<void>(context: context, builder: (context) => AlertDialog(title: Text(l.termsTitle), content: Text(l.termsBody), actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l.close))])), child: Text(l.termsTitle))],
             if (mode != 'reset') field(email, l.email, isEmail: true),
             if (mode != 'forgot') field(password, l.password, secret: true),
-            FilledButton(onPressed: busy ? null : () => run(submit, validate: true), child: Text(mode == 'register' ? l.register : mode == 'forgot' ? l.sendLink : mode == 'reset' ? l.resetPassword : l.signIn)),
+            FilledButton(onPressed: busy || (mode == 'register' && !termsAccepted) ? null : () => run(submit, validate: true), child: Text(mode == 'register' ? l.register : mode == 'forgot' ? l.sendLink : mode == 'reset' ? l.resetPassword : l.signIn)),
             TextButton(onPressed: busy ? null : () => setState(() { mode = mode == 'register' ? 'login' : 'register'; notice = null; }), child: Text(mode == 'register' ? l.signIn : l.register)),
             TextButton(onPressed: busy ? null : () => setState(() { mode = 'forgot'; notice = null; }), child: Text(l.forgotPassword)),
             TextButton(onPressed: busy ? null : () => run(() async { await api.request('POST','/auth/resend-verification',{'email':email.text.trim()}); notice = l.checkEmail; }), child: Text(l.resendVerification)),
@@ -108,7 +111,7 @@ class _AccountPageState extends State<AccountPage> {
             for (final item in tenants) Card(child: ListTile(
               selected: selected?['id'] == item['tenant']['id'], leading: const Icon(Icons.business_outlined), title: Text(item['tenant']['name'] as String), subtitle: Text(roleLabel(l, item['role'] as String)),
               onTap: busy ? null : () => run(() async {
-                selected = null; members = [];
+                selected = null; members = []; inviteRole = 'viewer';
                 final id = item['tenant']['id'];
                 final detail = await api.request('GET','/tenants/$id') as Map<String,dynamic>;
                 if (item['role'] == 'owner' || item['role'] == 'admin') members = (await api.request('GET','/tenants/$id/memberships') as List).cast<Map<String,dynamic>>();
@@ -120,7 +123,7 @@ class _AccountPageState extends State<AccountPage> {
               Text('${l.selectedBusiness}: ${selected!['name']}'),
               if (selected!['role'] == 'owner' || selected!['role'] == 'admin') ...[
                 const SizedBox(height: 16), Text(l.team, style: Theme.of(context).textTheme.titleLarge),
-                for (final member in members) ListTile(title: Text(roleLabel(l, member['role'] as String)), subtitle: Text(member['id'] as String), trailing: member['role'] == 'owner' || (selected!['role'] == 'admin' && member['role'] == 'admin') ? null : Switch(value: member['active'] as bool, onChanged: busy ? null : (value) => run(() async {
+                for (final member in members) ListTile(title: Text(member['user']['name'] as String), subtitle: Text('${member['user']['email']} · ${roleLabel(l, member['role'] as String)}'), trailing: member['role'] == 'owner' || (selected!['role'] == 'admin' && member['role'] == 'admin') ? null : Switch(value: member['active'] as bool, onChanged: busy ? null : (value) => run(() async {
                   final id = selected!['id'];
                   await api.request('PATCH','/tenants/$id/memberships/${member['id']}',{'role':member['role'],'active':value});
                   await loadTenants();

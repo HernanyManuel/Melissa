@@ -50,5 +50,9 @@
   "roleAdmin": "Administrator",
   "roleManager": "Manager",
   "roleStaff": "Staff",
-  "roleViewer": "Viewer"
+  "roleViewer": "Viewer",
+  "acceptTerms": "I accept the development terms",
+  "termsTitle": "Development terms",
+  "termsBody": "This is a development environment. Use test data only. Accounts and test data may be deleted. Commercial service terms and privacy notices must be approved before launch. Version: development-2026-09-02.",
+  "close": "Close"
 }

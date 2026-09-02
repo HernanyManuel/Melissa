@@ -53,6 +53,7 @@ export function configureHttp(
     const requestId = randomUUID();
     response.locals.requestId = requestId;
     response.setHeader('X-Request-Id', requestId);
+    response.setHeader('Cache-Control', 'no-store');
     const start = Date.now();
     response.on('finish', () =>
       log.info({

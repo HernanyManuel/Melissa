@@ -59,8 +59,8 @@ importers:
         specifier: 5.6.1
         version: 5.6.1
       nodemailer:
-        specifier: 7.0.12
-        version: 7.0.12
+        specifier: 9.0.1
+        version: 9.0.1
       pino:
         specifier: 9.7.0
         version: 9.7.0
@@ -1272,8 +1272,8 @@ packages:
     resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
     hasBin: true
 
-  nodemailer@7.0.12:
-    resolution: {integrity: sha512-H+rnK5bX2Pi/6ms3sN4/jRQvYSMltV6vqup/0SFOrxYYY/qoNvhXPlYq3e+Pm9RFJRwrMGbMIwi81M4dxpomhA==}
+  nodemailer@9.0.1:
+    resolution: {integrity: sha512-Gwv8SQewT616ZM/URn0H54b8PWo/Wum7md3EW2aWy1lO27+WZCX+Xyak3J+NlmHUjDh5ME+uesJUDRbR3Ye8Bw==}
     engines: {node: '>=6.0.0'}
 
   nypm@0.6.9:
@@ -2833,7 +2833,7 @@ snapshots:
 
   node-gyp-build@4.8.4: {}
 
-  nodemailer@7.0.12: {}
+  nodemailer@9.0.1: {}
 
   nypm@0.6.9:
     dependencies:

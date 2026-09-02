@@ -26,7 +26,11 @@ export class Dependencies implements OnModuleDestroy {
         this.db.infrastructureMetadata.findUnique({ where: { key: 'schema_version' } }),
         this.redis.ping(),
       ]);
-      return rows?.value === '1' && pong === 'PONG';
+      const [role] = await this.db.$queryRaw<{ safe: boolean }[]>`
+        SELECT NOT (rolsuper OR rolbypassrls) AND
+          NOT EXISTS (SELECT FROM pg_class WHERE relname='tenants' AND relowner=pg_roles.oid)
+          AS safe FROM pg_roles WHERE rolname=current_user`;
+      return rows?.value === '2' && pong === 'PONG' && role?.safe === true;
     } catch {
       return false;
     }

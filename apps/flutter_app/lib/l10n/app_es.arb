@@ -50,5 +50,9 @@
   "roleAdmin": "Administrador",
   "roleManager": "Gerente",
   "roleStaff": "Colaborador",
-  "roleViewer": "Lector"
+  "roleViewer": "Lector",
+  "acceptTerms": "Acepto los términos de desarrollo",
+  "termsTitle": "Términos de desarrollo",
+  "termsBody": "Este es un entorno de desarrollo. Utiliza solo datos de prueba. Las cuentas y los datos pueden eliminarse. Los términos comerciales y la política de privacidad deben aprobarse antes del lanzamiento. Versión: development-2026-09-02.",
+  "close": "Cerrar"
 }

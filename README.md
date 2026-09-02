@@ -4,7 +4,7 @@ Plataforma SaaS de operações conversacionais: atendimento, assistente com ferr
 
 ## Estado
 
-Phase 1 em estabilização: geração Prisma, lint, typecheck, build e quatro testes unitários passaram localmente com Node 22.23.2; auditoria atual sem findings. Backend, integração com worker, Flutter e Compose passaram no [CI de estabilização](https://github.com/HernanyManuel/Melissa/actions/runs/33577099220). Consulte o PR #2 para os checks do commit mais recente. Backend e Flutter de infraestrutura criados; auth, tenants e funcionalidades de negócio pertencem às fases seguintes. Production está bloqueada na configuração. Consulte [limites e gates pendentes](docs/phase-1.md).
+Phase 2: contas, verificação de email, sessões revogáveis, empresas, memberships, convites, RBAC e isolamento PostgreSQL. Frontend Flutter Web ligado às APIs. [PR #3](https://github.com/HernanyManuel/Melissa/pull/3) contém a entrega e os checks. Produção continua bloqueada. [Setup e limites da Phase 2](docs/phase-2.md).
 
 ## Começar
 
@@ -15,7 +15,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-API: http://localhost:3000/health/ready. Swagger: http://localhost:3000/api/docs. O Compose inclui migrations, PostgreSQL, Redis, API e worker. Flutter:
+API: http://localhost:3000/health/ready. Swagger: http://localhost:3000/api/docs. O Compose inclui migrations, PostgreSQL, Redis, API, worker e Mailpit. Emails locais: http://localhost:8025. Para volumes existentes da Phase 1, seguir a migração de role em [Phase 2](docs/phase-2.md) antes de iniciar. Flutter:
 
 ```sh
 cd apps/flutter_app
