@@ -1,0 +1,2231 @@
+openapi: 3.0.3
+info:
+  title: Melissa API — proposta inicial
+  version: 0.1.0-draft
+  description: 'Phase 0: contrato parcial de identidade, tenants, serviços e bookings.
+    Nenhum endpoint implementado. Restante catálogo em docs/api.md.'
+servers:
+- url: http://localhost:3000
+  description: Endereço local planeado; servidor ainda não disponível.
+security:
+- bearerAuth: []
+paths:
+  /api/v1/auth/register:
+    post:
+      operationId: register
+      tags:
+      - Auth
+      summary: register
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      tags:
+      - Auth
+      summary: login
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+          headers:
+            Set-Cookie:
+              description: Refresh HttpOnly; Secure; SameSite. Nunca retorna refresh
+                em JSON.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+  /api/v1/auth/refresh:
+    post:
+      operationId: refresh
+      tags:
+      - Auth
+      summary: refresh
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+          headers:
+            Set-Cookie:
+              description: Refresh HttpOnly; Secure; SameSite. Nunca retorna refresh
+                em JSON.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - refreshCookie: []
+        csrfHeader: []
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      tags:
+      - Auth
+      summary: logout
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - refreshCookie: []
+        csrfHeader: []
+  /api/v1/auth/me:
+    get:
+      operationId: getMe
+      tags:
+      - Auth
+      summary: getMe
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      tags:
+      - Auth
+      summary: forgotPassword
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '202':
+          description: Sucesso
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailInput'
+  /api/v1/auth/reset-password:
+    post:
+      operationId: resetPassword
+      tags:
+      - Auth
+      summary: resetPassword
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetInput'
+  /api/v1/tenants:
+    get:
+      operationId: listTenants
+      tags:
+      - Tenants
+      summary: listTenants
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPage'
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+    post:
+      operationId: createTenant
+      tags:
+      - Tenants
+      summary: createTenant
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de slot, estado ou idempotência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantInput'
+  /api/v1/tenants/{id}:
+    get:
+      operationId: getTenant
+      tags:
+      - Tenants
+      summary: getTenant
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: &id001
+          type: string
+          format: uuid
+    patch:
+      operationId: updateTenant
+      tags:
+      - Tenants
+      summary: updateTenant
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '412':
+          description: Versão divergente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantPatch'
+    delete:
+      operationId: requestTenantDeletion
+      tags:
+      - Tenants
+      summary: requestTenantDeletion
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '202':
+          description: Sucesso
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de slot, estado ou idempotência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '412':
+          description: Versão divergente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+  /api/v1/services:
+    get:
+      operationId: listServices
+      tags:
+      - Services
+      summary: listServices
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServicePage'
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+    post:
+      operationId: createService
+      tags:
+      - Services
+      summary: createService
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de slot, estado ou idempotência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceInput'
+  /api/v1/services/{id}:
+    get:
+      operationId: getService
+      tags:
+      - Services
+      summary: getService
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+    patch:
+      operationId: updateService
+      tags:
+      - Services
+      summary: updateService
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '412':
+          description: Versão divergente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServicePatch'
+    delete:
+      operationId: deleteService
+      tags:
+      - Services
+      summary: deleteService
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '412':
+          description: Versão divergente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+      - $ref: '#/components/parameters/IfMatch'
+  /api/v1/bookings:
+    get:
+      operationId: listBookings
+      tags:
+      - Bookings
+      summary: listBookings
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingPage'
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de slot, estado ou idempotência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+    post:
+      operationId: createBooking
+      tags:
+      - Bookings
+      summary: createBooking
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de slot, estado ou idempotência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingInput'
+  /api/v1/bookings/{id}:
+    get:
+      operationId: getBooking
+      tags:
+      - Bookings
+      summary: getBooking
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de slot, estado ou idempotência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+    patch:
+      operationId: updateBooking
+      tags:
+      - Bookings
+      summary: updateBooking
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de slot, estado ou idempotência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '412':
+          description: Versão divergente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingPatch'
+  /api/v1/bookings/{id}/cancel:
+    post:
+      operationId: cancelBooking
+      tags:
+      - Bookings
+      summary: cancelBooking
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de slot, estado ou idempotência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '412':
+          description: Versão divergente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelInput'
+  /api/v1/bookings/{id}/reschedule:
+    post:
+      operationId: rescheduleBooking
+      tags:
+      - Bookings
+      summary: rescheduleBooking
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          headers:
+            ETag:
+              description: Versão atual entre aspas.
+              schema:
+                type: string
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de slot, estado ou idempotência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '412':
+          description: Versão divergente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - name: id
+        in: path
+        required: true
+        schema: *id001
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RescheduleInput'
+  /api/v1/availability:
+    get:
+      operationId: getAvailability
+      tags:
+      - Bookings
+      summary: getAvailability
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Availability'
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de slot, estado ou idempotência.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - $ref: '#/components/parameters/TenantSelector'
+      - name: service_id
+        in: query
+        required: true
+        schema: *id001
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: timezone
+        in: query
+        required: true
+        schema: &id005
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: Timezone IANA validado pelo backend.
+      - name: staff_id
+        in: query
+        required: false
+        schema: *id001
+  /health:
+    get:
+      operationId: getHealth
+      tags:
+      - Health
+      summary: getHealth
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+  /health/live:
+    get:
+      operationId: getHealthLive
+      tags:
+      - Health
+      summary: getHealthLive
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+  /health/ready:
+    get:
+      operationId: getHealthReady
+      tags:
+      - Health
+      summary: getHealthReady
+      description: Contrato proposto de Phase 0; endpoint ainda não implementado.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '400':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Erro; consultar código no envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: melissa_refresh
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+  parameters:
+    TenantSelector:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      description: Seletor; exige membership ativa validada no backend.
+      schema: *id001
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: ETag da versão atual, por exemplo "3".
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+        maxLength: 2048
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            request_id:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                properties:
+                  field:
+                    type: string
+                  code:
+                    type: string
+                required:
+                - field
+                - code
+          required:
+          - code
+          - message
+          - request_id
+      required:
+      - error
+    User:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        email: &id002
+          type: string
+          format: email
+          maxLength: 254
+        name: &id003
+          type: string
+          minLength: 1
+          maxLength: 120
+        locale: &id004
+          type: string
+          enum:
+          - pt
+          - en
+          - es
+          - fr
+          - de
+          - it
+        email_verified:
+          type: boolean
+      required:
+      - id
+      - email
+      - name
+      - locale
+      - email_verified
+    RegisterInput:
+      type: object
+      additionalProperties: false
+      properties:
+        email: *id002
+        name: *id003
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+          format: password
+          writeOnly: true
+        locale: *id004
+        terms_version: *id003
+        privacy_version: *id003
+      required:
+      - email
+      - name
+      - password
+      - locale
+      - terms_version
+      - privacy_version
+    LoginInput:
+      type: object
+      additionalProperties: false
+      properties:
+        email: *id002
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          format: password
+          writeOnly: true
+      required:
+      - email
+      - password
+    AuthSession:
+      type: object
+      additionalProperties: false
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum:
+          - Bearer
+        expires_in:
+          type: integer
+          minimum: 1
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - access_token
+      - token_type
+      - expires_in
+      - user
+    EmailInput:
+      type: object
+      additionalProperties: false
+      properties:
+        email: *id002
+      required:
+      - email
+    ResetInput:
+      type: object
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          minLength: 16
+          maxLength: 512
+          writeOnly: true
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+          format: password
+          writeOnly: true
+      required:
+      - token
+      - password
+    TenantInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name: *id003
+        country_code:
+          type: string
+          pattern: ^[A-Z]{2}$
+        timezone: *id005
+        default_language: *id004
+        default_currency: &id006
+          type: string
+          pattern: ^[A-Z]{3}$
+      required:
+      - name
+      - country_code
+      - timezone
+      - default_language
+      - default_currency
+    TenantPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: *id003
+        city: *id003
+        website_url:
+          type: string
+          format: uri
+          maxLength: 2048
+      minProperties: 1
+    Tenant:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        name: *id003
+        country_code:
+          type: string
+          pattern: ^[A-Z]{2}$
+        timezone: *id005
+        default_language: *id004
+        default_currency: *id006
+        operational_status:
+          type: string
+          enum:
+          - active
+          - restricted
+          - suspended
+          - cancelled
+        provisioning_status:
+          type: string
+          enum:
+          - draft
+          - configuring
+          - waiting_channel
+          - waiting_calendar
+          - waiting_payment
+          - ready_for_test
+          - testing
+          - active
+          - needs_review
+          - suspended
+          - cancelled
+        version:
+          type: integer
+          minimum: 1
+      required:
+      - id
+      - name
+      - country_code
+      - timezone
+      - default_language
+      - default_currency
+      - operational_status
+      - provisioning_status
+      - version
+    ServiceInput:
+      type: object
+      additionalProperties: false
+      properties: &id015
+        name: *id003
+        category:
+          type: string
+          maxLength: 120
+        description: &id007
+          type: string
+          maxLength: 2000
+        price_amount: &id009
+          type: string
+          pattern: ^\d+(\.\d{1,6})?$
+          description: Decimal não negativo; escala da moeda validada no domínio.
+        currency: *id006
+        duration_minutes: &id010
+          type: integer
+          minimum: 1
+          maximum: 1440
+        buffer_before_minutes: &id011
+          type: integer
+          minimum: 0
+          maximum: 1440
+        buffer_after_minutes: &id012
+          type: integer
+          minimum: 0
+          maximum: 1440
+        booking_enabled: &id013
+          type: boolean
+        active: &id014
+          type: boolean
+      required:
+      - name
+      - price_amount
+      - currency
+      - duration_minutes
+      - booking_enabled
+      - active
+    BookingInput:
+      type: object
+      additionalProperties: false
+      properties:
+        customer_id: *id001
+        service_id: *id001
+        staff_id: *id001
+        start_at: &id008
+          type: string
+          format: date-time
+        timezone: *id005
+        customer_notes: *id007
+      required:
+      - customer_id
+      - service_id
+      - start_at
+      - timezone
+    RescheduleInput:
+      type: object
+      additionalProperties: false
+      properties:
+        start_at: *id008
+        timezone: *id005
+        staff_id: *id001
+        reason:
+          type: string
+          maxLength: 500
+      required:
+      - start_at
+      - timezone
+    CancelInput:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required:
+      - reason
+    BookingPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        customer_notes: *id007
+        internal_notes: *id007
+      minProperties: 1
+    Booking:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        customer_id: *id001
+        service_id: *id001
+        resource_id: *id001
+        customer_notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Notas do cliente; visíveis apenas a atores autorizados a consultar esta reserva.
+        internal_notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Omitido sem permissão para notas internas; nunca enviado às tools do cliente ou ao LLM.
+        staff_id:
+          type: string
+          format: uuid
+          nullable: true
+        start_at: *id008
+        end_at: *id008
+        timezone: *id005
+        status:
+          type: string
+          enum:
+          - pending
+          - confirmed
+          - completed
+          - cancelled
+          - no_show
+        sync_status:
+          type: string
+          enum:
+          - not_required
+          - pending
+          - synced
+          - failed
+          - conflict
+        version:
+          type: integer
+          minimum: 1
+      required:
+      - id
+      - customer_id
+      - service_id
+      - resource_id
+      - start_at
+      - end_at
+      - timezone
+      - status
+      - sync_status
+      - version
+    Slot:
+      type: object
+      additionalProperties: false
+      properties:
+        start_at: *id008
+        end_at: *id008
+        timezone: *id005
+        staff_id:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - start_at
+      - end_at
+      - timezone
+    Health:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - unavailable
+      required:
+      - status
+    Service:
+      type: object
+      additionalProperties: false
+      properties:
+        name: *id003
+        category:
+          type: string
+          maxLength: 120
+        description: *id007
+        price_amount: *id009
+        currency: *id006
+        duration_minutes: *id010
+        buffer_before_minutes: *id011
+        buffer_after_minutes: *id012
+        booking_enabled: *id013
+        active: *id014
+        id: *id001
+        version:
+          type: integer
+          minimum: 1
+      required:
+      - id
+      - name
+      - price_amount
+      - currency
+      - duration_minutes
+      - booking_enabled
+      - active
+      - version
+    ServicePatch:
+      type: object
+      additionalProperties: false
+      properties: *id015
+      minProperties: 1
+    TenantPage:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tenant'
+        next_cursor:
+          type: string
+          nullable: true
+      required:
+      - data
+      - next_cursor
+    ServicePage:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+        next_cursor:
+          type: string
+          nullable: true
+      required:
+      - data
+      - next_cursor
+    BookingPage:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+        next_cursor:
+          type: string
+          nullable: true
+      required:
+      - data
+      - next_cursor
+    Availability:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slot'
+        checked_at: *id008
+        availability_guaranteed:
+          type: boolean
+          enum:
+          - false
+      required:
+      - data
+      - checked_at
+      - availability_guaranteed
