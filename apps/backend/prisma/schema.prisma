@@ -15,3 +15,115 @@ model InfrastructureMetadata {
 
   @@map("infrastructure_metadata")
 }
+
+enum TenantRole {
+  owner
+  admin
+  manager
+  staff
+  viewer
+}
+
+model User {
+  id           String          @id @default(uuid()) @db.Uuid
+  email        String          @unique
+  passwordHash String
+  name         String
+  verifiedAt   DateTime?       @db.Timestamptz(6)
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  sessions     Session[]
+  tokens       IdentityToken[]
+  memberships  Membership[]
+
+  @@map("users")
+}
+
+model Session {
+  id            String         @id @default(uuid()) @db.Uuid
+  userId        String         @db.Uuid
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt     DateTime       @db.Timestamptz(6)
+  revokedAt     DateTime?      @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(6)
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model RefreshToken {
+  hash      String    @id
+  sessionId String    @db.Uuid
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  usedAt    DateTime? @db.Timestamptz(6)
+
+  @@index([sessionId])
+  @@map("refresh_tokens")
+}
+
+model IdentityToken {
+  hash      String    @id
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String
+  expiresAt DateTime  @db.Timestamptz(6)
+  usedAt    DateTime? @db.Timestamptz(6)
+
+  @@index([userId, purpose])
+  @@map("identity_tokens")
+}
+
+model Tenant {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  countryCode String
+  timezone    String
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  memberships Membership[]
+  invitations Invitation[]
+  audit       AuditEvent[]
+
+  @@map("tenants")
+}
+
+model Membership {
+  id       String     @id @default(uuid()) @db.Uuid
+  tenantId String     @db.Uuid
+  userId   String     @db.Uuid
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role     TenantRole
+  active   Boolean    @default(true)
+
+  @@unique([tenantId, userId])
+  @@unique([tenantId, id])
+  @@index([userId])
+  @@map("memberships")
+}
+
+model Invitation {
+  id         String     @id @default(uuid()) @db.Uuid
+  tenantId   String     @db.Uuid
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  email      String
+  role       TenantRole
+  tokenHash  String     @unique
+  expiresAt  DateTime   @db.Timestamptz(6)
+  acceptedAt DateTime?  @db.Timestamptz(6)
+
+  @@unique([tenantId, id])
+  @@map("invitations")
+}
+
+model AuditEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  actorId   String   @db.Uuid
+  action    String
+  targetId  String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tenantId, createdAt])
+  @@map("audit_events")
+}

@@ -6,15 +6,22 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?copy .env.example to .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copy .env.example to .env}
       POSTGRES_DB: ${POSTGRES_DB:?copy .env.example to .env}
+      RUNTIME_PASSWORD: ${RUNTIME_PASSWORD:?copy .env.example to .env}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infra/scripts/init-runtime.sh:/docker-entrypoint-initdb.d/01-runtime.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.27.9
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
   redis:
     image: redis:7.4-bookworm
     command: ["redis-server", "--appendonly", "yes"]
@@ -43,12 +50,14 @@ services:
       dockerfile: apps/backend/Dockerfile
     environment: &backend_environment
       NODE_ENV: development
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=5&connect_timeout=3
+      DATABASE_URL: postgresql://melissa_runtime:${RUNTIME_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=5&connect_timeout=3
       REDIS_URL: redis://redis:6379
       CORS_ORIGIN: http://localhost:8080
       PORT: 3000
       WORKER_PORT: 3001
       LOG_LEVEL: info
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:

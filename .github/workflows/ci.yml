@@ -1,4 +1,4 @@
-name: Phase 1 checks
+name: Melissa checks
 on:
   pull_request:
   push:
@@ -31,7 +31,8 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 20
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://melissa:ci-disposable-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
+      MIGRATION_DATABASE_URL: postgresql://melissa:ci-disposable-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
+      DATABASE_URL: postgresql://melissa_runtime:ci-runtime-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
       REDIS_URL: redis://localhost:6379
       LOG_LEVEL: silent
     steps:
@@ -45,7 +46,10 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
-      - run: pnpm db:migrate
+      - name: Provision non-owner application role and migrate
+        run: |
+          RUNTIME_PASSWORD=ci-runtime-only psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -v runtime_password=ci-runtime-only -f infra/scripts/runtime-role.sql
+          DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm db:migrate
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
