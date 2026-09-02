@@ -178,6 +178,89 @@ test(
         201,
       );
       assert.equal(customer.displayName, 'Cliente');
+      const inboxChannel = await data<{ id: string }>(
+        await call('POST', `${channelsA}/mock`, { displayName: 'Inbox test' }, actorA.access_token),
+        201,
+      );
+      const inboundPath = `${channelsA}/${inboxChannel.id}/mock-inbound`;
+      const inbound = {
+        customerId: customer.id,
+        eventId: randomUUID(),
+        text: 'Olá, gostaria de marcar.',
+      };
+      const deliveries = await Promise.all(
+        [1, 2].map(() => call('POST', inboundPath, inbound, actorA.access_token)),
+      );
+      const received = await Promise.all(
+        deliveries.map((r) =>
+          data<{
+            duplicate: boolean;
+            message: { id: string; conversationId: string; contentText: string };
+          }>(r, 200),
+        ),
+      );
+      assert.deepEqual(received.map((r) => r.duplicate).sort(), [false, true]);
+      assert.equal(received[0]!.message.id, received[1]!.message.id);
+      assert.equal(
+        (await call('POST', inboundPath, { ...inbound, text: 'Changed' }, actorA.access_token))
+          .status,
+        409,
+      );
+      assert.equal((await call('POST', inboundPath, inbound, actorB.access_token)).status, 404);
+      assert.equal(
+        (
+          await call(
+            'POST',
+            inboundPath,
+            { ...inbound, eventId: randomUUID(), customerId: randomUUID() },
+            actorA.access_token,
+          )
+        ).status,
+        404,
+      );
+      const conversationId = received[0]!.message.conversationId;
+      const messagePath = `/tenants/${tenantA.id}/conversations/${conversationId}/messages`;
+      const history = await data<{ items: { contentText: string }[]; next: null }>(
+        await call('GET', messagePath, undefined, actorA.access_token),
+        200,
+      );
+      assert.equal(history.items.length, 1);
+      assert.equal(history.items[0]!.contentText, inbound.text);
+      assert.equal(history.next, null);
+      assert.equal((await call('GET', messagePath, undefined, actorB.access_token)).status, 404);
+      assert.equal(
+        (await call('GET', `${messagePath}?after=${randomUUID()}`, undefined, actorA.access_token))
+          .status,
+        404,
+      );
+      const conversationPage = await data<{ items: { mode: string }[] }>(
+        await call('GET', `/tenants/${tenantA.id}/conversations`, undefined, actorA.access_token),
+        200,
+      );
+      assert.equal(conversationPage.items[0]!.mode, 'AI_PAUSED');
+      assert.equal((await deps.db.message.findMany()).length, 0);
+      assert.equal((await deps.db.externalEvent.findMany()).length, 0);
+      assert.equal((await deps.db.conversation.findMany()).length, 0);
+      await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id',${tenantA.id},true)`;
+        assert.equal(await tx.externalEvent.count(), 1);
+        assert.equal(
+          await tx.auditEvent.count({ where: { action: 'message.duplicate_payload_conflict' } }),
+          1,
+        );
+      });
+      await call('POST', `${channelsA}/${inboxChannel.id}/disconnect`, {}, actorA.access_token);
+      assert.equal(
+        (
+          await call(
+            'POST',
+            inboundPath,
+            { ...inbound, eventId: randomUUID() },
+            actorA.access_token,
+          )
+        ).status,
+        404,
+      );
       await data(await call('POST', customersB, customerInput, actorB.access_token), 201);
       assert.equal(
         (await call('PUT', `${customersB}/${customer.id}`, customerInput, actorB.access_token))

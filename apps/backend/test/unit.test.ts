@@ -11,6 +11,12 @@ test('only owners and admins manage channels', () => {
     assert(!allows(role, 'channels:manage'));
 });
 
+test('conversation access excludes viewers', () => {
+  for (const role of ['owner', 'admin', 'manager', 'staff'] as const)
+    assert(allows(role, 'messages:read'));
+  assert(!allows('viewer', 'messages:read'));
+});
+
 test('customer permissions grant least privilege by role', () => {
   for (const role of ['owner', 'admin', 'manager'] as const) {
     assert(allows(role, 'customers:read'));

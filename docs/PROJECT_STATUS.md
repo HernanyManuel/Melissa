@@ -2,6 +2,8 @@
 
 ## Phase 4 — Rascunho parcial: clientes
 
+Continuação mensagens: persistência transacional de eventos/conversas/mensagens para canais mock, dedupe, conflito de payload auditado, APIs de histórico paginado e testes. Ver [contrato e limitações](messaging-sandbox.md). Sem queue ou WhatsApp real nesta entrega; CI do novo commit pendente. CI do cadastro de canais `7d112dc` aprovada integralmente: https://github.com/HernanyManuel/Melissa/actions/runs/33638991311.
+
 Continuação canais: cadastro/revogação de simulações WhatsApp com migration/RLS, IDs externos gerados, respostas sem secrets, permissões owner/admin e auditoria idempotente. Testes adicionados; ver [contrato e limites](channels.md). Não envia mensagens e não liga WhatsApp real. Validação local interrompida por autorização de rede; CI do novo commit pendente.
 
 Interface de clientes no commit `93a1b33`: CI integral aprovada em https://github.com/HernanyManuel/Melissa/actions/runs/33638043602. As referências anteriores a UI pendente descrevem o estado antes desta execução.

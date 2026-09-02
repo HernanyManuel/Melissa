@@ -13,6 +13,8 @@ import { CustomerController } from './customers/customer.controller';
 import { CustomerService } from './customers/customer.service';
 import { ChannelController } from './channels/channel.controller';
 import { ChannelService } from './channels/channel.service';
+import { MessagingService } from './messaging/messaging.service';
+import { MessagingController } from './messaging/messaging.controller';
 @Module({
   imports: [InfrastructureModule],
   controllers: [
@@ -21,6 +23,7 @@ import { ChannelService } from './channels/channel.service';
     BusinessController,
     CustomerController,
     ChannelController,
+    MessagingController,
   ],
   providers: [
     AuthService,
@@ -31,6 +34,7 @@ import { ChannelService } from './channels/channel.service';
     BusinessService,
     CustomerService,
     ChannelService,
+    MessagingService,
   ],
 })
 export class AppModule {}

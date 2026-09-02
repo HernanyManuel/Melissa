@@ -101,6 +101,7 @@ model Tenant {
   configuration      TenantConfiguration?
   customers          Customer[]
   channels           ChannelConnection[]
+  conversations      Conversation[]
 
   @@map("tenants")
 }
@@ -286,6 +287,7 @@ model AuditEvent {
 }
 
 model Customer {
+  conversations Conversation[]
   id String @default(uuid()) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
@@ -304,6 +306,7 @@ model Customer {
 }
 
 model ChannelConnection {
+  conversations Conversation[]
   id String @default(uuid()) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
@@ -324,4 +327,62 @@ model ChannelConnection {
   @@unique([mode, channelType, externalPhoneId])
   @@index([tenantId, status, id])
   @@map("channel_connections")
+}
+
+model Conversation {
+  id String @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  customerId String @map("customer_id") @db.Uuid
+  customer Customer @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Restrict)
+  channelConnectionId String @map("channel_connection_id") @db.Uuid
+  channelConnection ChannelConnection @relation(fields: [tenantId, channelConnectionId], references: [tenantId, id], onDelete: Restrict)
+  status String @default("open")
+  mode String @default("AI_PAUSED")
+  language String @default("pt")
+  lastMessageAt DateTime @map("last_message_at") @db.Timestamptz(6)
+  openedAt DateTime @default(now()) @map("opened_at") @db.Timestamptz(6)
+  state Json @default("{}") @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  messages Message[]
+  @@id([tenantId,id])
+  @@unique([tenantId, channelConnectionId, customerId])
+  @@index([tenantId, lastMessageAt, id])
+  @@map("conversations")
+}
+
+model Message {
+  id String @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  conversationId String @map("conversation_id") @db.Uuid
+  conversation Conversation @relation(fields: [tenantId,conversationId], references: [tenantId,id], onDelete: Restrict)
+  externalEventId String @unique @map("external_event_id") @db.Uuid
+  event ExternalEvent @relation(fields: [tenantId,externalEventId], references: [tenantId,id], onDelete: Restrict)
+  direction String @default("inbound")
+  senderType String @default("customer") @map("sender_type")
+  messageType String @default("text") @map("message_type")
+  contentText String @map("content_text") @db.VarChar(4096)
+  status String @default("received")
+  aiGenerated Boolean @default(false) @map("ai_generated")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@id([tenantId,id])
+  @@index([tenantId,conversationId,createdAt,id])
+  @@unique([tenantId,externalEventId])
+  @@map("messages")
+}
+
+model ExternalEvent {
+  id String @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  provider String
+  externalEventId String @map("external_event_id")
+  eventType String @map("event_type")
+  payloadHash String @map("payload_hash") @db.VarChar(64)
+  processedAt DateTime @map("processed_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  message Message?
+  @@id([tenantId,id])
+  @@unique([provider,externalEventId])
+  @@map("external_events")
 }
