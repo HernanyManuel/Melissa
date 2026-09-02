@@ -39,6 +39,15 @@ export class BusinessService {
         where: { id: tenantId },
         data: { ...input, onboardingStep: 3, provisioningStatus: 'configuring' },
       });
+      const defaults = template.defaults as { faqs?: { question?: unknown; answer?: unknown }[] };
+      if ((await tx.faq.count({ where: { tenantId } })) === 0 && Array.isArray(defaults.faqs)) {
+        const faqs = defaults.faqs.filter(
+          (item): item is { question: string; answer: string } =>
+            typeof item.question === 'string' && typeof item.answer === 'string',
+        );
+        if (faqs.length)
+          await tx.faq.createMany({ data: faqs.map((faq) => ({ tenantId, ...faq })) });
+      }
       await this.tenants.audit(tx, actor, tenantId, 'onboarding.profile_saved', tenantId);
       return tenant;
     });

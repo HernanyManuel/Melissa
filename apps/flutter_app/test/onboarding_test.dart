@@ -17,6 +17,7 @@ void main() {
       if (request.url.path.endsWith('/refresh')) return http.Response('{"access_token":"access","csrf_token":"next"}', 200);
       if (request.url.path.endsWith('/industry-templates')) return http.Response('[{"key":"generic","name":"Outro","description":"Geral"}]', 200);
       if (request.url.path.endsWith('/services')) return http.Response('[]', 200);
+      if (request.url.path.endsWith('/faqs')) return http.Response('[]', 200);
       return http.Response('{}', 200);
     }));
     await tester.pumpWidget(MaterialApp(

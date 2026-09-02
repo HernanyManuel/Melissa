@@ -17,6 +17,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   String? error;
   List<Map<String, dynamic>> templates = [];
   List<Map<String, dynamic>> services = [];
+  List<Map<String, dynamic>> faqs = [];
   final name = TextEditingController();
   final city = TextEditingController();
   final serviceName = TextEditingController();
@@ -44,6 +45,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       await api.refresh();
       templates = (await api.request('GET', '/industry-templates') as List).cast<Map<String,dynamic>>();
       services = (await api.request('GET', '/tenants/${widget.tenantId}/services') as List).cast<Map<String,dynamic>>();
+      faqs = (await api.request('GET', '/tenants/${widget.tenantId}/faqs') as List).cast<Map<String,dynamic>>();
     } catch (_) { error = 'load'; }
     if (mounted) setState(() => busy = false);
   }
@@ -107,6 +109,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       FilledButton(onPressed: busy || name.text.trim().isEmpty || city.text.trim().isEmpty ? null : () => run(() async {
         await api.request('PUT','/tenants/${widget.tenantId}/profile',{'name':name.text.trim(),'industryKey':industry,
           'countryCode':country,'city':city.text.trim(),'timezone':timezone,'locale':locale,'currency':currency});
+        faqs=(await api.request('GET','/tenants/${widget.tenantId}/faqs') as List).cast<Map<String,dynamic>>();
       },next:true),child:Text(l.saveContinue)),
       ]);
     }
@@ -152,10 +155,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
     }
     if (index == 4) {
       return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      for(final faq in faqs) Card(child:ListTile(title:Text(faq['question'] as String),subtitle:Text(faq['answer'] as String))),
       text(faqQuestion,l.question),text(faqAnswer,l.answer,lines:3),
       FilledButton(onPressed:busy?null:()=>run(() async {
         await api.request('POST','/tenants/${widget.tenantId}/faqs',{'question':faqQuestion.text.trim(),
           'answer':faqAnswer.text.trim(),'active':true});
+        faqs=(await api.request('GET','/tenants/${widget.tenantId}/faqs') as List).cast<Map<String,dynamic>>();
+        faqQuestion.clear(); faqAnswer.clear();
       },next:true),child:Text(l.saveContinue)),
       ]);
     }

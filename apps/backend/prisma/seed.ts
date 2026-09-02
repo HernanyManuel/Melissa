@@ -22,65 +22,67 @@ async function seed(): Promise<void> {
         termsAcceptedAt: new Date(),
       },
     });
-    // Dedicated seed connection; scope before any RLS-protected operation.
-    await db.$executeRaw`SELECT set_config('app.actor_id', ${user.id}, false)`;
-    await db.$executeRaw`SELECT set_config('app.tenant_id', '00000000-0000-4000-8000-000000000123', false)`;
-    const tenant = await db.tenant.upsert({
-      where: { id: '00000000-0000-4000-8000-000000000123' },
-      update: {},
-      create: {
-        id: '00000000-0000-4000-8000-000000000123',
-        name: 'Barbearia Central',
-        countryCode: 'PT',
-        timezone: 'Europe/Lisbon',
-        city: 'Lisboa',
-        industryKey: 'barbershop',
-        locale: 'pt',
-        currency: 'EUR',
-        onboardingStep: 9,
-      },
-    });
-    await db.membership.upsert({
-      where: { tenantId_userId: { tenantId: tenant.id, userId: user.id } },
-      update: { active: true, role: 'owner' },
-      create: { tenantId: tenant.id, userId: user.id, role: 'owner' },
-    });
-    const services = [
-      ['corte', 'Corte', '18.00', 30],
-      ['barba', 'Barba', '12.00', 20],
-      ['corte-barba', 'Corte + Barba', '27.00', 50],
-    ] as const;
-    for (const [slug, name, price, durationMinutes] of services) {
-      await db.businessService.upsert({
-        where: { tenantId_slug: { tenantId: tenant.id, slug } },
+    await db.$transaction(async (tx) => {
+      // Transaction-local scope keeps RLS context on the same pooled connection.
+      await tx.$executeRaw`SELECT set_config('app.actor_id', ${user.id}, true)`;
+      await tx.$executeRaw`SELECT set_config('app.tenant_id', '00000000-0000-4000-8000-000000000123', true)`;
+      const tenant = await tx.tenant.upsert({
+        where: { id: '00000000-0000-4000-8000-000000000123' },
         update: {},
-        create: { tenantId: tenant.id, slug, name, price, currency: 'EUR', durationMinutes },
+        create: {
+          id: '00000000-0000-4000-8000-000000000123',
+          name: 'Barbearia Central',
+          countryCode: 'PT',
+          timezone: 'Europe/Lisbon',
+          city: 'Lisboa',
+          industryKey: 'barbershop',
+          locale: 'pt',
+          currency: 'EUR',
+          onboardingStep: 9,
+        },
       });
-    }
-    await db.businessHour.deleteMany({ where: { tenantId: tenant.id } });
-    await db.businessHour.createMany({
-      data: [
-        ...[1, 2, 3, 4, 5].map((weekday) => ({
-          tenantId: tenant.id,
-          weekday,
-          startTime: '09:00',
-          endTime: '19:00',
-        })),
-        { tenantId: tenant.id, weekday: 6, startTime: '09:00', endTime: '14:00' },
-      ],
-    });
-    if ((await db.faq.count({ where: { tenantId: tenant.id } })) === 0) {
-      await db.faq.createMany({
+      await tx.membership.upsert({
+        where: { tenantId_userId: { tenantId: tenant.id, userId: user.id } },
+        update: { active: true, role: 'owner' },
+        create: { tenantId: tenant.id, userId: user.id, role: 'owner' },
+      });
+      const services = [
+        ['corte', 'Corte', '18.00', 30],
+        ['barba', 'Barba', '12.00', 20],
+        ['corte-barba', 'Corte + Barba', '27.00', 50],
+      ] as const;
+      for (const [slug, name, price, durationMinutes] of services) {
+        await tx.businessService.upsert({
+          where: { tenantId_slug: { tenantId: tenant.id, slug } },
+          update: {},
+          create: { tenantId: tenant.id, slug, name, price, currency: 'EUR', durationMinutes },
+        });
+      }
+      await tx.businessHour.deleteMany({ where: { tenantId: tenant.id } });
+      await tx.businessHour.createMany({
         data: [
-          { tenantId: tenant.id, question: 'Aceitam cartão?', answer: 'Sim.' },
-          {
+          ...[1, 2, 3, 4, 5].map((weekday) => ({
             tenantId: tenant.id,
-            question: 'Há estacionamento?',
-            answer: 'Existe estacionamento público próximo.',
-          },
+            weekday,
+            startTime: '09:00',
+            endTime: '19:00',
+          })),
+          { tenantId: tenant.id, weekday: 6, startTime: '09:00', endTime: '14:00' },
         ],
       });
-    }
+      if ((await tx.faq.count({ where: { tenantId: tenant.id } })) === 0) {
+        await tx.faq.createMany({
+          data: [
+            { tenantId: tenant.id, question: 'Aceitam cartão?', answer: 'Sim.' },
+            {
+              tenantId: tenant.id,
+              question: 'Há estacionamento?',
+              answer: 'Existe estacionamento público próximo.',
+            },
+          ],
+        });
+      }
+    });
   } finally {
     await db.$disconnect();
   }

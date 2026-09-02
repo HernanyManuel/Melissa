@@ -85,6 +85,9 @@ SELECT gen_random_uuid(), key, name, description, '{}'::jsonb, CURRENT_TIMESTAMP
  ('restaurant','Restaurant','Restaurants'), ('home_services','Home services','Home services'),
  ('consulting','Consulting','Professional consulting'), ('generic','Other','Generic business')
 ) AS t(key,name,description);
+UPDATE industry_templates
+SET defaults='{"faqs":[{"question":"Aceitam cartão?","answer":"Sim."},{"question":"Há estacionamento?","answer":"Existe estacionamento público próximo."}]}'::jsonb
+WHERE key='barbershop';
 
 GRANT SELECT ON industry_templates TO melissa_runtime;
 GRANT SELECT,INSERT,UPDATE,DELETE ON services,business_hours,schedule_exceptions,faqs,staff,staff_services,tenant_configurations TO melissa_runtime;
