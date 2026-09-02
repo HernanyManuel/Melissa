@@ -53,12 +53,14 @@ class _ConversationsPageState extends State<ConversationsPage> {
       final rows = (page['items'] as List).cast<Map<String, dynamic>>();
       setState(() { conversations = more ? [...conversations, ...rows] : rows; conversationNext = page['next'] as String?; });
     } catch (_) {
-      if (mounted && generation == listGeneration) setState(() {
+      if (mounted && generation == listGeneration) {
+        setState(() {
         listError = true;
         // A refresh may reveal revoked access. Do not keep sensitive cached data visible.
         conversations = []; selected = null; messages = []; conversationNext = null;
         messageGeneration++; reading = false; messageNext = null;
       });
+      }
     }
     if (mounted && generation == listGeneration) setState(() => loading = false);
   }
