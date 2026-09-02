@@ -36,3 +36,5 @@ O onboarding completo da especificação tem 12 passos. Integrações, plano, si
 CI executa migration com owner, API com melissa_runtime, lint/typecheck/unit, integração real com PostgreSQL/Redis, Flutter analyze/test/build e Compose. A suite cobre website inseguro, perfil, preço decimal, horário sobreposto, exceção, FAQ, staff-service, FK cross-tenant, RLS sem contexto e status de ativação bloqueado.
 
 Mailpit e credenciais externas permanecem conforme Phase 2. Nenhuma chave de provider foi criada. Production continua bloqueada.
+
+Seed opcional: definir DEMO_PASSWORD local (12+ caracteres) e executar pnpm db:seed com MIGRATION_DATABASE_URL. É idempotente e cria demo@melissa.local, Barbearia Central, os três serviços/preços, horário Mon–Sat e duas FAQs da especificação. A palavra-passe nunca é incluída no repositório. O seed recusa production.

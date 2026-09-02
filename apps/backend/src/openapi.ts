@@ -6,8 +6,10 @@ export function createOpenApi(app: INestApplication) {
     app,
     new DocumentBuilder()
       .setTitle('Melissa API')
-      .setDescription('Implemented infrastructure, identity and tenancy endpoints.')
-      .setVersion('0.2.0')
+      .setDescription(
+        'Implemented infrastructure, identity, tenancy and business onboarding endpoints.',
+      )
+      .setVersion('0.3.0')
       .addBearerAuth()
       .build(),
   );

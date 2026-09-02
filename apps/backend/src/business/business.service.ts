@@ -183,16 +183,17 @@ export class BusinessService {
       if (services.length !== new Set(input.serviceIds).size) throw new BadRequestException();
       const { serviceIds, ...data } = input;
       const staff = await tx.staff.create({
-        data: {
-          tenantId,
-          ...data,
-          services: { create: serviceIds.map((serviceId) => ({ tenantId, serviceId })) },
-        },
-        include: { services: true },
+        data: { tenantId, ...data },
+      });
+      await tx.staffService.createMany({
+        data: serviceIds.map((serviceId) => ({ tenantId, staffId: staff.id, serviceId })),
       });
       await tx.tenant.update({ where: { id: tenantId }, data: { onboardingStep: 6 } });
       await this.tenants.audit(tx, actor, tenantId, 'staff.created', staff.id);
-      return staff;
+      return tx.staff.findUniqueOrThrow({
+        where: { tenantId_id: { tenantId, id: staff.id } },
+        include: { services: true },
+      });
     });
   }
   getConfiguration(actor: Actor, tenantId: string) {

@@ -15,6 +15,7 @@
     "test:integration": "pnpm --filter @melissa/backend test:integration",
     "db:generate": "pnpm --filter @melissa/backend db:generate",
     "db:migrate": "pnpm --filter @melissa/backend db:migrate",
+    "db:seed": "pnpm --filter @melissa/backend db:seed",
     "openapi": "pnpm --filter @melissa/backend openapi",
     "format": "prettier --write apps/backend/src apps/backend/test apps/backend/scripts",
     "format:check": "prettier --check apps/backend/src apps/backend/test apps/backend/scripts"

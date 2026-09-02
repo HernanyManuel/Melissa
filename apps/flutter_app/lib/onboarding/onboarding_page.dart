@@ -96,7 +96,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
   Widget _content(int index, AppLocalizations l) {
-    if (index == 0) return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    if (index == 0) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       text(name,l.businessName), text(city,l.city),
       dropdown(industry,l.businessType,templates.map((item)=>item['key'] as String).toList(),(v)=>setState(()=>industry=v)),
       dropdown(country,l.countryCode,['PT','BR','ES','FR','DE','IT','GB','US'],(v)=>setState(()=>country=v)),
@@ -107,8 +108,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
         await api.request('PUT','/tenants/${widget.tenantId}/profile',{'name':name.text.trim(),'industryKey':industry,
           'countryCode':country,'city':city.text.trim(),'timezone':timezone,'locale':locale,'currency':currency});
       },next:true),child:Text(l.saveContinue)),
-    ]);
-    if (index == 1) return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      ]);
+    }
+    if (index == 1) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       for(final service in services) Card(child:ListTile(title:Text(service['name'] as String),subtitle:Text('${service['price']} ${service['currency']} · ${service['durationMinutes']} min'))),
       text(serviceName,l.serviceName), text(price,l.price,type:const TextInputType.numberWithOptions(decimal:true)),
       text(duration,l.durationMinutes,type:TextInputType.number),
@@ -120,8 +123,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
         serviceName.clear();
       }),child:Text(l.addService)),
       TextButton(onPressed: services.isEmpty ? null : ()=>setState(()=>step++),child:Text(l.saveContinue)),
-    ]);
-    if(index==2) return Column(crossAxisAlignment: CrossAxisAlignment.stretch,children:[
+      ]);
+    }
+    if (index == 2) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch,children:[
       Text(l.defaultHoursHint),
       const SizedBox(height:12),
       for(final period in periods) ListTile(
@@ -131,8 +136,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
       FilledButton(onPressed:busy||periods.isEmpty?null:()=>run(() async {
         await api.request('PUT','/tenants/${widget.tenantId}/business-hours',{'periods':periods});
       },next:true),child:Text(l.saveContinue)),
-    ]);
-    if(index==3) return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      ]);
+    }
+    if (index == 3) {
+      return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       text(staffName,l.staffName),
       Text(l.staffOptionalHint),
       const SizedBox(height:12),
@@ -141,14 +148,17 @@ class _OnboardingPageState extends State<OnboardingPage> {
           'timezone':timezone,'serviceIds':services.map((item)=>item['id']).toList()});
       },next:true),child:Text(l.saveContinue)),
       TextButton(onPressed:busy?null:()=>setState(()=>step++),child:Text(l.skip)),
-    ]);
-    if(index==4) return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      ]);
+    }
+    if (index == 4) {
+      return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       text(faqQuestion,l.question),text(faqAnswer,l.answer,lines:3),
       FilledButton(onPressed:busy?null:()=>run(() async {
         await api.request('POST','/tenants/${widget.tenantId}/faqs',{'question':faqQuestion.text.trim(),
           'answer':faqAnswer.text.trim(),'active':true});
       },next:true),child:Text(l.saveContinue)),
-    ]);
+      ]);
+    }
     return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       text(policy,l.cancellationPolicy,lines:3),
       dropdown(tone,l.tone,['professional','friendly','informal','premium','concise'],(v)=>setState(()=>tone=v)),
