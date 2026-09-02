@@ -82,6 +82,117 @@ test(
         ),
         201,
       );
+      // Customer security regression: use real HTTP, runtime role and PostgreSQL RLS.
+      const customersA = `/tenants/${tenantA.id}/customers`;
+      const customersB = `/tenants/${tenantB.id}/customers`;
+      const customerInput = {
+        displayName: '  Cliente  ',
+        phoneE164: '+351912345678',
+        language: 'pt',
+        email: 'client@example.test',
+        notes: 'Private note',
+      };
+      assert.equal((await call('GET', customersA)).status, 401);
+      assert.equal((await call('GET', customersA, undefined, actorB.access_token)).status, 404);
+      for (const invalid of [
+        { ...customerInput, phoneE164: '912345678' },
+        { ...customerInput, displayName: '   ' },
+        { ...customerInput, language: 'unknown' },
+        { ...customerInput, tenantId: tenantB.id },
+      ])
+        assert.equal((await call('POST', customersA, invalid, actorA.access_token)).status, 400);
+      const attempts = await Promise.all(
+        [1, 2].map(() => call('POST', customersA, customerInput, actorA.access_token)),
+      );
+      assert.deepEqual(attempts.map((r) => r.status).sort(), [201, 409]);
+      const customer = await data<{ id: string; displayName: string }>(
+        attempts.find((r) => r.status === 201)!,
+        201,
+      );
+      assert.equal(customer.displayName, 'Cliente');
+      await data(await call('POST', customersB, customerInput, actorB.access_token), 201);
+      assert.equal(
+        (await call('PUT', `${customersB}/${customer.id}`, customerInput, actorB.access_token))
+          .status,
+        404,
+      );
+      assert.equal(
+        (await call('DELETE', `${customersB}/${customer.id}`, undefined, actorB.access_token))
+          .status,
+        404,
+      );
+      assert.equal((await deps.db.customer.findMany()).length, 0, 'Customer RLS without context');
+      await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id',${tenantA.id},true)`;
+        assert.equal((await tx.customer.findMany({ where: { tenantId: tenantB.id } })).length, 0);
+        // Generate a second page without burdening HTTP with 50 fixture requests.
+        await tx.customer.createMany({
+          data: Array.from({ length: 50 }, (_, i) => ({
+            tenantId: tenantA.id,
+            displayName: `Page ${i}`,
+            phoneE164: `+35193000${String(i).padStart(4, '0')}`,
+          })),
+        });
+      });
+      const firstPage = await data<{ items: { id: string }[]; next: string }>(
+        await call('GET', customersA, undefined, actorA.access_token),
+        200,
+      );
+      assert.equal(firstPage.items.length, 50);
+      assert(firstPage.next);
+      const secondPage = await data<{ items: { id: string }[]; next: null }>(
+        await call('GET', `${customersA}?after=${firstPage.next}`, undefined, actorA.access_token),
+        200,
+      );
+      assert.equal(secondPage.items.length, 1);
+      assert.equal(secondPage.next, null);
+      assert.equal(
+        new Set([...firstPage.items, ...secondPage.items].map((item) => item.id)).size,
+        51,
+      );
+      assert.equal(
+        (await call('GET', `${customersA}?after=invalid`, undefined, actorA.access_token)).status,
+        400,
+      );
+      const updatedCustomer = await data<{ email: null; notes: null }>(
+        await call(
+          'PUT',
+          `${customersA}/${customer.id}`,
+          { displayName: 'Updated', phoneE164: customerInput.phoneE164, language: 'en' },
+          actorA.access_token,
+        ),
+        200,
+      );
+      assert.equal(updatedCustomer.email, null);
+      assert.equal(updatedCustomer.notes, null);
+      assert.equal(
+        (await call('DELETE', `${customersA}/${customer.id}`, undefined, actorA.access_token))
+          .status,
+        204,
+      );
+      assert.equal(
+        (await call('DELETE', `${customersA}/${customer.id}`, undefined, actorA.access_token))
+          .status,
+        404,
+      );
+      assert.equal(
+        (await call('PUT', `${customersA}/${customer.id}`, customerInput, actorA.access_token))
+          .status,
+        404,
+      );
+      assert.equal(
+        (await call('POST', customersA, customerInput, actorA.access_token)).status,
+        409,
+      );
+      await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id',${tenantA.id},true)`;
+        const events = await tx.auditEvent.findMany({ where: { targetId: customer.id } });
+        assert.deepEqual(events.map((e) => e.action).sort(), [
+          'customer.archived',
+          'customer.created',
+          'customer.updated',
+        ]);
+      });
       assert.equal(
         (
           await call(

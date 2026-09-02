@@ -6,7 +6,9 @@ Branch `feature/phase-4-messaging`, baseada em `feature/phase-3-business-onboard
 
 Código inicial: modelo Customer, migration com RLS forçada, telefone único por tenant, listagem paginada, criação, atualização integral e arquivo lógico, permissões específicas e auditoria transacional. CORS passa a permitir PUT/DELETE para a origem configurada. A especificação original permanece intacta.
 
-Validação pendente: a tentativa anterior de gerar o cliente Prisma foi interrompida por uma autorização de rede cancelada. Não há comprovação de compilação, lint, execução da migration ou testes deste módulo. Os checks da fase anterior não validam estas alterações. Testes específicos de clientes ainda precisam de ser escritos, incluindo isolamento A/B, RBAC, duplicados concorrentes, paginação e arquivo.
+Validação inicial: backend e Compose do commit `f4a450b` passaram na execução GitHub Actions `33636792678`. A tentativa local anterior de gerar Prisma foi interrompida por autorização de rede cancelada; os checks remotos permitem executar migrations e a suite existente sem ambiente do utilizador.
+
+A continuação adiciona regressões HTTP/PostgreSQL para clientes à suite de integração existente: autenticação, isolamento A/B, validação, duplicados concorrentes, telefone por tenant, RLS sem contexto, paginação, atualização integral, arquivo e auditoria. Acrescenta teste unitário da matriz de permissões. Execução destas novas regressões pendente da CI do novo commit; testes HTTP de cada papel e UI ainda pendentes. Não confundir testes escritos com testes aprovados.
 
 Ainda não entregue nesta fase: interface Flutter de clientes, restantes campos do modelo especificado (incluindo consentimentos e preferências), canais, WhatsApp, conversas, mensagens, outbox, filas, debounce e media. Nenhum envio real, merge ou deploy efetuado. A Phase 4 permanece incompleta, mesmo que os checks existentes passem.
 
