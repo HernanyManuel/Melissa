@@ -46,7 +46,7 @@ export function configureHttp(
   app.use(helmet());
   app.enableCors({
     origin: config.CORS_ORIGIN,
-    methods: ['GET', 'POST', 'PATCH'],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     credentials: true,
   });
   app.use((_request: Request, response: Response, next: NextFunction) => {

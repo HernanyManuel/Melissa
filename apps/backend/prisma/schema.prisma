@@ -99,6 +99,7 @@ model Tenant {
   faqs               Faq[]
   staff              Staff[]
   configuration      TenantConfiguration?
+  customers          Customer[]
 
   @@map("tenants")
 }
@@ -281,4 +282,22 @@ model AuditEvent {
 
   @@index([tenantId, createdAt])
   @@map("audit_events")
+}
+
+model Customer {
+  id String @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  displayName String @map("display_name") @db.VarChar(160)
+  phoneE164 String @map("phone_e164") @db.VarChar(16)
+  email String? @db.VarChar(254)
+  language String @default("pt") @db.VarChar(12)
+  notes String? @db.VarChar(4000)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  @@id([tenantId, id])
+  @@unique([tenantId, phoneE164])
+  @@index([tenantId, deletedAt, id])
+  @@map("customers")
 }
