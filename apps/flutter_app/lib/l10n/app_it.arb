@@ -1,4 +1,8 @@
 {
+  "quarantineFullWarning": "Capacità esaurita: i nuovi eventi che richiedono quarantena saranno rifiutati. Contatta il supporto; non eliminare dati per aggirare il limite.",
+  "quarantineCapacityWarning": "La quarantena è occupata almeno all’80%. Contatta il supporto per evitare rifiuti.",
+  "quarantineCleanupWarning": "Alcuni eventi scaduti attendono la pulizia. Aggiorna la pagina; se persistono, contatta il supporto.",
+  "quarantineExpiryWarning": "Il contenuto di alcuni eventi potrà essere eliminato nelle prossime 24 ore. Questa pagina non consente di recuperarlo né di prolungarne la conservazione.",
   "quarantine": "Quarantena",
   "quarantineReadOnly": "Contenuto protetto. Questa vista mostra solo i metadati; la consultazione dei contenuti e la rielaborazione non sono ancora disponibili.",
   "quarantineStored": "Archiviati",

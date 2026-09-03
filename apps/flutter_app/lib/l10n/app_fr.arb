@@ -1,4 +1,8 @@
 {
+  "quarantineFullWarning": "Capacité atteinte : les nouveaux événements nécessitant une quarantaine seront refusés. Contactez le support ; ne supprimez pas de données pour contourner la limite.",
+  "quarantineCapacityWarning": "La quarantaine est remplie à au moins 80 %. Contactez le support pour éviter les refus.",
+  "quarantineCleanupWarning": "Des événements expirés attendent leur suppression. Actualisez la page ; s’ils persistent, contactez le support.",
+  "quarantineExpiryWarning": "Le contenu de certains événements pourra être supprimé dans les prochaines 24 heures. Cette page ne permet ni sa récupération ni la prolongation de sa conservation.",
   "quarantine": "Quarantaine",
   "quarantineReadOnly": "Contenu protégé. Cette vue affiche uniquement les métadonnées ; la consultation du contenu et le retraitement ne sont pas encore disponibles.",
   "quarantineStored": "Stockés",

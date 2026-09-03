@@ -11,7 +11,8 @@ import 'package:melissa/l10n/generated/app_localizations.dart';
 Widget screen(IdentityApi api, [String tenant = 'A']) => MaterialApp(locale: const Locale('pt'),
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales, home: QuarantinePage(tenantId: tenant, api: api));
-http.Response page(List<Object> items, [String? next]) => http.Response(jsonEncode({
+http.Response page(List<Object> items, [String? next, List<String> notices = const []]) => http.Response(jsonEncode({
+  'notices': notices,
   'items': items, 'next': next, 'total': items.length, 'expired': 0, 'expiringSoon': 0, 'capacity': 1000,
 }), 200, headers: {'content-type': 'application/json; charset=utf-8'});
 Map<String, Object> item(String name) => {'id': name, 'channelName': name,
@@ -23,6 +24,30 @@ IdentityApi client(Future<http.Response> Function(http.Request) route) => Identi
 }));
 
 void main() {
+  testWidgets('operational notices wrap on mobile and clear after recovery or access failure', (tester) async {
+    tester.view.physicalSize = const Size(390, 844); tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize); addTearDown(tester.view.resetDevicePixelRatio);
+    var fail = false;
+    var notices = ['capacity_full', 'cleanup_pending', 'expiring_soon', 'future_code'];
+    final api = client((_) async => fail ? http.Response('{}', 403) : page([], null, notices));
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api)); await tester.pumpAndSettle();
+    expect(find.textContaining('Capacidade esgotada:'), findsOneWidget);
+    expect(find.textContaining('Existem eventos expirados'), findsOneWidget);
+    expect(find.textContaining('nas próximas 24 horas'), findsOneWidget);
+    expect(find.text('future_code'), findsNothing);
+    expect(tester.takeException(), isNull);
+    notices = [];
+    await tester.tap(find.byIcon(Icons.refresh)); await tester.pumpAndSettle();
+    expect(find.textContaining('Capacidade esgotada:'), findsNothing);
+    notices = ['capacity_warning'];
+    await tester.tap(find.byIcon(Icons.refresh)); await tester.pumpAndSettle();
+    expect(find.textContaining('80%'), findsOneWidget);
+    fail = true;
+    await tester.tap(find.byIcon(Icons.refresh)); await tester.pumpAndSettle();
+    expect(find.textContaining('80%'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('quarantine recovers from denied access to empty state', (tester) async {
     var fail = true;
     final api = client((_) async => fail ? http.Response('{}', 403) : page([]));

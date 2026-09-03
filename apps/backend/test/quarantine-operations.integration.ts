@@ -58,10 +58,13 @@ export async function testQuarantineOperations(
       next: string;
       total: number;
       expiringSoon: number;
+      notices: string[];
     };
     assert.equal(page.items.length, 50);
     assert(page.total >= 51);
     assert(page.expiringSoon >= 51);
+    assert(page.notices.includes('expiring_soon'));
+    assert(!page.notices.includes('capacity_full'));
     assert(page.next);
     assert.deepEqual(
       Object.keys(page.items[0]!).sort(),
@@ -74,8 +77,10 @@ export async function testQuarantineOperations(
     assert(second.items.every((item) => !page.items.some((previous) => previous.id === item.id)));
     const other = (await (await get(`/tenants/${otherTenant}/quarantine`, otherToken)).json()) as {
       total: number;
+      notices: string[];
     };
     assert.equal(other.total, 0);
+    assert.deepEqual(other.notices, []);
     for (const role of ['admin', 'manager', 'staff', 'viewer'] as const) {
       await admin.membership.update({ where: { id: owner.id }, data: { role } });
       assert.equal((await get(path, ownerToken)).status, role === 'admin' ? 200 : 403);

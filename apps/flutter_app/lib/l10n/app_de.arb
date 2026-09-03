@@ -1,4 +1,8 @@
 {
+  "quarantineFullWarning": "Kapazität erreicht: Neue Ereignisse, die Quarantäne benötigen, werden abgelehnt. Wenden Sie sich an den Support; löschen Sie keine Daten, um das Limit zu umgehen.",
+  "quarantineCapacityWarning": "Die Quarantäne ist zu mindestens 80 % belegt. Wenden Sie sich an den Support, um Ablehnungen zu vermeiden.",
+  "quarantineCleanupWarning": "Abgelaufene Ereignisse warten auf Bereinigung. Aktualisieren Sie die Seite; bleiben sie bestehen, wenden Sie sich an den Support.",
+  "quarantineExpiryWarning": "Inhalte einiger Ereignisse können innerhalb der nächsten 24 Stunden gelöscht werden. Diese Seite erlaubt weder Wiederherstellung noch Verlängerung der Aufbewahrung.",
   "quarantine": "Quarantäne",
   "quarantineReadOnly": "Geschützter Inhalt. Diese Ansicht zeigt nur Metadaten; Inhaltsprüfung und erneute Verarbeitung sind noch nicht verfügbar.",
   "quarantineStored": "Gespeichert",

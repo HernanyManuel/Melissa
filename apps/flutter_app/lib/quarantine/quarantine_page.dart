@@ -14,6 +14,7 @@ class QuarantinePage extends StatefulWidget {
 class _QuarantinePageState extends State<QuarantinePage> {
   late final IdentityApi api;
   List<Map<String, dynamic>> rows = [];
+  List<String> notices = [];
   String? next;
   int total = 0, expired = 0, soon = 0, capacity = 1000, generation = 0;
   bool loading = true, failed = false;
@@ -32,7 +33,7 @@ class _QuarantinePageState extends State<QuarantinePage> {
     final requestGeneration = ++generation;
     final path = '/tenants/${widget.tenantId}/quarantine${more && next != null ? '?after=$next' : ''}';
     setState(() {
-      loading = true; failed = false;
+      loading = true; failed = false; notices = [];
       if (!more) { rows = []; next = null; total = 0; expired = 0; soon = 0; }
     });
     try {
@@ -45,6 +46,7 @@ class _QuarantinePageState extends State<QuarantinePage> {
         next = result['next'] as String?;
         total = result['total'] as int; expired = result['expired'] as int;
         soon = result['expiringSoon'] as int; capacity = result['capacity'] as int;
+        notices = (result['notices'] as List? ?? []).cast<String>();
       });
     } catch (_) {
       if (mounted && requestGeneration == generation) {
@@ -65,6 +67,12 @@ class _QuarantinePageState extends State<QuarantinePage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final noticeLabels = {
+      'capacity_full': l.quarantineFullWarning,
+      'capacity_warning': l.quarantineCapacityWarning,
+      'cleanup_pending': l.quarantineCleanupWarning,
+      'expiring_soon': l.quarantineExpiryWarning,
+    };
     return Scaffold(
       appBar: AppBar(title: Text(l.quarantine), leading: IconButton(
         tooltip: l.account, onPressed: () => context.go('/account'), icon: const Icon(Icons.arrow_back)),
@@ -74,6 +82,11 @@ class _QuarantinePageState extends State<QuarantinePage> {
         child: ListView(padding: const EdgeInsets.all(20), children: [
           Text(l.quarantineReadOnly), const SizedBox(height: 16),
           if (loading) const LinearProgressIndicator(),
+          for (final notice in notices.where(noticeLabels.containsKey))
+            Semantics(liveRegion: true, child: Card(child: Padding(
+              padding: const EdgeInsets.all(16), child: Row(crossAxisAlignment: CrossAxisAlignment.start,
+                children: [const Icon(Icons.warning_amber_rounded), const SizedBox(width: 12),
+                  Expanded(child: Text(noticeLabels[notice]!))])))),
           if (failed) ...[
             Text(l.actionError), const SizedBox(height: 12),
             OutlinedButton(onPressed: load, child: Text(l.retry)),

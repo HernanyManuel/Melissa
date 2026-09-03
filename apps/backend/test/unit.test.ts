@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import './whatsapp-inbound.test';
+import './quarantine-policy.test';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';

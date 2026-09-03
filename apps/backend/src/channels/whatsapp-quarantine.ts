@@ -1,6 +1,7 @@
 import { createCipheriv, createHash, randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { InboundResult } from './inbound-provider';
+import { QUARANTINE_CAPACITY } from './quarantine-policy';
 
 export interface QuarantineKey {
   id: string;
@@ -59,7 +60,7 @@ export async function quarantineWhatsApp(
     }
     return { conflict: false as const, eventId: previous.id, duplicate: true };
   }
-  if ((await tx.whatsAppQuarantine.count({ where: { tenantId } })) >= 1000)
+  if ((await tx.whatsAppQuarantine.count({ where: { tenantId } })) >= QUARANTINE_CAPACITY)
     throw new Error('Quarantine capacity exceeded');
   const stored = await tx.externalEvent.create({
     data: {

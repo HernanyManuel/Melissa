@@ -34,6 +34,8 @@ Credenciais futuras: WHATSAPP_APP_SECRET, WHATSAPP_VERIFY_TOKEN e access token s
 
 ## Verificação
 
+Avisos de quarentena: a resposta de metadados inclui `notices` com `capacity_warning` (≥80%), `capacity_full`, `cleanup_pending` e `expiring_soon`. Apresentados no Flutter após consulta autorizada; não geram notificações nem permitem alterar retenção. Capacidade aplicada pelo ingresso e pela API usa a mesma constante. Ver [ADR-020](decisions/ADR-020-quarantine-operational-notices.md).
+
 Suites unitárias/integradas cobrem assinatura, challenge, Unicode, payloads inválidos, routing, concorrência, clientes, outbox/worker, revogação, histórico de estados e RLS. Estado da execução integral nos checks do PR #5.
 
 Referências do protocolo: [endpoint Meta](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/create-webhook-endpoint/), [messages](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages) e [texto](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages/text).

@@ -1,4 +1,8 @@
 {
+  "quarantineFullWarning": "Capacity reached: new events requiring quarantine will be rejected. Contact support; do not delete data to bypass the limit.",
+  "quarantineCapacityWarning": "Quarantine is at least 80% full. Contact support to prevent rejections.",
+  "quarantineCleanupWarning": "Expired events are awaiting cleanup. Refresh this page; if they persist, contact support.",
+  "quarantineExpiryWarning": "Some event content becomes eligible for deletion within 24 hours. This page cannot recover content or extend retention.",
   "quarantine": "Quarantine",
   "quarantineReadOnly": "Protected content. This view shows metadata only; content review and reprocessing are not available yet.",
   "quarantineStored": "Stored",

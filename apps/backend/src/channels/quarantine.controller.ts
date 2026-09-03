@@ -13,6 +13,7 @@ import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { Actor } from '../identity/auth.service';
 import { TenantService } from '../tenancy/tenant.service';
 import { MessagePageDto } from '../messaging/dto';
+import { QUARANTINE_CAPACITY, quarantineNotices } from './quarantine-policy';
 
 @Injectable()
 export class QuarantineService {
@@ -51,7 +52,8 @@ export class QuarantineService {
         total,
         expired,
         expiringSoon,
-        capacity: 1000,
+        capacity: QUARANTINE_CAPACITY,
+        notices: quarantineNotices(total, expired, expiringSoon),
         asOf: now,
       };
     });

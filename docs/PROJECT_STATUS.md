@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Avisos operacionais
+
+Página de quarentena sinaliza ocupação ≥80%, capacidade esgotada, expiração próxima e limpeza pendente. Regras determinísticas no backend e capacidade partilhada com ingresso; traduções e testes adicionados. Ver [ADR-020](decisions/ADR-020-quarantine-operational-notices.md). São avisos da última consulta, não alertas enviados ou monitorização contínua. Notificações automáticas, revisão do conteúdo e reprocessamento continuam pendentes. CI nos checks do PR #5; sem ativação, merge ou deploy.
+
 ## Atualização Phase 4 — Consulta da quarentena
 
 API e página Flutter de metadados, restritas a owner/admin, com paginação, contadores e prazos. Sem acesso ao conteúdo cifrado. Inclui seis idiomas, estados de UI e testes de isolamento/RBAC/respostas tardias. Ver [ADR-019](decisions/ADR-019-quarantine-metadata-operations.md). Validação integral nos checks do PR #5. Revisão do conteúdo, reprocessamento e alertas continuam pendentes. Phase 4 não concluída; sem ativação real, merge ou deploy.
