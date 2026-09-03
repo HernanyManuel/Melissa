@@ -12,6 +12,7 @@ import { Queue } from 'bullmq';
 import { queueConnection } from '../src/queue-connection';
 import { setTimeout as delay } from 'node:timers/promises';
 import { InboundProcessor } from '../src/messaging/inbound-processor';
+import { testWhatsAppRouting } from './whatsapp-routing.integration';
 
 test(
   'business onboarding persists validated tenant-scoped configuration',
@@ -86,6 +87,7 @@ test(
         ),
         201,
       );
+      await testWhatsAppRouting(deps.db, tenantA.id, tenantB.id);
       // Customer security regression: use real HTTP, runtime role and PostgreSQL RLS.
       const customersA = `/tenants/${tenantA.id}/customers`;
       const channelsA = `/tenants/${tenantA.id}/channels`;

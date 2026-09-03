@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Resolução de canal WhatsApp (schema 9)
+
+Registo de encaminhamento interno com escrita reservada a provisioning confiável e resolver transacional por integração/WABA/número. Revalida canal live ativo, associa tenant via DB e mantém RLS sobre os dados. Ver [ADR-012](decisions/ADR-012-whatsapp-routing.md). Não ligado ao HTTP/outbox; origem externa sem utilizador, provisioning e auditoria de sistema ainda pendentes. Validação desta alteração nos checks do PR #5. Sem merge/deploy.
+
 ## Atualização Phase 4 — Adaptador inbound WhatsApp
 
 Adicionado contrato de transporte e adaptador com validação de assinatura raw-body, challenge, normalização de texto/status e identificação de eventos não suportados. Ver [contrato e limites](whatsapp-inbound.md). Não ligado ao HTTP, à outbox ou a canais reais: este incremento é uma biblioteca backend testável, não integração WhatsApp concluída. Lint local aprovado; CI integral nos checks do PR #5. Sem merge/deploy.
