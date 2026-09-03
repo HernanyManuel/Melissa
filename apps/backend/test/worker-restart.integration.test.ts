@@ -12,6 +12,7 @@ import { CONFIG, Configuration } from '../src/config';
 import { configureHttp } from '../src/http';
 import { IdentityMail } from '../src/identity/mail';
 import { Dependencies } from '../src/dependencies';
+import { waitReady } from './wait-ready';
 
 // Dedicated disposable CI database/Redis only. Never signal an external PID.
 test(
@@ -81,6 +82,7 @@ test(
       return (status === 204 ? undefined : await response.json()) as T;
     };
     try {
+      await waitReady(base);
       const email = `restart-${randomUUID()}@example.test`;
       const password = 'Worker-restart-test-123!';
       await request('POST', '/auth/register', 202, {
