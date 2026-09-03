@@ -1,4 +1,12 @@
 {
+  "processingTitle": "Message processing",
+  "processingHint": "Metadata only, without content or resending. States may change while browsing. The date indicates eligibility, not a guaranteed execution time.",
+  "processingPending": "Pending",
+  "processingFailed": "Failed",
+  "processingRejected": "Rejected",
+  "processingEmpty": "No messages in this state.",
+  "processingAttempts": "Recorded failures",
+  "processingEligible": "Eligible from",
   "simulationTitle": "Simulate message",
   "simulationHint": "Test only: stores an incoming message in this business history. Does not send WhatsApp or run AI. If the result is uncertain, keep this page open and retry the same attempt.",
   "simulationMessage": "Test message",

@@ -1,4 +1,12 @@
 {
+  "processingTitle": "Procesamiento de mensajes",
+  "processingHint": "Solo metadatos, sin contenido ni reenvío. Los estados pueden cambiar al navegar. La fecha indica elegibilidad, no una hora garantizada de ejecución.",
+  "processingPending": "Pendientes",
+  "processingFailed": "Fallidos",
+  "processingRejected": "Rechazados",
+  "processingEmpty": "No hay mensajes en este estado.",
+  "processingAttempts": "Fallos registrados",
+  "processingEligible": "Elegible desde",
   "simulationTitle": "Simular mensaje",
   "simulationHint": "Solo prueba: guarda un mensaje recibido en el historial de esta empresa. No envía WhatsApp ni ejecuta IA. Si el resultado es incierto, mantén esta página abierta y repite el mismo intento.",
   "simulationMessage": "Mensaje de prueba",

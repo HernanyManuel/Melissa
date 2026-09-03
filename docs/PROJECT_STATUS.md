@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Vista de processamento
+
+API e Flutter owner/admin para mensagens pending/failed/rejected, com paginação e metadados mínimos. Sem conteúdo, reenvio ou cancelamento. Seis idiomas, OpenAPI e testes HTTP/RBAC/isolamento/UI. Ver [ADR-027](decisions/ADR-027-processing-operations.md). Escala/índice adicional e painel admin global continuam pendentes. CI nos checks do PR #5; sem migration, merge ou deploy.
+
 ## Atualização Phase 4 — Integridade dos recibos
 
 Corrigida inferência indevida de processed quando faltava dispatch. Apenas eventos inbound mock/whatsapp possuem recibo; quarentena/callbacks devolvem 404 e evidência incompleta devolve 503 sanitizado. Testes de invariantes, HTTP/isolamento e recuperação de consulta Flutter adicionados. Ver [ADR-026](decisions/ADR-026-receipt-integrity.md). Sem mudança de schema, merge ou deploy; validação nos checks do PR #5.

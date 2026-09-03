@@ -6,6 +6,7 @@ import { MessagePageDto, MockInboundDto } from './dto';
 import { CONFIG, Configuration } from '../config';
 import { enqueueInbound } from './enqueue-inbound';
 import { checkedReceiptState } from './receipt-state';
+import { ProcessingQuery, ProcessingPageDto } from './processing.dto';
 
 @Injectable()
 export class MessagingService {
@@ -90,6 +91,31 @@ export class MessagingService {
         eventId: id,
         state: checkedReceiptState(route?.state, message !== null, event.processedAt),
         message,
+      };
+    });
+  }
+
+  processing(actor: Actor, tenantId: string, query: ProcessingQuery): Promise<ProcessingPageDto> {
+    return this.tenants.scoped(actor, tenantId, 'channels:manage', async (tx) => {
+      // Dispatch has global worker visibility: explicit tenant predicate is mandatory here.
+      const rows = await tx.inboundDispatch.findMany({
+        where: {
+          tenantId,
+          state: query.state,
+          ...(query.after ? { id: { gt: query.after } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: 51,
+        select: { id: true, state: true, attempts: true, nextAttemptAt: true },
+      });
+      return {
+        items: rows
+          .slice(0, 50)
+          .map((row) => ({
+            ...row,
+            nextAttemptAt: row.state === 'pending' ? row.nextAttemptAt : null,
+          })),
+        next: rows.length > 50 ? rows[49]!.id : null,
       };
     });
   }

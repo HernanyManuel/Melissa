@@ -10,10 +10,11 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation, ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { MessagingService } from './messaging.service';
 import { MessagePageDto, MockInboundDto } from './dto';
+import { ProcessingQuery, ProcessingPageDto } from './processing.dto';
 
 @ApiTags('Messaging sandbox')
 @ApiBearerAuth()
@@ -38,6 +39,21 @@ export class MessagingController {
     @Query() page: MessagePageDto,
   ) {
     return this.messaging.conversations(req.actor, tenant, page);
+  }
+  @Get('message-processing')
+  @ApiOperation({
+    operationId: 'listMessageProcessing',
+    summary: 'Read inbound processing metadata',
+    description:
+      'Owner/admin only. Fixed pages of 50, exclusive ID cursor, no content or identifiers of customers. Changing worker state means pagination is not a snapshot. No retry or cancellation action.',
+  })
+  @ApiOkResponse({ type: ProcessingPageDto })
+  processing(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Query() query: ProcessingQuery,
+  ) {
+    return this.messaging.processing(req.actor, tenant, query);
   }
   @Get('message-receipts/:id')
   @ApiOperation({

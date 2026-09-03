@@ -1,4 +1,12 @@
 {
+  "processingTitle": "Nachrichtenverarbeitung",
+  "processingHint": "Nur Metadaten, ohne Inhalt oder erneuten Versand. Zustände können sich beim Durchsehen ändern. Das Datum ist der früheste Zeitpunkt, keine garantierte Ausführungszeit.",
+  "processingPending": "Ausstehend",
+  "processingFailed": "Fehlgeschlagen",
+  "processingRejected": "Abgelehnt",
+  "processingEmpty": "Keine Nachrichten in diesem Zustand.",
+  "processingAttempts": "Erfasste Fehler",
+  "processingEligible": "Frühestens ab",
   "simulationTitle": "Nachricht simulieren",
   "simulationHint": "Nur Test: Speichert eine eingehende Nachricht im Verlauf dieses Unternehmens. Kein WhatsApp-Versand und keine KI-Ausführung. Bei unklarem Ergebnis diese Seite offen lassen und denselben Versuch wiederholen.",
   "simulationMessage": "Testnachricht",

@@ -14,6 +14,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { InboundProcessor } from '../src/messaging/inbound-processor';
 import { testWhatsAppRouting } from './whatsapp-routing.integration';
 import { testQuarantineOperations } from './quarantine-operations.integration';
+import { testProcessing } from './processing.integration';
 import { waitReady } from './wait-ready';
 import { createOpenApi } from '../src/openapi';
 import { assertQuarantineOpenApi } from './quarantine-openapi';
@@ -702,6 +703,13 @@ test(
       });
       await testWhatsAppRouting(deps.db, tenantA.id, tenantB.id);
       await testQuarantineOperations(
+        tenantA.id,
+        tenantB.id,
+        actorA.access_token,
+        actorB.access_token,
+        (path, token) => call('GET', path, undefined, token),
+      );
+      await testProcessing(
         tenantA.id,
         tenantB.id,
         actorA.access_token,
