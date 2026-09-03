@@ -37,7 +37,9 @@ test(
       assert(!body.includes('stack'));
       const connection = queueConnection(config.REDIS_URL);
       const queue = new Queue('infrastructure', { connection });
-      const events = new QueueEvents('infrastructure', { connection });
+      // Read the retained stream from its start. Redis readiness does not guarantee
+      // the first XREAD has started; '$' can miss a fast worker's completion event.
+      const events = new QueueEvents('infrastructure', { connection, lastEventId: '0-0' });
       try {
         await events.waitUntilReady();
         const job = await queue.add(
