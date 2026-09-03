@@ -173,7 +173,7 @@ export async function testOutboundAcceptance(
     // Inject audit failure on an isolated service instance, preserving the real transaction.
     const brokenTenants = Object.create(tenants) as TenantService;
     const failure = new Error('synthetic audit failure');
-    brokenTenants.audit = async () => {
+    brokenTenants.audit = () => {
       throw failure;
     };
     const rollbackInput = fresh();
