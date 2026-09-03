@@ -43,6 +43,24 @@ const base = {
   DATABASE_URL: 'postgresql://user:secret@localhost:5432/db',
   REDIS_URL: 'redis://localhost:6379',
 };
+test('WhatsApp HTTP is opt-in and requires complete server configuration', () => {
+  assert.equal(parseConfig(base).WHATSAPP_WEBHOOK_ENABLED, 'false');
+  assert.throws(
+    () => parseConfig({ ...base, WHATSAPP_WEBHOOK_ENABLED: 'true' }),
+    /requires server-side/,
+  );
+  assert.throws(() => parseConfig({ ...base, WHATSAPP_WEBHOOK_ENABLED: 'yes' }));
+  assert.equal(
+    parseConfig({
+      ...base,
+      WHATSAPP_WEBHOOK_ENABLED: 'true',
+      WHATSAPP_INTEGRATION_KEY: 'test_app',
+      WHATSAPP_APP_SECRET: 'synthetic-test-secret',
+      WHATSAPP_VERIFY_TOKEN: 'synthetic-test-token',
+    }).WHATSAPP_WEBHOOK_ENABLED,
+    'true',
+  );
+});
 test('accepts development settings with explicit defaults', () => {
   const config = parseConfig(base);
   assert.equal(config.PORT, 3000);

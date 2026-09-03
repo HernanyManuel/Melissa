@@ -6,6 +6,7 @@ import { queueConnection } from '../src/queue-connection';
 import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
 import { resolveInboundCustomer } from '../src/customers/inbound-customer';
 import { testWhatsAppStatuses } from './whatsapp-status.integration';
+import { testWhatsAppHttp } from './whatsapp-http.integration';
 import { PrismaClient } from '@prisma/client';
 import { WhatsAppRouting } from '../src/channels/whatsapp-routing';
 
@@ -266,6 +267,14 @@ export async function testWhatsAppRouting(db: PrismaClient, tenantA: string, ten
       account,
       phone,
       secret,
+    });
+    await testWhatsAppHttp(admin, {
+      integration,
+      account,
+      phone,
+      secret,
+      tenantId: tenantA,
+      channelId,
     });
     const revokeQueue = new Queue('incoming-messages', {
       connection: queueConnection(process.env.REDIS_URL!),

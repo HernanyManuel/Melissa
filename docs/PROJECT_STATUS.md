@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Endpoint WhatsApp opt-in
+
+GET/POST /webhooks/whatsapp implementados com default 404, raw-body, limite de tamanho e rate limit Redis. ACK apenas após commit durável. Configuração explícita server-side obrigatória; produção mantém bloqueio. Testes HTTP adicionados, lint local aprovado; CI nos checks do PR #5. Ver [ADR-016](decisions/ADR-016-whatsapp-http-gate.md). Endpoint não exposto/ativado; provisioning real e tratamento durável de media continuam pendentes. Sem merge/deploy.
+
 ## Atualização Phase 4 — Histórico de estados WhatsApp (schema 12)
 
 Callbacks sent/delivered/read/failed são persistidos com idempotência, auditoria e RLS; histórico append-only preserva eventos fora de ordem. Não altera mensagens recebidas nem cria clientes. Ver [ADR-015](decisions/ADR-015-whatsapp-status-journal.md). Lint local aprovado; CI integral nos checks do PR #5. Correlação/estado visual de envios, endpoint público, media e outbound continuam pendentes. Sem merge/deploy.

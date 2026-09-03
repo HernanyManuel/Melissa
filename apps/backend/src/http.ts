@@ -11,6 +11,7 @@ import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import { Configuration } from './config';
 import { log } from './logging';
+import { configureWhatsAppBody } from './channels/whatsapp-http';
 
 @Catch()
 class ErrorFilter implements ExceptionFilter {
@@ -68,6 +69,7 @@ export function configureHttp(
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
+  configureWhatsAppBody(app, config);
   app.useGlobalFilters(new ErrorFilter());
   if (shutdownHooks) app.enableShutdownHooks();
 }

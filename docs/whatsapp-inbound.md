@@ -1,6 +1,10 @@
 # WhatsApp inbound — estado atual (schema 12)
 
-Fluxo interno implementado: bytes assinados → normalização → routing verificado → persistência por tenant. Não existe controller HTTP, provisioning real ou envio WhatsApp; não configurar Meta para esta aplicação ainda.
+Fluxo implementado: bytes assinados → normalização → routing verificado → persistência por tenant. GET/POST `/webhooks/whatsapp` existem, mas estão desativados por defeito e não foram expostos à Internet. Não existe provisioning real ou envio WhatsApp; não configurar Meta para tráfego real ainda.
+
+## Ativação local explícita
+
+Configurar WHATSAPP_WEBHOOK_ENABLED=true, WHATSAPP_INTEGRATION_KEY, WHATSAPP_APP_SECRET e WHATSAPP_VERIFY_TOKEN apenas no servidor. Secrets/token devem ter pelo menos 16 caracteres. Sem flag, retorna 404; configuração incompleta impede arranque. WHATSAPP_WEBHOOK_RATE_LIMIT controla o teto por integração/minuto (default 300). Bindings têm de vir de provisioning confiável, não de IDs enviados pelo frontend. Ver [ADR-016](decisions/ADR-016-whatsapp-http-gate.md).
 
 ## Texto
 
@@ -14,11 +18,11 @@ sent/delivered/read/failed são registados num histórico imutável por tenant/c
 
 O adapter valida HMAC-SHA256 sobre os bytes originais antes de UTF-8/JSON. verifyChallenge valida modo subscribe, token e challenge escalar numérico. Limites: corpo 256 KiB, 20 entradas, 100 alterações por entrada e 100 mensagens/statuses por alteração. Campos desconhecidos são descartados pela normalização; tipos de evento não suportados são contados.
 
-Media e eventos desconhecidos recusam o pedido antes de escrita. Os commits dos eventos suportados são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. Não há confirmação HTTP neste serviço. Recibos internos só são devolvidos após commit.
+Media e eventos desconhecidos recusam o pedido antes de escrita. Os commits dos eventos suportados são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. O controller só confirma com 200 depois dos commits. O ACK não inclui recibos ou IDs de tenant. Ver ADR-016 para erros e limites.
 
 ## Antes de expor o webhook
 
-Implementar controller raw-body/limites, rate limiting, configuração de secrets, provisioning Meta verificado, tratamento durável de eventos não suportados e testes HTTP/isolamento. Separar credenciais de ingress/provisioning antes de produção. Uma assinatura válida não substitui o binding autorizado do [ADR-012](decisions/ADR-012-whatsapp-routing.md).
+Ainda implementar provisioning Meta verificado, tratamento durável de eventos não suportados e proteção no proxy. Controller, limites e testes HTTP já existem, mas não equivalem a validação Meta real. Separar credenciais de ingress/provisioning antes de produção. Uma assinatura válida não substitui o binding autorizado do [ADR-012](decisions/ADR-012-whatsapp-routing.md).
 
 Pendentes: media, campos adicionais/erros detalhados dos callbacks, identificadores não telefónicos, outbound, reconciliação de estados, gestão/evidência de consentimentos, retenção, UI de entrega e integração Meta real.
 

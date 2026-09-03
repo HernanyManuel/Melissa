@@ -8,29 +8,29 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:?copy .env.example to .env}
       RUNTIME_PASSWORD: ${RUNTIME_PASSWORD:?copy .env.example to .env}
     ports:
-      - "127.0.0.1:5432:5432"
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/scripts/init-runtime.sh:/docker-entrypoint-initdb.d/01-runtime.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 5s
       timeout: 3s
       retries: 20
   mailpit:
     image: axllent/mailpit:v1.27.9
     ports:
-      - "127.0.0.1:8025:8025"
-      - "127.0.0.1:1025:1025"
+      - '127.0.0.1:8025:8025'
+      - '127.0.0.1:1025:1025'
   redis:
     image: redis:7.4-bookworm
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ['redis-server', '--appendonly', 'yes']
     ports:
-      - "127.0.0.1:6379:6379"
+      - '127.0.0.1:6379:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -40,7 +40,7 @@ services:
       dockerfile: apps/backend/Dockerfile
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=5&connect_timeout=3
-    command: ["pnpm", "db:migrate"]
+    command: ['pnpm', 'db:migrate']
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,18 +56,29 @@ services:
       PORT: 3000
       WORKER_PORT: 3001
       MESSAGE_DEBOUNCE_MS: ${MESSAGE_DEBOUNCE_MS:-1500}
+      WHATSAPP_WEBHOOK_ENABLED: ${WHATSAPP_WEBHOOK_ENABLED:-false}
+      WHATSAPP_INTEGRATION_KEY: ${WHATSAPP_INTEGRATION_KEY:-}
+      WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+      WHATSAPP_WEBHOOK_RATE_LIMIT: ${WHATSAPP_WEBHOOK_RATE_LIMIT:-300}
       LOG_LEVEL: info
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
     ports:
-      - "127.0.0.1:3000:3000"
+      - '127.0.0.1:3000:3000'
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -76,14 +87,20 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile
     environment: *backend_environment
-    command: ["node", "apps/backend/dist/src/worker.js"]
+    command: ['node', 'apps/backend/dist/src/worker.js']
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3001/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10

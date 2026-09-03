@@ -15,6 +15,7 @@ import { ChannelController } from './channels/channel.controller';
 import { ChannelService } from './channels/channel.service';
 import { MessagingService } from './messaging/messaging.service';
 import { MessagingController } from './messaging/messaging.controller';
+import { WhatsAppWebhookController } from './channels/whatsapp-http';
 @Module({
   imports: [InfrastructureModule],
   controllers: [
@@ -24,6 +25,7 @@ import { MessagingController } from './messaging/messaging.controller';
     CustomerController,
     ChannelController,
     MessagingController,
+    WhatsAppWebhookController,
   ],
   providers: [
     AuthService,
