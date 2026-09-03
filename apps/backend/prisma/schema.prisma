@@ -420,6 +420,20 @@ model InboundBatch {
   @@map("inbound_batches")
 }
 
+model WhatsAppStatusEvent {
+  tenantId String @map("tenant_id") @db.Uuid
+  id String @db.Uuid
+  channelId String @map("channel_id") @db.Uuid
+  externalMessageId String @map("external_message_id") @db.VarChar(512)
+  recipientId String @map("recipient_id") @db.VarChar(32)
+  status String
+  occurredAt DateTime @map("occurred_at") @db.Timestamptz(6)
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+  @@id([tenantId,id])
+  @@index([tenantId,channelId,externalMessageId,occurredAt])
+  @@map("whatsapp_status_events")
+}
+
 // Internal routing envelope only: no content, customer ID, phone or credentials.
 model InboundDispatch {
   id String @id @db.Uuid

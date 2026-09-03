@@ -4,6 +4,7 @@ import { WhatsAppInboundProvider } from './whatsapp-inbound';
 import { WhatsAppRouting } from './whatsapp-routing';
 import { enqueueInbound } from '../messaging/enqueue-inbound';
 import { resolveInboundCustomer } from '../customers/inbound-customer';
+import { persistWhatsAppStatus } from './whatsapp-status';
 
 // Internal composition, not an HTTP controller. Accepts signed bytes, never caller tenant IDs.
 export class WhatsAppIngress {
@@ -24,13 +25,12 @@ export class WhatsAppIngress {
 
   async receive(raw: Buffer, signature: unknown) {
     const result = this.provider.decode(raw, signature);
-    // No silent ACK for unsupported callbacks/media; reject before any writes.
-    if (result.unsupported || result.events.some((event) => event.kind !== 'text'))
-      throw new Error('Unsupported WhatsApp event');
+    // No silent ACK for unsupported callback kinds/media; reject before any writes.
+    if (result.unsupported) throw new Error('Unsupported WhatsApp event');
     const receipts: Array<{ eventId: string; duplicate: boolean }> = [];
     for (const event of result.events) {
-      if (event.kind !== 'text') throw new Error('Unsupported WhatsApp event');
-      if (!/^[1-9]\d{6,14}$/.test(event.senderId)) throw new Error('Unsupported sender identity');
+      if (event.kind === 'text' && !/^[1-9]\d{6,14}$/.test(event.senderId))
+        throw new Error('Unsupported sender identity');
       const occurredAt = new Date(Number(event.timestamp) * 1000);
       if (!Number.isFinite(occurredAt.getTime()) || occurredAt.getTime() > Date.now() + 300000)
         throw new Error('Invalid message timestamp');
@@ -38,6 +38,7 @@ export class WhatsAppIngress {
         event.accountId,
         event.phoneId,
         async (tx, route) => {
+          if (event.kind === 'status') return persistWhatsAppStatus(tx, route, event, occurredAt);
           const { tenantId, channelId } = route;
           const externalEventId = `${channelId}:${event.messageId}`;
           const payloadHash = createHash('sha256')

@@ -1,31 +1,31 @@
-# WhatsApp inbound — adaptador de transporte
+# WhatsApp inbound — estado atual (schema 12)
 
-Atualização schema 11: clientes desconhecidos com telefone válido são cadastrados atomicamente após verificação do evento/canal. Arquivados não são reativados; consentimentos começam em unknown. Ver [ADR-014](decisions/ADR-014-inbound-customer-resolution.md). As referências seguintes a “clientes existentes” descrevem a entrega anterior. Endpoint público, callbacks e media continuam pendentes.
+Fluxo interno implementado: bytes assinados → normalização → routing verificado → persistência por tenant. Não existe controller HTTP, provisioning real ou envio WhatsApp; não configurar Meta para esta aplicação ainda.
 
-Atualização schema 10: a composição interna `WhatsAppIngress.receive` liga validação, routing e outbox para texto de clientes existentes, com worker e auditoria de origem externa. Ver [ADR-013](decisions/ADR-013-external-inbound-outbox.md). Sem endpoint HTTP; as notas abaixo sobre ausência de composição descrevem a etapa anterior. Não configurar Meta para este código ainda.
+## Texto
 
-Atualização schema 9: `WhatsAppRouting.scoped` e registo interno de bindings implementados; ver [ADR-012](decisions/ADR-012-whatsapp-routing.md). Ainda não integrados ao HTTP/adapter/outbox. Provisioning confiável não implementado; nenhum binding real criado. A lista abaixo inclui requisitos de integração end-to-end, não apenas funções isoladas.
+WhatsAppIngress recebe apenas bytes e assinatura; a integração/secret são configuração server-side. Resolve canal live ativo por integração/WABA/phone, deduplica por canal/message_id e resolve ou cadastra cliente pelo telefone. Clientes arquivados não são reativados; consentimentos não são inferidos. Evento, cliente novo, lote, outbox, envelope e auditoria são transacionais. O worker revalida binding/canal/cliente e grava a mensagem. Ver [ADR-013](decisions/ADR-013-external-inbound-outbox.md) e [ADR-014](decisions/ADR-014-inbound-customer-resolution.md).
 
-Entrega parcial da Phase 4, §§15, 64 e 76. `WhatsAppInboundProvider` implementa o contrato `InboundProvider`, sem dependência de Nest, DB ou rede. Não está ligado a qualquer rota HTTP e não permite receber mensagens reais na aplicação.
+## Estados de entrega
 
-## Contrato implementado
+sent/delivered/read/failed são registados num histórico imutável por tenant/canal/message_id com ocorrido_em e recebido_em. Repetições idênticas devolvem o mesmo recibo; destinatário divergente gera conflito auditado. Não criam clientes ou mensagens e não atualizam mensagens inbound. A correlação com envios e o estado agregado da UI permanecem pendentes. Ver [ADR-015](decisions/ADR-015-whatsapp-status-journal.md).
 
-- `verifyChallenge(query)`: verifica modo subscribe, token em tempo constante e challenge numérico escalar. Devolve o challenge sem o converter em número.
-- `decode(rawBody, signature)`: verifica HMAC-SHA256 sobre os bytes originais antes de descodificar UTF-8/JSON; rejeita headers ausentes, duplicados ou malformados.
-- Normaliza todas as entradas e alterações messages, com mensagens text e callbacks sent/delivered/read/failed separados. IDs externos e timestamp em segundos mantêm-se strings; nunca são IDs de tenant.
-- Eventos desconhecidos/media são contados em `unsupported`, não transformados silenciosamente em texto. Nenhum resultado implica autorização, dedupe, persistência ou confirmação HTTP.
-- Limites locais: corpo 256 KiB, 20 entradas, 100 alterações por entrada e 100 mensagens/statuses por alteração. Payload malformado falha integralmente, sem devolver resultados parciais. Erros não incluem conteúdo ou secrets.
+## Contrato e limites de transporte
 
-## Antes de ligar o endpoint
+O adapter valida HMAC-SHA256 sobre os bytes originais antes de UTF-8/JSON. verifyChallenge valida modo subscribe, token e challenge escalar numérico. Limites: corpo 256 KiB, 20 entradas, 100 alterações por entrada e 100 mensagens/statuses por alteração. Campos desconhecidos são descartados pela normalização; tipos de evento não suportados são contados.
 
-Ainda implementar: raw-body e limite no servidor/proxy; configuração server-side dos secrets; resolução verificada de WABA/phone_number_id para canal ativo e tenant; cliente pelo remetente; idempotência e outbox para eventos reais; política durável de quarentena de tipos desconhecidos; persistência monotónica de estados; rate limiting e testes HTTP de isolamento. Só confirmar receção depois do commit. Uma assinatura válida não identifica por si só uma empresa autorizada, nem impede replay.
+Media e eventos desconhecidos recusam o pedido antes de escrita. Os commits dos eventos suportados são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. Não há confirmação HTTP neste serviço. Recibos internos só são devolvidos após commit.
 
-O consumidor não deve confirmar um pedido que tenha `unsupported > 0` sem guardar os eventos não suportados numa estratégia durável explicitamente definida. Este adaptador não retém payloads nem resolve esse requisito sozinho.
+## Antes de expor o webhook
 
-Credenciais futuras: `WHATSAPP_APP_SECRET` para assinatura, `WHATSAPP_VERIFY_TOKEN` escolhido pelo operador para verificação inicial, access token para APIs de gestão/envio. Nenhuma credencial é necessária para os testes; os valores neles são sintéticos. Não colocar secrets em Flutter, logs ou Git. Outbound, media e onboarding Meta permanecem pendentes.
+Implementar controller raw-body/limites, rate limiting, configuração de secrets, provisioning Meta verificado, tratamento durável de eventos não suportados e testes HTTP/isolamento. Separar credenciais de ingress/provisioning antes de produção. Uma assinatura válida não substitui o binding autorizado do [ADR-012](decisions/ADR-012-whatsapp-routing.md).
 
-## Fontes e testes
+Pendentes: media, campos adicionais/erros detalhados dos callbacks, identificadores não telefónicos, outbound, reconciliação de estados, gestão/evidência de consentimentos, retenção, UI de entrega e integração Meta real.
 
-Contrato consultado na documentação oficial Meta: [verificação do endpoint](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/create-webhook-endpoint/), [eventos messages](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages) e [texto](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages/text).
+Credenciais futuras: WHATSAPP_APP_SECRET, WHATSAPP_VERIFY_TOKEN e access token server-side. Testes usam valores sintéticos. Nunca enviar secrets ao Flutter, logs ou Git.
 
-`test/whatsapp-inbound.test.ts` é incluído pela suite unitária existente. Cobre bytes originais, Unicode, adulteração, assinaturas inválidas, challenge/token, múltiplas entradas, estados, tipos desconhecidos e payloads malformados/limitados. Integração real com Meta não executada.
+## Verificação
+
+Suites unitárias/integradas cobrem assinatura, challenge, Unicode, payloads inválidos, routing, concorrência, clientes, outbox/worker, revogação, histórico de estados e RLS. Estado da execução integral nos checks do PR #5.
+
+Referências do protocolo: [endpoint Meta](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/create-webhook-endpoint/), [messages](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages) e [texto](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages/text).

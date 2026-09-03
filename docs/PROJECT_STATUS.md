@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Histórico de estados WhatsApp (schema 12)
+
+Callbacks sent/delivered/read/failed são persistidos com idempotência, auditoria e RLS; histórico append-only preserva eventos fora de ordem. Não altera mensagens recebidas nem cria clientes. Ver [ADR-015](decisions/ADR-015-whatsapp-status-journal.md). Lint local aprovado; CI integral nos checks do PR #5. Correlação/estado visual de envios, endpoint público, media e outbound continuam pendentes. Sem merge/deploy.
+
 ## Atualização Phase 4 — Novos clientes inbound (schema 11)
 
 Texto WhatsApp verificado pode cadastrar cliente na mesma transação da outbox. Índice tenant/telefone e lock impedem duplicação; arquivo não é revertido. Consentimentos explícitos com default unknown, sem inferência ou alteração de preferências existentes. Ver [ADR-014](decisions/ADR-014-inbound-customer-resolution.md). Lint local aprovado; validação integral nos checks do PR #5. Ingresso ainda interno, sem endpoint público, callbacks/media ou envios. Sem merge/deploy.

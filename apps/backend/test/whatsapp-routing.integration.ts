@@ -5,6 +5,7 @@ import { Queue } from 'bullmq';
 import { queueConnection } from '../src/queue-connection';
 import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
 import { resolveInboundCustomer } from '../src/customers/inbound-customer';
+import { testWhatsAppStatuses } from './whatsapp-status.integration';
 import { PrismaClient } from '@prisma/client';
 import { WhatsAppRouting } from '../src/channels/whatsapp-routing';
 
@@ -258,6 +259,14 @@ export async function testWhatsAppRouting(db: PrismaClient, tenantA: string, ten
       ).contentText,
       null,
     );
+    await testWhatsAppStatuses(admin, db, ingress, {
+      tenantId: tenantA,
+      otherTenantId: tenantB,
+      channelId,
+      account,
+      phone,
+      secret,
+    });
     const revokeQueue = new Queue('incoming-messages', {
       connection: queueConnection(process.env.REDIS_URL!),
     });
