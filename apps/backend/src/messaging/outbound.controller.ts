@@ -1,0 +1,100 @@
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiOkResponse,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { AuthGuard, AuthRequest } from '../identity/auth.guard';
+import { OutboundIntentService } from './outbound-intent.service';
+import {
+  OutboundErrorDto,
+  StoredOutboundDto,
+  StoreMockOutboundDto,
+  StoreMockOutboundResponseDto,
+} from './outbound.dto';
+
+@ApiTags('Messaging sandbox')
+@ApiBearerAuth()
+@UseGuards(AuthGuard)
+@ApiParam({ name: 'tenantId', format: 'uuid', required: true })
+@ApiResponse({
+  status: 400,
+  description: 'Invalid identifiers or request body.',
+  type: OutboundErrorDto,
+})
+@ApiResponse({ status: 401, description: 'Authentication required.', type: OutboundErrorDto })
+@ApiResponse({
+  status: 403,
+  description: 'Owner/admin permission required.',
+  type: OutboundErrorDto,
+})
+@ApiResponse({
+  status: 404,
+  description: 'Tenant or resource absent/inaccessible; new intent target may be ineligible.',
+  type: OutboundErrorDto,
+})
+@ApiResponse({
+  status: 500,
+  description:
+    'Sanitized failure; storage outcome may be uncertain. Retry identical request, not a new key.',
+  type: OutboundErrorDto,
+})
+@Controller('api/v1/tenants/:tenantId')
+export class OutboundController {
+  constructor(private readonly outbound: OutboundIntentService) {}
+
+  @Post('conversations/:id/mock-outbound-intents')
+  @HttpCode(200)
+  @ApiParam({ name: 'id', format: 'uuid', required: true })
+  @ApiOperation({
+    operationId: 'storeMockOutboundIntent',
+    summary: 'Store a mock outbound intent without sending',
+    description:
+      'Owner/admin sandbox only. HTTP 200 means committed storage, including identical replay. No queue or provider invocation. Reuse requestId and exact text after uncertain responses. 1000 intents per tenant; replay remains available at capacity. Tenant and target are authorized server-side.',
+  })
+  @ApiOkResponse({ type: StoreMockOutboundResponseDto })
+  @ApiResponse({
+    status: 409,
+    description:
+      'Same request key with different text/conversation, or sandbox storage capacity reached.',
+    type: OutboundErrorDto,
+  })
+  store(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Param('id', ParseUUIDPipe) conversationId: string,
+    @Body() body: StoreMockOutboundDto,
+  ) {
+    return this.outbound.acceptMock(req.actor, tenantId, { ...body, conversationId });
+  }
+
+  @Get('outbound-intents/:id')
+  @ApiParam({ name: 'id', format: 'uuid', required: true })
+  @ApiOperation({
+    operationId: 'getStoredOutboundIntent',
+    summary: 'Read minimal storage receipt',
+    description:
+      'Owner/admin in the authorized tenant can read the receipt, including intents from another operator. No content, actor, recipient or delivery state is returned. This GET never submits or requeues.',
+  })
+  @ApiOkResponse({ type: StoredOutboundDto })
+  receipt(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.outbound.receipt(req.actor, tenantId, id);
+  }
+}

@@ -17,6 +17,7 @@ import { testQuarantineOperations } from './quarantine-operations.integration';
 import { testProcessing } from './processing.integration';
 import { testOutboundIntents } from './outbound-intents.integration';
 import { testOutboundAcceptance } from './outbound-acceptance.integration';
+import { assertOutboundOpenApi } from './outbound-http.integration';
 import { TenantService } from '../src/tenancy/tenant.service';
 import { waitReady } from './wait-ready';
 import { createOpenApi } from '../src/openapi';
@@ -73,6 +74,7 @@ test(
     try {
       await waitReady(base);
       assertQuarantineOpenApi(createOpenApi(app));
+      assertOutboundOpenApi(createOpenApi(app));
       const [actorA, actorB] = await Promise.all([createActor(), createActor()]);
       const templates = await data<{ key: string }[]>(
         await call('GET', '/industry-templates', undefined, actorA.access_token),
@@ -762,7 +764,11 @@ test(
         (path, token) => call('GET', path, undefined, token),
       );
       await testOutboundIntents(tenantA.id, tenantB.id);
-      await testOutboundAcceptance(app.get(TenantService), tenantA.id, tenantB.id);
+      await testOutboundAcceptance(app.get(TenantService), tenantA.id, tenantB.id, {
+        call,
+        ownerToken: actorA.access_token,
+        otherToken: actorB.access_token,
+      });
       await testProcessing(
         tenantA.id,
         tenantB.id,

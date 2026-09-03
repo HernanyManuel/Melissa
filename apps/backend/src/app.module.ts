@@ -15,6 +15,7 @@ import { ChannelController } from './channels/channel.controller';
 import { ChannelService } from './channels/channel.service';
 import { MessagingService } from './messaging/messaging.service';
 import { OutboundIntentService } from './messaging/outbound-intent.service';
+import { OutboundController } from './messaging/outbound.controller';
 import { MessagingController } from './messaging/messaging.controller';
 import { WhatsAppWebhookController } from './channels/whatsapp-http';
 import { QuarantineController, QuarantineService } from './channels/quarantine.controller';
@@ -27,6 +28,7 @@ import { QuarantineController, QuarantineService } from './channels/quarantine.c
     CustomerController,
     ChannelController,
     MessagingController,
+    OutboundController,
     WhatsAppWebhookController,
     QuarantineController,
   ],

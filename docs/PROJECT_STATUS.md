@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — API de intenções outbound
+
+POST de sandbox para guardar intenção e GET de recibo mínimo, restritos a owner/admin. HTTP 200 significa `stored`, não queued/sent. OpenAPI explícito e testes HTTP de autenticação, RBAC, isolamento, concorrência, conflito e respostas sem conteúdo. Ver [ADR-033](decisions/ADR-033-outbound-sandbox-api.md). Sem UI, consumidor ou envio; schema 16. Rate limiting específico e retenção continuam pendentes. CI nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Aceitação interna outbound
 
 Serviço de sandbox owner/admin com validação de conversa/cliente/canal mock, intenção e auditoria atómicas, replay idempotente e conflitos auditados. Limite temporário de 1000 intenções/tenant; resposta `stored` sem alegar envio. Testes PostgreSQL de concorrência, RBAC, quota e rollback. Ver [ADR-032](decisions/ADR-032-outbound-intent-acceptance.md). Sem API, UI, fila ou chamada ao provider; schema 16 mantido. CI nos checks do PR #5; sem merge/deploy.

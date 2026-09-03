@@ -22,6 +22,19 @@ export const MAX_MOCK_OUTBOUND_INTENTS = 1000;
 export class OutboundIntentService {
   constructor(private readonly tenants: TenantService) {}
 
+  receipt(actor: Actor, tenantId: string, id: string) {
+    if (!isUUID(tenantId) || !isUUID(id)) throw new BadRequestException();
+    tenantId = tenantId.toLowerCase();
+    return this.tenants.scoped(actor, tenantId, 'channels:manage', async (tx) => {
+      const intent = await tx.outboundIntent.findUnique({
+        where: { tenantId_id: { tenantId, id: id.toLowerCase() } },
+        select: { id: true },
+      });
+      if (!intent) throw new NotFoundException();
+      return { intentId: intent.id, state: 'stored' as const };
+    });
+  }
+
   async acceptMock(actor: Actor, tenantId: string, input: MockOutboundInput) {
     if (
       !isUUID(tenantId) ||

@@ -3,6 +3,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { HttpException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { TenantService } from '../src/tenancy/tenant.service';
+import { OutboundHttpFixture, testOutboundHttp } from './outbound-http.integration';
 import {
   MAX_MOCK_OUTBOUND_INTENTS,
   OutboundIntentService,
@@ -12,6 +13,7 @@ export async function testOutboundAcceptance(
   tenants: TenantService,
   tenantId: string,
   otherTenant: string,
+  http: OutboundHttpFixture,
 ) {
   assert(process.env.MIGRATION_DATABASE_URL);
   const db = new PrismaClient({ datasources: { db: { url: process.env.MIGRATION_DATABASE_URL } } });
@@ -185,6 +187,7 @@ export async function testOutboundAcceptance(
       await db.outboundIntent.count({ where: { tenantId, requestId: rollbackInput.requestId } }),
       0,
     );
+    await testOutboundHttp(db, tenantId, otherTenant, conversation.id, owner.id, http);
     const count = await db.outboundIntent.count({ where: { tenantId } });
     await db.outboundIntent.createMany({
       data: Array.from({ length: MAX_MOCK_OUTBOUND_INTENTS - count }, () => ({
