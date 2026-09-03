@@ -4,7 +4,7 @@ import { TenantService } from '../tenancy/tenant.service';
 import { Actor } from '../identity/auth.service';
 import { MessagePageDto, MockInboundDto } from './dto';
 import { CONFIG, Configuration } from '../config';
-import { batchDeadline } from './batching';
+import { enqueueInbound } from './enqueue-inbound';
 
 @Injectable()
 export class MessagingService {
@@ -44,29 +44,6 @@ export class MessagingService {
         }
         return { conflict: false as const, duplicate: true, eventId: previous.id };
       }
-      const now = new Date();
-      let batch = await tx.inboundBatch.findFirst({
-        where: { tenantId, channelId, customerId: customer.id, sealedAt: null, dueAt: { gt: now } },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (batch && (await tx.inboundOutbox.count({ where: { tenantId, batchId: batch.id } })) >= 50)
-        batch = null;
-      if (batch) {
-        batch = await tx.inboundBatch.update({
-          where: { tenantId_id: { tenantId, id: batch.id } },
-          data: { dueAt: batchDeadline(batch.createdAt, now, this.config.MESSAGE_DEBOUNCE_MS) },
-        });
-      } else {
-        batch = await tx.inboundBatch.create({
-          data: {
-            tenantId,
-            channelId,
-            customerId: customer.id,
-            createdAt: now,
-            dueAt: batchDeadline(now, now, this.config.MESSAGE_DEBOUNCE_MS),
-          },
-        });
-      }
       const event = await tx.externalEvent.create({
         data: {
           tenantId,
@@ -76,33 +53,19 @@ export class MessagingService {
           payloadHash,
         },
       });
-      await tx.inboundOutbox.create({
-        data: {
+      await enqueueInbound(
+        tx,
+        {
           tenantId,
-          id: event.id,
           channelId,
           customerId: customer.id,
+          eventId: event.id,
+          text: input.text,
+          origin: 'mock',
           actorId: actor.userId,
-          contentText: input.text,
-          batchId: batch.id,
         },
-      });
-      await tx.inboundDispatch.create({
-        data: { id: event.id, tenantId, nextAttemptAt: batch.dueAt },
-      });
-      const batchEvents = await tx.inboundOutbox.findMany({
-        where: { tenantId, batchId: batch.id },
-        select: { id: true },
-      });
-      await tx.inboundDispatch.updateMany({
-        where: {
-          tenantId,
-          state: 'pending',
-          attempts: 0,
-          id: { in: batchEvents.map((item) => item.id) },
-        },
-        data: { nextAttemptAt: batch.dueAt },
-      });
+        this.config.MESSAGE_DEBOUNCE_MS,
+      );
       await this.tenants.audit(tx, actor, tenantId, 'message.mock_accepted', event.id);
       return { conflict: false as const, duplicate: false, eventId: event.id };
     });

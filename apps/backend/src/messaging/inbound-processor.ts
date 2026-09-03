@@ -41,20 +41,39 @@ export class InboundProcessor {
             });
         }
         const channel = await tx.channelConnection.findFirst({
-          where: { tenantId, id: input.channelId, mode: 'mock', status: 'active' },
+          where: {
+            tenantId,
+            id: input.channelId,
+            mode: input.origin === 'mock' ? 'mock' : 'live',
+            status: 'active',
+          },
         });
         const customer = await tx.customer.findFirst({
           where: { tenantId, id: input.customerId, deletedAt: null },
         });
-        const membership = await tx.membership.findUnique({
-          where: { tenantId_userId: { tenantId, userId: input.actorId } },
-        });
+        const membership = input.actorId
+          ? await tx.membership.findUnique({
+              where: { tenantId_userId: { tenantId, userId: input.actorId } },
+            })
+          : null;
+        let authorized =
+          input.origin === 'mock' &&
+          !!membership?.active &&
+          allows(membership.role, 'channels:manage');
         if (
-          !channel ||
-          !customer ||
-          !membership?.active ||
-          !allows(membership.role, 'channels:manage')
+          input.origin === 'whatsapp' &&
+          input.actorId === null &&
+          input.integrationKey &&
+          channel?.channelType === 'whatsapp'
         ) {
+          const bindings = await tx.$queryRaw<{ channel_id: string }[]>`
+            SELECT channel_id FROM whatsapp_routes WHERE integration_key=${input.integrationKey}
+            AND tenant_id=${tenantId}::uuid AND channel_id=${channel.id}::uuid
+            AND account_id=${channel.externalAccountId} AND phone_id=${channel.externalPhoneId}`;
+          authorized = bindings.length === 1;
+        }
+        const actorType = input.origin === 'mock' ? 'user' : 'whatsapp';
+        if (!channel || !customer || !authorized) {
           await tx.inboundDispatch.update({ where: { id }, data: { state: 'rejected' } });
           await tx.inboundOutbox.update({
             where: { tenantId_id: { tenantId, id } },
@@ -64,7 +83,8 @@ export class InboundProcessor {
             data: {
               tenantId,
               actorId: input.actorId,
-              action: 'message.mock_rejected',
+              actorType,
+              action: `message.${input.origin}_rejected`,
               targetId: id,
             },
           });
@@ -120,7 +140,8 @@ export class InboundProcessor {
           data: {
             tenantId,
             actorId: input.actorId,
-            action: 'message.mock_received',
+            actorType,
+            action: `message.${input.origin}_received`,
             targetId: message.id,
           },
         });

@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Outbox de origem externa (schema 10)
+
+WhatsAppIngress liga assinatura, normalização, routing e outbox para texto de clientes existentes. Worker distingue autorização externa de membership mock e volta a validar o binding. Auditoria de origem externa sem utilizador fictício; batching partilhado. Ver [ADR-013](decisions/ADR-013-external-inbound-outbox.md). Testes de integração adicionados; CI nos checks do PR #5. Não existe endpoint público/provisioning real; novos clientes, callbacks e media permanecem pendentes. Sem merge/deploy.
+
 ## Atualização Phase 4 — Resolução de canal WhatsApp (schema 9)
 
 Registo de encaminhamento interno com escrita reservada a provisioning confiável e resolver transacional por integração/WABA/número. Revalida canal live ativo, associa tenant via DB e mantém RLS sobre os dados. Ver [ADR-012](decisions/ADR-012-whatsapp-routing.md). Não ligado ao HTTP/outbox; origem externa sem utilizador, provisioning e auditoria de sistema ainda pendentes. Validação desta alteração nos checks do PR #5. Sem merge/deploy.

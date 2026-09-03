@@ -1,5 +1,7 @@
 # WhatsApp inbound — adaptador de transporte
 
+Atualização schema 10: a composição interna `WhatsAppIngress.receive` liga validação, routing e outbox para texto de clientes existentes, com worker e auditoria de origem externa. Ver [ADR-013](decisions/ADR-013-external-inbound-outbox.md). Sem endpoint HTTP; as notas abaixo sobre ausência de composição descrevem a etapa anterior. Não configurar Meta para este código ainda.
+
 Atualização schema 9: `WhatsAppRouting.scoped` e registo interno de bindings implementados; ver [ADR-012](decisions/ADR-012-whatsapp-routing.md). Ainda não integrados ao HTTP/adapter/outbox. Provisioning confiável não implementado; nenhum binding real criado. A lista abaixo inclui requisitos de integração end-to-end, não apenas funções isoladas.
 
 Entrega parcial da Phase 4, §§15, 64 e 76. `WhatsAppInboundProvider` implementa o contrato `InboundProvider`, sem dependência de Nest, DB ou rede. Não está ligado a qualquer rota HTTP e não permite receber mensagens reais na aplicação.

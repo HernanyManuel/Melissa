@@ -87,7 +87,6 @@ test(
         ),
         201,
       );
-      await testWhatsAppRouting(deps.db, tenantA.id, tenantB.id);
       // Customer security regression: use real HTTP, runtime role and PostgreSQL RLS.
       const customersA = `/tenants/${tenantA.id}/customers`;
       const channelsA = `/tenants/${tenantA.id}/channels`;
@@ -695,6 +694,7 @@ test(
           0,
         );
       });
+      await testWhatsAppRouting(deps.db, tenantA.id, tenantB.id);
     } finally {
       await app.close();
     }

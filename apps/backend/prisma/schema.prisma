@@ -277,7 +277,8 @@ model AuditEvent {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @map("tenant_id") @db.Uuid
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  actorId   String   @map("actor_id") @db.Uuid
+  actorId   String?   @map("actor_id") @db.Uuid
+  actorType String @default("user") @map("actor_type")
   action    String
   targetId  String   @map("target_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -394,7 +395,9 @@ model InboundOutbox {
   id String @db.Uuid
   channelId String @map("channel_id") @db.Uuid
   customerId String @map("customer_id") @db.Uuid
-  actorId String @map("actor_id") @db.Uuid
+  actorId String? @map("actor_id") @db.Uuid
+  origin String @default("mock")
+  integrationKey String? @map("integration_key") @db.VarChar(128)
   contentText String? @map("content_text") @db.VarChar(4096)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   @@id([tenantId,id])
