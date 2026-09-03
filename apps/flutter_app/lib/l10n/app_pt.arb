@@ -1,4 +1,12 @@
 {
+  "quarantine": "Quarentena",
+  "quarantineReadOnly": "Conteúdo protegido. Esta vista mostra apenas metadados; leitura e reprocessamento ainda não estão disponíveis.",
+  "quarantineStored": "Guardados",
+  "quarantineSoon": "Expiram em 24 h",
+  "quarantineExpired": "Expirados, aguardam limpeza",
+  "quarantineEmpty": "Sem eventos em quarentena.",
+  "quarantineReceived": "Recebido",
+  "quarantineExpires": "Expira",
   "conversations": "Conversas",
   "noConversations": "Ainda não existem conversas.",
   "selectConversation": "Seleciona uma conversa.",

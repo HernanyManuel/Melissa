@@ -13,6 +13,7 @@ import { queueConnection } from '../src/queue-connection';
 import { setTimeout as delay } from 'node:timers/promises';
 import { InboundProcessor } from '../src/messaging/inbound-processor';
 import { testWhatsAppRouting } from './whatsapp-routing.integration';
+import { testQuarantineOperations } from './quarantine-operations.integration';
 
 test(
   'business onboarding persists validated tenant-scoped configuration',
@@ -695,6 +696,13 @@ test(
         );
       });
       await testWhatsAppRouting(deps.db, tenantA.id, tenantB.id);
+      await testQuarantineOperations(
+        tenantA.id,
+        tenantB.id,
+        actorA.access_token,
+        actorB.access_token,
+        (path, token) => call('GET', path, undefined, token),
+      );
     } finally {
       await app.close();
     }

@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Consulta da quarentena
+
+API e página Flutter de metadados, restritas a owner/admin, com paginação, contadores e prazos. Sem acesso ao conteúdo cifrado. Inclui seis idiomas, estados de UI e testes de isolamento/RBAC/respostas tardias. Ver [ADR-019](decisions/ADR-019-quarantine-metadata-operations.md). Validação integral nos checks do PR #5. Revisão do conteúdo, reprocessamento e alertas continuam pendentes. Phase 4 não concluída; sem ativação real, merge ou deploy.
+
 ## Atualização Phase 4 — Purga automática (schema 14)
 
 Worker elimina payloads cifrados de quarentena expirados, em lotes de até 100, com auditoria transacional e descoberta independente de bindings WhatsApp. Mantém ledger/dedupe e não restaura conteúdo em replay. Ver [ADR-018](decisions/ADR-018-quarantine-retention-worker.md). Testes incluem scheduler separado e concorrência; CI nos checks do PR #5. Revisão/reprocessamento, alertas e política de backups continuam pendentes. Sem ativação real, merge ou deploy.

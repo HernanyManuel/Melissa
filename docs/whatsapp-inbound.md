@@ -24,6 +24,8 @@ Os commits são por evento: erro posterior pode deixar anteriores persistidos; r
 
 ## Antes de expor o webhook
 
+Consulta operacional: GET `/api/v1/tenants/:tenantId/quarantine` e página Flutter `/quarantine/:tenantId`, acessível pela conta para owner/admin. Mostra apenas canal, ID, datas e contadores, com páginas de 50 e cursor `after`; nunca conteúdo cifrado ou chaves. Ver [ADR-019](decisions/ADR-019-quarantine-metadata-operations.md). Consulta de metadados não equivale a revisão/reprocessamento do conteúdo.
+
 Ainda implementar provisioning Meta verificado, tratamento durável de eventos não suportados e proteção no proxy. Controller, limites e testes HTTP já existem, mas não equivalem a validação Meta real. Separar credenciais de ingress/provisioning antes de produção. Uma assinatura válida não substitui o binding autorizado do [ADR-012](decisions/ADR-012-whatsapp-routing.md).
 
 Pendentes: media, campos adicionais/erros detalhados dos callbacks, identificadores não telefónicos, outbound, reconciliação de estados, gestão/evidência de consentimentos, retenção, UI de entrega e integração Meta real.
