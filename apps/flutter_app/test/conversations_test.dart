@@ -19,6 +19,32 @@ IdentityApi client(Future<http.Response> Function(http.Request) route) => Identi
 }));
 
 void main() {
+  testWidgets('search retains query on pagination and discards late results', (tester) async {
+    final late = Completer<http.Response>();
+    final api = client((r) async {
+      final query = r.url.queryParameters['q'];
+      if (query == 'old') return late.future;
+      if (query == 'A & B') {
+        return r.url.queryParameters['after'] == 'cursor' ? page([conversation('second')]) : page([conversation('first')], 'cursor');
+      }
+      expect(r.url.queryParameters.containsKey('after'), false);
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api)); await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'old');
+    await tester.tap(find.text('Pesquisar')); await tester.pump();
+    await tester.enterText(find.byType(TextField), 'A & B');
+    await tester.tap(find.text('Pesquisar')); await tester.pumpAndSettle();
+    late.complete(page([conversation('old')])); await tester.pumpAndSettle();
+    expect(find.text('Cliente old'), findsNothing);
+    expect(find.text('Cliente first'), findsOneWidget);
+    await tester.ensureVisible(find.text('Carregar mais'));
+    await tester.tap(find.text('Carregar mais')); await tester.pumpAndSettle();
+    expect(find.text('Cliente second'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.clear)); await tester.pumpAndSettle();
+    expect(find.text('Ainda não existem conversas.'), findsOneWidget);
+  });
   testWidgets('empty conversations and failed refresh offer recovery', (tester) async {
     var fail = true;
     final api = client((_) async => fail ? http.Response('{}', 403) : page([]));

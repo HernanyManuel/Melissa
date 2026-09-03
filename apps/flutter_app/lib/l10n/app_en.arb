@@ -1,4 +1,8 @@
 {
+  "conversationSearch": "Customer or channel name",
+  "conversationSearchAction": "Search",
+  "conversationClear": "Clear search",
+  "conversationNoMatches": "No conversations match this search.",
   "processingTitle": "Message processing",
   "processingHint": "Metadata only, without content or resending. States may change while browsing. The date indicates eligibility, not a guaranteed execution time.",
   "processingPending": "Pending",

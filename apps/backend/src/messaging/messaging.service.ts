@@ -2,7 +2,7 @@ import { ConflictException, Inject, Injectable, NotFoundException } from '@nestj
 import { createHash } from 'node:crypto';
 import { TenantService } from '../tenancy/tenant.service';
 import { Actor } from '../identity/auth.service';
-import { MessagePageDto, MockInboundDto } from './dto';
+import { MessagePageDto, MockInboundDto, ConversationQuery } from './dto';
 import { CONFIG, Configuration } from '../config';
 import { enqueueInbound } from './enqueue-inbound';
 import { checkedReceiptState } from './receipt-state';
@@ -118,7 +118,7 @@ export class MessagingService {
     });
   }
 
-  conversations(actor: Actor, tenantId: string, page: MessagePageDto) {
+  conversations(actor: Actor, tenantId: string, page: ConversationQuery) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       if (
         page.after &&
@@ -127,8 +127,24 @@ export class MessagingService {
         }))
       )
         throw new NotFoundException();
+      // Escape LIKE metacharacters: user input is a literal name fragment.
+      const search = page.q?.replace(/[\\%_]/g, '\\$&');
       const rows = await tx.conversation.findMany({
-        where: { tenantId },
+        where: {
+          tenantId,
+          ...(search
+            ? {
+                OR: [
+                  { customer: { displayName: { contains: search, mode: 'insensitive' as const } } },
+                  {
+                    channelConnection: {
+                      displayName: { contains: search, mode: 'insensitive' as const },
+                    },
+                  },
+                ],
+              }
+            : {}),
+        },
         orderBy: { id: 'asc' },
         take: 51,
         ...(page.after ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 } : {}),

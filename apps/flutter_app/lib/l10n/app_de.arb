@@ -1,4 +1,8 @@
 {
+  "conversationSearch": "Kunden- oder Kanalname",
+  "conversationSearchAction": "Suchen",
+  "conversationClear": "Suche löschen",
+  "conversationNoMatches": "Keine passenden Gespräche gefunden.",
   "processingTitle": "Nachrichtenverarbeitung",
   "processingHint": "Nur Metadaten, ohne Inhalt oder erneuten Versand. Zustände können sich beim Durchsehen ändern. Das Datum ist der früheste Zeitpunkt, keine garantierte Ausführungszeit.",
   "processingPending": "Ausstehend",

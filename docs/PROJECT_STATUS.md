@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Pesquisa de conversas
+
+API/Flutter pesquisam por nome do cliente ou canal, sem pesquisar conteúdo. Query limitada/escapada, paginação preservada, seis idiomas, limpar e proteção contra respostas atrasadas. Testes HTTP/UI e isolamento adicionados. Ver [ADR-029](decisions/ADR-029-conversation-name-search.md). Carga/índices para pesquisa em grande escala continuam pendentes. CI nos checks do PR #5; sem migration, merge ou deploy.
+
 ## Atualização Phase 4 — Índice de processamento (schema 15)
 
 Índice por tenant/estado/id para a vista operacional, preservando o índice de dispatch global. Migration com timeouts limitados, readiness atualizado e teste de catálogo/estrutura. Ver [ADR-028](decisions/ADR-028-processing-tenant-index.md). Não constitui benchmark; carga representativa e rollout live concorrente continuam pendentes. CI nos checks do PR #5; sem merge/deploy.

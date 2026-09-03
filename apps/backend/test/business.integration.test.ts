@@ -283,6 +283,55 @@ test(
         200,
       );
       assert.equal(conversationPage.items[0]!.mode, 'AI_PAUSED');
+      const searchPath = `/tenants/${tenantA.id}/conversations`;
+      for (const q of ['  cLiEnTe  ', 'INBOX TEST', '']) {
+        const found = await data<{ items: { id: string }[] }>(
+          await call(
+            'GET',
+            `${searchPath}?q=${encodeURIComponent(q)}`,
+            undefined,
+            actorA.access_token,
+          ),
+          200,
+        );
+        assert.equal(found.items.length, 1);
+        assert.equal(found.items[0]!.id, conversationId);
+      }
+      for (const q of ['nonexistent-name', 'gostaria', '%', '_', '\\']) {
+        const found = await data<{ items: unknown[] }>(
+          await call(
+            'GET',
+            `${searchPath}?q=${encodeURIComponent(q)}`,
+            undefined,
+            actorA.access_token,
+          ),
+          200,
+        );
+        assert.equal(found.items.length, 0, 'Only literal customer/channel names are searched');
+      }
+      assert.equal(
+        (await call('GET', `${searchPath}?q=${'x'.repeat(81)}`, undefined, actorA.access_token))
+          .status,
+        400,
+      );
+      assert.equal(
+        (await call('GET', `${searchPath}?q=a&q=b`, undefined, actorA.access_token)).status,
+        400,
+      );
+      assert.equal(
+        (await call('GET', `${searchPath}?q=Cliente`, undefined, actorB.access_token)).status,
+        404,
+      );
+      const afterMatch = await data<{ items: unknown[] }>(
+        await call(
+          'GET',
+          `${searchPath}?q=Cliente&after=${conversationId}`,
+          undefined,
+          actorA.access_token,
+        ),
+        200,
+      );
+      assert.equal(afterMatch.items.length, 0);
       assert.equal((await deps.db.message.findMany()).length, 0);
       assert.equal((await deps.db.externalEvent.findMany()).length, 0);
       assert.equal((await deps.db.conversation.findMany()).length, 0);

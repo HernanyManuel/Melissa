@@ -1,4 +1,8 @@
 {
+  "conversationSearch": "Nombre del cliente o canal",
+  "conversationSearchAction": "Buscar",
+  "conversationClear": "Borrar búsqueda",
+  "conversationNoMatches": "Ninguna conversación coincide con la búsqueda.",
   "processingTitle": "Procesamiento de mensajes",
   "processingHint": "Solo metadatos, sin contenido ni reenvío. Los estados pueden cambiar al navegar. La fecha indica elegibilidad, no una hora garantizada de ejecución.",
   "processingPending": "Pendientes",

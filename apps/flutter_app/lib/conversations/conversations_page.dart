@@ -13,6 +13,8 @@ class ConversationsPage extends StatefulWidget {
 
 class _ConversationsPageState extends State<ConversationsPage> {
   late final IdentityApi api;
+  final search = TextEditingController();
+  String searchQuery = '';
   List<Map<String, dynamic>> conversations = [];
   List<Map<String, dynamic>> messages = [];
   Map<String, dynamic>? selected;
@@ -32,6 +34,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   void didUpdateWidget(covariant ConversationsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tenantId != widget.tenantId) {
+      search.clear(); searchQuery = '';
       messageGeneration++;
       conversations = []; messages = []; selected = null;
       conversationNext = null; messageNext = null;
@@ -40,12 +43,17 @@ class _ConversationsPageState extends State<ConversationsPage> {
     }
   }
   @override
-  void dispose() { if (widget.api == null) api.dispose(); super.dispose(); }
+  void dispose() { search.dispose(); if (widget.api == null) api.dispose(); super.dispose(); }
 
   Future<void> load({bool more = false}) async {
     final generation = ++listGeneration;
-    final path = '$base${more && conversationNext != null ? '?after=$conversationNext' : ''}';
-    setState(() { loading = true; listError = false; });
+    final params = <String, String>{if (searchQuery.isNotEmpty) 'q': searchQuery,
+      if (more && conversationNext != null) 'after': conversationNext!};
+    final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
+    setState(() { loading = true; listError = false;
+      if (!more) { conversations = []; conversationNext = null; selected = null; messages = [];
+        messageGeneration++; reading = false; messageNext = null; messageError = false; }
+    });
     try {
       if (!api.authenticated) await api.refresh();
       final page = await api.request('GET', path) as Map<String, dynamic>;
@@ -97,9 +105,16 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final l = AppLocalizations.of(context)!;
     return Column(children: [
       ListTile(title: Text(l.conversations), trailing: IconButton(tooltip: l.retry, onPressed: loading ? null : () => load(), icon: const Icon(Icons.refresh))),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: TextField(
+        controller: search, maxLength: 80, textInputAction: TextInputAction.search,
+        decoration: InputDecoration(labelText: l.conversationSearch, suffixIcon: IconButton(
+          tooltip: l.conversationClear, icon: const Icon(Icons.clear), onPressed: () { search.clear(); searchQuery = ''; load(); })),
+        onSubmitted: (_) { searchQuery = search.text.trim(); load(); },
+      )),
+      TextButton.icon(onPressed: () { searchQuery = search.text.trim(); load(); }, icon: const Icon(Icons.search), label: Text(l.conversationSearchAction)),
       if (loading) const LinearProgressIndicator(),
       if (listError) errorPanel(() => load()),
-      if (!loading && !listError && conversations.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(l.noConversations)),
+      if (!loading && !listError && conversations.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(searchQuery.isEmpty ? l.noConversations : l.conversationNoMatches)),
       Expanded(child: ListView(children: [
         for (final c in conversations) ListTile(
           selected: selected?['id'] == c['id'],

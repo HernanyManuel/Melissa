@@ -13,7 +13,7 @@ import {
 import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation, ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { MessagingService } from './messaging.service';
-import { MessagePageDto, MockInboundDto } from './dto';
+import { MessagePageDto, MockInboundDto, ConversationQuery } from './dto';
 import { ProcessingQuery, ProcessingPageDto } from './processing.dto';
 
 @ApiTags('Messaging sandbox')
@@ -33,10 +33,15 @@ export class MessagingController {
     return this.messaging.receiveMock(req.actor, tenant, id, body);
   }
   @Get('conversations')
+  @ApiOperation({
+    summary: 'List or search conversations',
+    description:
+      'Optional literal name search q, scoped to the authorized tenant. Fixed pages of 50 ordered by ID. Retain q when following a cursor; reset cursor when changing q.',
+  })
   conversations(
     @Req() req: AuthRequest,
     @Param('tenantId', ParseUUIDPipe) tenant: string,
-    @Query() page: MessagePageDto,
+    @Query() page: ConversationQuery,
   ) {
     return this.messaging.conversations(req.actor, tenant, page);
   }
