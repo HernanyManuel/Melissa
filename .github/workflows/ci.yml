@@ -62,13 +62,15 @@ jobs:
         run: |
           node apps/backend/dist/src/worker.js &
           worker_pid=$!
-          trap 'kill "$worker_pid" 2>/dev/null || true' EXIT
+          trap 'kill "$worker_pid" 2>/dev/null || true; wait "$worker_pid" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 30); do
             if curl -fsS http://localhost:3001/health/ready; then break; fi
             sleep 1
           done
           curl -fsS http://localhost:3001/health/ready
           pnpm test:integration
+      - name: Abrupt worker death and durable recovery
+        run: RUN_WORKER_RESTART_TEST=true node --test apps/backend/dist/test/worker-restart.integration.test.js
       - run: pnpm openapi
       - uses: actions/upload-artifact@v4
         with:

@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Reinício abrupto do worker
+
+Adicionado cenário CI com worker filho real terminado por SIGKILL, aceitação HTTP durante paragem, recuperação da outbox após reinício e replay sem duplicar mensagem/auditoria. Ver [ADR-021](decisions/ADR-021-worker-restart-verification.md). Não cobre morte em processamento, indisponibilidade Redis ou failover DB. Lint local aprovado; execução integral nos checks do PR #5. Sem alteração funcional, merge ou deploy.
+
 ## Atualização Phase 4 — Avisos operacionais
 
 Página de quarentena sinaliza ocupação ≥80%, capacidade esgotada, expiração próxima e limpeza pendente. Regras determinísticas no backend e capacidade partilhada com ingresso; traduções e testes adicionados. Ver [ADR-020](decisions/ADR-020-quarantine-operational-notices.md). São avisos da última consulta, não alertas enviados ou monitorização contínua. Notificações automáticas, revisão do conteúdo e reprocessamento continuam pendentes. CI nos checks do PR #5; sem ativação, merge ou deploy.
