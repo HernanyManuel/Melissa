@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Aceitação interna outbound
+
+Serviço de sandbox owner/admin com validação de conversa/cliente/canal mock, intenção e auditoria atómicas, replay idempotente e conflitos auditados. Limite temporário de 1000 intenções/tenant; resposta `stored` sem alegar envio. Testes PostgreSQL de concorrência, RBAC, quota e rollback. Ver [ADR-032](decisions/ADR-032-outbound-intent-acceptance.md). Sem API, UI, fila ou chamada ao provider; schema 16 mantido. CI nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Intenções outbound duráveis (schema 16)
 
 Tabela imutável `outbound_intents`, RLS forçada, FKs compostas e chave idempotente por tenant/ator. Só provider mock; sem API/consumidor ou envio. Testes de persistência, rollback, isolamento, grants e concorrência. Ver [ADR-031](decisions/ADR-031-durable-outbound-intents.md). Autorização de envio, auditoria/replay, dispatch/worker, retenção e UI continuam pendentes. Readiness exige schema 16; validação integral nos checks do PR #5. Sem merge/deploy.

@@ -16,6 +16,8 @@ import { testWhatsAppRouting } from './whatsapp-routing.integration';
 import { testQuarantineOperations } from './quarantine-operations.integration';
 import { testProcessing } from './processing.integration';
 import { testOutboundIntents } from './outbound-intents.integration';
+import { testOutboundAcceptance } from './outbound-acceptance.integration';
+import { TenantService } from '../src/tenancy/tenant.service';
 import { waitReady } from './wait-ready';
 import { createOpenApi } from '../src/openapi';
 import { assertQuarantineOpenApi } from './quarantine-openapi';
@@ -760,6 +762,7 @@ test(
         (path, token) => call('GET', path, undefined, token),
       );
       await testOutboundIntents(tenantA.id, tenantB.id);
+      await testOutboundAcceptance(app.get(TenantService), tenantA.id, tenantB.id);
       await testProcessing(
         tenantA.id,
         tenantB.id,
