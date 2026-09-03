@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Recuperação do transporte Redis
+
+Teste do worker inclui corte real dos seus sockets Redis via proxy loopback, readiness 503/liveness 200, backlog preservado no PostgreSQL e retoma no mesmo processo após reconexão. Replay/auditoria/payload verificados. Ver [ADR-022](decisions/ADR-022-redis-transport-recovery.md). A API mantém a sua ligação; falha global/restart do servidor Redis e interrupção durante processamento continuam pendentes. CI nos checks do PR #5; sem alteração funcional, merge ou deploy.
+
 ## Atualização Phase 4 — Reinício abrupto do worker
 
 Adicionado cenário CI com worker filho real terminado por SIGKILL, aceitação HTTP durante paragem, recuperação da outbox após reinício e replay sem duplicar mensagem/auditoria. Ver [ADR-021](decisions/ADR-021-worker-restart-verification.md). Não cobre morte em processamento, indisponibilidade Redis ou failover DB. Lint local aprovado; execução integral nos checks do PR #5. Sem alteração funcional, merge ou deploy.

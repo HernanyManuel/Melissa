@@ -13,10 +13,11 @@ import { configureHttp } from '../src/http';
 import { IdentityMail } from '../src/identity/mail';
 import { Dependencies } from '../src/dependencies';
 import { waitReady } from './wait-ready';
+import { redisFaultProxy } from './redis-fault-proxy';
 
 // Dedicated disposable CI database/Redis only. Never signal an external PID.
 test(
-  'accepted inbound survives abrupt worker death and repeated restart without duplicates',
+  'accepted inbound survives worker restart and Redis transport outage without duplicates',
   { timeout: 60000 },
   async () => {
     assert.equal(process.env.NODE_ENV, 'test');
@@ -33,6 +34,7 @@ test(
     const base = await app.getUrl();
     let bearer = '';
     let child: ChildProcess | undefined;
+    let proxy: Awaited<ReturnType<typeof redisFaultProxy>> | undefined;
     const stop = async () => {
       if (!child || child.exitCode !== null || child.signalCode !== null) return;
       const exited = once(child, 'exit');
@@ -44,7 +46,7 @@ test(
     const start = async () => {
       assert(!child);
       child = spawn(process.execPath, [join(__dirname, '../src/worker.js')], {
-        env: { ...process.env, WORKER_PORT: '3002' },
+        env: { ...process.env, WORKER_PORT: '3002', REDIS_URL: proxy!.url },
         stdio: 'ignore',
       });
       await once(child, 'spawn');
@@ -83,6 +85,7 @@ test(
     };
     try {
       await waitReady(base);
+      proxy = await redisFaultProxy(config.REDIS_URL);
       const email = `restart-${randomUUID()}@example.test`;
       const password = 'Worker-restart-test-123!';
       await request('POST', '/auth/register', 202, {
@@ -176,9 +179,92 @@ test(
         });
         assert.equal(payload.contentText, null);
       });
+
+      // Cut established TCP sockets and reject reconnects only for this worker.
+      const activeWorker = (() => {
+        assert(child?.pid);
+        return child;
+      })();
+      proxy.cut();
+      const health = await fetch('http://127.0.0.1:3002/health/ready', {
+        signal: AbortSignal.timeout(5000),
+      });
+      assert.equal(health.status, 503);
+      assert.equal(
+        (
+          await fetch('http://127.0.0.1:3002/health/live', {
+            signal: AbortSignal.timeout(5000),
+          })
+        ).status,
+        200,
+      );
+      const outageInput = {
+        ...input,
+        eventId: randomUUID(),
+        text: 'Synthetic Redis outage payload',
+      };
+      const queued = await request<{ eventId: string }>('POST', inboundPath, 202, outageInput);
+      const outageReceiptPath = `${tenantPath}/message-receipts/${queued.eventId}`;
+      await delay(3500); // Several dispatch opportunities, beyond queue command timeout.
+      assert.equal(
+        (await request<{ state: string }>('GET', outageReceiptPath, 200)).state,
+        'pending',
+      );
+      await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id',${tenant.id},true)`;
+        const payload = await tx.inboundOutbox.findUniqueOrThrow({
+          where: { tenantId_id: { tenantId: tenant.id, id: queued.eventId } },
+        });
+        assert.equal(payload.contentText, outageInput.text);
+        assert.equal(await tx.message.count({ where: { externalEventId: queued.eventId } }), 0);
+      });
+      proxy.restore();
+      await waitReady('http://127.0.0.1:3002');
+      let recoveredId: string | undefined;
+      for (let attempt = 0; attempt < 150; attempt++) {
+        const receipt = await request<{ state: string; message: { id: string } | null }>(
+          'GET',
+          outageReceiptPath,
+          200,
+        );
+        if (receipt.state === 'processed') {
+          recoveredId = receipt.message?.id;
+          break;
+        }
+        await delay(100);
+      }
+      assert(recoveredId, 'Transport recovery must resume dispatch without restarting the worker');
+      assert.equal(child, activeWorker);
+      assert.equal(activeWorker.exitCode, null);
+      assert.equal(activeWorker.signalCode, null);
+      assert.equal(
+        (await request<{ duplicate: boolean }>('POST', inboundPath, 202, outageInput)).duplicate,
+        true,
+      );
+      await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id',${tenant.id},true)`;
+        assert.equal(await tx.message.count({ where: { externalEventId: queued.eventId } }), 1);
+        assert.equal(
+          await tx.auditEvent.count({
+            where: { targetId: recoveredId, action: 'message.mock_received' },
+          }),
+          1,
+        );
+        const payload = await tx.inboundOutbox.findUniqueOrThrow({
+          where: { tenantId_id: { tenantId: tenant.id, id: queued.eventId } },
+        });
+        assert.equal(payload.contentText, null);
+      });
     } finally {
-      await stop();
-      await app.close();
+      try {
+        await stop();
+      } finally {
+        try {
+          await proxy?.close();
+        } finally {
+          await app.close();
+        }
+      }
     }
   },
 );
