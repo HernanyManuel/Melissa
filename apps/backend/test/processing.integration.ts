@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
+import { assertProcessingIndex } from './processing-index.integration';
 
 export async function testProcessing(
   tenantId: string,
@@ -14,6 +15,7 @@ export async function testProcessing(
   const path = `/tenants/${tenantId}/message-processing`;
   const owner = await db.membership.findFirstOrThrow({ where: { tenantId, role: 'owner' } });
   try {
+    await assertProcessingIndex(db);
     assert.equal((await get(path)).status, 401);
     assert.equal((await get(path, otherToken)).status, 404);
     for (const query of ['state=processed', 'state=invalid', 'after=invalid', 'limit=500'])

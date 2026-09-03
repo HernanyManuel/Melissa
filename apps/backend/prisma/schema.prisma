@@ -467,5 +467,6 @@ model InboundDispatch {
   attempts Int @default(0)
   nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
   @@index([state,nextAttemptAt,id])
+  @@index([tenantId,state,id], map: "inbound_dispatch_tenant_state_id_idx")
   @@map("inbound_dispatch")
 }

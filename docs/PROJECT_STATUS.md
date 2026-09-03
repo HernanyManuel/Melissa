@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Índice de processamento (schema 15)
+
+Índice por tenant/estado/id para a vista operacional, preservando o índice de dispatch global. Migration com timeouts limitados, readiness atualizado e teste de catálogo/estrutura. Ver [ADR-028](decisions/ADR-028-processing-tenant-index.md). Não constitui benchmark; carga representativa e rollout live concorrente continuam pendentes. CI nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Vista de processamento
 
 API e Flutter owner/admin para mensagens pending/failed/rejected, com paginação e metadados mínimos. Sem conteúdo, reenvio ou cancelamento. Seis idiomas, OpenAPI e testes HTTP/RBAC/isolamento/UI. Ver [ADR-027](decisions/ADR-027-processing-operations.md). Escala/índice adicional e painel admin global continuam pendentes. CI nos checks do PR #5; sem migration, merge ou deploy.
