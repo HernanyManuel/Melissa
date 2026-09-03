@@ -47,9 +47,11 @@ class _QuarantinePageState extends State<QuarantinePage> {
         soon = result['expiringSoon'] as int; capacity = result['capacity'] as int;
       });
     } catch (_) {
-      if (mounted && requestGeneration == generation) setState(() {
-        failed = true; rows = []; next = null; total = 0; expired = 0; soon = 0;
-      });
+      if (mounted && requestGeneration == generation) {
+        setState(() {
+          failed = true; rows = []; next = null; total = 0; expired = 0; soon = 0;
+        });
+      }
     }
     if (mounted && requestGeneration == generation) setState(() => loading = false);
   }
