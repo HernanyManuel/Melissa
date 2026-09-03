@@ -103,6 +103,8 @@ class _ChannelsPageState extends State<ChannelsPage> {
                 Text(row['mode'] == 'mock' ? l.testChannel : l.channelLive),
                 Text(row['status'] == 'active' ? l.channelActive : row['status'] == 'disconnected' ? l.channelDisconnected : l.channelOtherStatus),
                 if (row['mode'] == 'mock' && row['status'] == 'active') OutlinedButton(
+                  onPressed: busy ? null : () => context.go('/channels/${widget.tenantId}/${row['id']}/simulate'), child: Text(l.simulationTitle)),
+                if (row['mode'] == 'mock' && row['status'] == 'active') OutlinedButton(
                   onPressed: busy ? null : () => disconnect(row), child: Text(l.channelDisconnect)),
               ]))),
           ],

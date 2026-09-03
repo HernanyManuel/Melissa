@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Simulação inbound no Flutter
+
+Canal mock ativo permite selecionar cliente, enviar texto pela outbox/fila e consultar recibo. Repetição em caso de rede reutiliza UUID/payload em memória; 202 não é apresentado como processamento concluído. Seis idiomas, clientes paginados, testes de replay/consulta/modo live/isolamento visual. Ver [ADR-025](decisions/ADR-025-inbound-simulation-ui.md). Não envia WhatsApp, não executa IA nem garante idempotência após reload. CI nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Página de canais
 
 Flutter permite listar/criar canais mock e desligá-los com confirmação, através das APIs existentes. Acesso owner/admin, seis idiomas, estados de UI e proteção contra respostas tardias/duplicação por repetição automática. Canais live apenas de consulta. Ver [ADR-024](decisions/ADR-024-channel-management-ui.md). Testes novos de interface; CI nos checks do PR #5. Simulação de mensagens pela UI e provisioning Meta permanecem pendentes. Sem merge/deploy.

@@ -42,9 +42,11 @@ void main() {
     await tester.tap(find.text('Criar canal de teste')); await tester.pumpAndSettle();
     expect(posts.length, 1);
     expect(find.text('Teste'), findsOneWidget);
+    await tester.ensureVisible(find.text('Desligar canal'));
     await tester.tap(find.text('Desligar canal')); await tester.pumpAndSettle();
     await tester.tap(find.text('Fechar')); await tester.pumpAndSettle();
     expect(posts.length, 1);
+    await tester.ensureVisible(find.text('Desligar canal'));
     await tester.tap(find.text('Desligar canal')); await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Desligar canal')); await tester.pumpAndSettle();
     expect(posts.length, 2);
