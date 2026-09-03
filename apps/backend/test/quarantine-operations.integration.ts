@@ -18,6 +18,7 @@ export async function testQuarantineOperations(
     assert.equal((await get(path)).status, 401);
     assert.equal((await get(path, otherToken)).status, 404);
     assert.equal((await get(path + '?after=invalid', ownerToken)).status, 400);
+    assert.equal((await get(path + '?limit=500', ownerToken)).status, 400);
     const channel = await admin.channelConnection.findFirstOrThrow({ where: { tenantId } });
     const ids = Array.from({ length: 51 }, () => randomUUID());
     const expiresAt = new Date(Date.now() + 12 * 3600000);
@@ -50,6 +51,8 @@ export async function testQuarantineOperations(
     });
     const first = await get(path, ownerToken);
     assert.equal(first.status, 200);
+    assert.equal(first.headers.get('cache-control'), 'no-store');
+    assert.match(first.headers.get('x-request-id') ?? '', /^[0-9a-f-]{36}$/);
     const body = await first.text();
     for (const secret of ['ciphertext', 'nonce', 'tag', 'keyId', 'never-return'])
       assert(!body.includes(secret));

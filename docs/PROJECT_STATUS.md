@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Contrato OpenAPI de quarentena
+
+DTOs explícitos, operationId estável, cursor, campos obrigatórios, datas, avisos, erros e cabeçalhos documentados. Testes verificam o esquema gerado e os cabeçalhos/validação HTTP. Ver [ADR-023](decisions/ADR-023-quarantine-openapi-contract.md). Sem alteração do formato HTTP ou UI; geração de cliente Dart e contratos restantes não concluídos. Validação integral nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Recuperação do transporte Redis
 
 Teste do worker inclui corte real dos seus sockets Redis via proxy loopback, readiness 503/liveness 200, backlog preservado no PostgreSQL e retoma no mesmo processo após reconexão. Replay/auditoria/payload verificados. Ver [ADR-022](decisions/ADR-022-redis-transport-recovery.md). A API mantém a sua ligação; falha global/restart do servidor Redis e interrupção durante processamento continuam pendentes. CI nos checks do PR #5; sem alteração funcional, merge ou deploy.

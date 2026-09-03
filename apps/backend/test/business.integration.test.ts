@@ -15,6 +15,8 @@ import { InboundProcessor } from '../src/messaging/inbound-processor';
 import { testWhatsAppRouting } from './whatsapp-routing.integration';
 import { testQuarantineOperations } from './quarantine-operations.integration';
 import { waitReady } from './wait-ready';
+import { createOpenApi } from '../src/openapi';
+import { assertQuarantineOpenApi } from './quarantine-openapi';
 
 test(
   'business onboarding persists validated tenant-scoped configuration',
@@ -66,6 +68,7 @@ test(
     };
     try {
       await waitReady(base);
+      assertQuarantineOpenApi(createOpenApi(app));
       const [actorA, actorB] = await Promise.all([createActor(), createActor()]);
       const templates = await data<{ key: string }[]>(
         await call('GET', '/industry-templates', undefined, actorA.access_token),

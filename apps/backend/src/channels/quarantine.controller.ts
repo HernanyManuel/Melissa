@@ -8,18 +8,27 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiOkResponse,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { Actor } from '../identity/auth.service';
 import { TenantService } from '../tenancy/tenant.service';
 import { MessagePageDto } from '../messaging/dto';
 import { QUARANTINE_CAPACITY, quarantineNotices } from './quarantine-policy';
+import { QuarantinePageResponseDto, QuarantineErrorResponseDto } from './quarantine.dto';
 
 @Injectable()
 export class QuarantineService {
   constructor(private readonly tenants: TenantService) {}
 
-  list(actor: Actor, tenantId: string, page: MessagePageDto) {
+  list(actor: Actor, tenantId: string, page: MessagePageDto): Promise<QuarantinePageResponseDto> {
     return this.tenants.scoped(actor, tenantId, 'channels:manage', async (tx) => {
       const now = new Date();
       const tomorrow = new Date(now.getTime() + 86400000);
@@ -67,6 +76,52 @@ export class QuarantineService {
 export class QuarantineController {
   constructor(private readonly quarantine: QuarantineService) {}
   @Get()
+  @ApiOperation({
+    operationId: 'listQuarantineMetadata',
+    summary: 'List tenant quarantine metadata',
+    description:
+      'Owner/admin only. Tenant selector is verified against the session and membership. No payload, ciphertext, key, hash or recipient data is returned. Read-only; no review or reprocessing.',
+  })
+  @ApiParam({ name: 'tenantId', format: 'uuid', required: true })
+  @ApiQuery({
+    name: 'after',
+    required: false,
+    type: String,
+    format: 'uuid',
+    description: 'Exclusive ID cursor. Omit for the first page; fixed page size of 50.',
+  })
+  @ApiOkResponse({
+    type: QuarantinePageResponseDto,
+    headers: {
+      'Cache-Control': { schema: { type: 'string', enum: ['no-store'] } },
+      'X-Request-Id': { schema: { type: 'string', format: 'uuid' } },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'VALIDATION_ERROR: invalid UUID or unsupported query parameter.',
+    type: QuarantineErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'UNAUTHORIZED: missing, invalid or revoked session.',
+    type: QuarantineErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'FORBIDDEN: membership lacks channels:manage.',
+    type: QuarantineErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'NOT_FOUND: tenant absent or inaccessible to this actor.',
+    type: QuarantineErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'INTERNAL_ERROR: sanitized failure; no database details.',
+    type: QuarantineErrorResponseDto,
+  })
   list(
     @Req() req: AuthRequest,
     @Param('tenantId', ParseUUIDPipe) tenant: string,
