@@ -109,12 +109,10 @@ export class MessagingService {
         select: { id: true, state: true, attempts: true, nextAttemptAt: true },
       });
       return {
-        items: rows
-          .slice(0, 50)
-          .map((row) => ({
-            ...row,
-            nextAttemptAt: row.state === 'pending' ? row.nextAttemptAt : null,
-          })),
+        items: rows.slice(0, 50).map((row) => ({
+          ...row,
+          nextAttemptAt: row.state === 'pending' ? row.nextAttemptAt : null,
+        })),
         next: rows.length > 50 ? rows[49]!.id : null,
       };
     });

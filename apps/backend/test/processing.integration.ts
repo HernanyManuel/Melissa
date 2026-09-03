@@ -19,7 +19,7 @@ export async function testProcessing(
     for (const query of ['state=processed', 'state=invalid', 'after=invalid', 'limit=500'])
       assert.equal((await get(`${path}?${query}`, ownerToken)).status, 400);
     const source = await db.inboundOutbox.findFirstOrThrow({ where: { tenantId } });
-    const ids = Array.from({ length: 51 }, () => randomUUID());
+    const ids: string[] = Array.from({ length: 51 }, () => randomUUID());
     await db.$transaction(async (tx) => {
       await tx.externalEvent.createMany({
         data: ids.map((id) => ({
