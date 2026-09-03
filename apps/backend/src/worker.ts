@@ -8,6 +8,7 @@ import { configureHttp } from './http';
 import { log } from './logging';
 import { Dependencies } from './dependencies';
 import { startInboundQueue } from './messaging/inbound-queue';
+import { startQuarantineRetention } from './channels/quarantine-retention';
 
 // Isolated probe and durable inbound consumers; no public product API on this process.
 async function bootstrap(): Promise<void> {
@@ -28,11 +29,13 @@ async function bootstrap(): Promise<void> {
   // Start probe server only once the actual consumer is ready.
   await worker.waitUntilReady();
   const stopInbound = await startInboundQueue(app.get(Dependencies), config.REDIS_URL);
+  const stopRetention = startQuarantineRetention(app.get(Dependencies).db);
   await app.listen(config.WORKER_PORT, '0.0.0.0');
   let stopping = false;
   const stop = async (): Promise<void> => {
     if (stopping) return;
     stopping = true;
+    await stopRetention();
     await stopInbound();
     await worker.close();
     await app.close();

@@ -1,4 +1,4 @@
-# WhatsApp inbound — estado atual (schema 13)
+# WhatsApp inbound — estado atual (schema 14)
 
 Fluxo implementado: bytes assinados → normalização → routing verificado → persistência por tenant. GET/POST `/webhooks/whatsapp` existem, mas estão desativados por defeito e não foram expostos à Internet. Não existe provisioning real ou envio WhatsApp; não configurar Meta para tráfego real ainda.
 
@@ -18,7 +18,7 @@ sent/delivered/read/failed são registados num histórico imutável por tenant/c
 
 O adapter valida HMAC-SHA256 sobre os bytes originais antes de UTF-8/JSON. verifyChallenge valida modo subscribe, token e challenge escalar numérico. Limites: corpo 256 KiB, 20 entradas, 100 alterações por entrada e 100 mensagens/statuses por alteração. Campos desconhecidos são descartados pela normalização; tipos de evento não suportados são contados.
 
-Media e estados desconhecidos com canal verificável podem ir para quarentena cifrada se WHATSAPP_QUARANTINE_KEY (32 bytes base64) e WHATSAPP_QUARANTINE_KEY_ID estiverem configurados. Sem chave ou sem âmbito seguro, continuam recusados. O payload individual é preservado, não o request multi-tenant inteiro. Ver [ADR-017](decisions/ADR-017-encrypted-whatsapp-quarantine.md), incluindo limites, gestão de chaves e purga ainda pendente. Não há download nem processamento de media.
+Media e estados desconhecidos com canal verificável podem ir para quarentena cifrada se WHATSAPP_QUARANTINE_KEY (32 bytes base64) e WHATSAPP_QUARANTINE_KEY_ID estiverem configurados. Sem chave ou sem âmbito seguro, continuam recusados. O payload individual é preservado, não o request multi-tenant inteiro. Ver [ADR-017](decisions/ADR-017-encrypted-whatsapp-quarantine.md) para cifra/limites. O worker já purga payloads expirados, preservando ledger/auditoria: [ADR-018](decisions/ADR-018-quarantine-retention-worker.md). Revisão/reprocessamento, alertas e gestão de chaves continuam pendentes. Não há download nem processamento de media.
 
 Os commits são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. O controller só confirma com 200 depois dos commits. O ACK não inclui recibos ou IDs de tenant. Ver ADR-016 para erros e limites.
 

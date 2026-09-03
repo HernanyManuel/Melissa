@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Purga automática (schema 14)
+
+Worker elimina payloads cifrados de quarentena expirados, em lotes de até 100, com auditoria transacional e descoberta independente de bindings WhatsApp. Mantém ledger/dedupe e não restaura conteúdo em replay. Ver [ADR-018](decisions/ADR-018-quarantine-retention-worker.md). Testes incluem scheduler separado e concorrência; CI nos checks do PR #5. Revisão/reprocessamento, alertas e política de backups continuam pendentes. Sem ativação real, merge ou deploy.
+
 ## Atualização Phase 4 — Quarentena cifrada (schema 13)
 
 Eventos não suportados com âmbito de canal verificado podem ser capturados em quarentena AES-256-GCM, com chave independente opt-in, dedupe e auditoria. Sem executar IA/descarregar media/criar clientes. Ver [ADR-017](decisions/ADR-017-encrypted-whatsapp-quarantine.md). Expiração registada e DELETE restrito a expirados; purga automática/revisão ainda pendentes. Lint/testes locais do adapter aprovados; CI integral nos checks do PR #5. Sem ativação real, merge ou deploy.

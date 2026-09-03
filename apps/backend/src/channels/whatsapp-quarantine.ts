@@ -76,7 +76,7 @@ export async function quarantineWhatsApp(
   const cipher = createCipheriv('aes-256-gcm', encryption.key, nonce);
   cipher.setAAD(Buffer.from(aad));
   const ciphertext = Buffer.concat([cipher.update(serialized, 'utf8'), cipher.final()]);
-  await tx.whatsAppQuarantine.create({
+  const quarantine = await tx.whatsAppQuarantine.create({
     data: {
       tenantId,
       id: stored.id,
@@ -86,6 +86,13 @@ export async function quarantineWhatsApp(
       ciphertext,
       tag: cipher.getAuthTag(),
       expiresAt: new Date(Date.now() + 7 * 86400000),
+    },
+  });
+  await tx.quarantineExpiry.create({
+    data: {
+      tenantId,
+      id: stored.id,
+      expiresAt: quarantine.expiresAt,
     },
   });
   await tx.auditEvent.create({

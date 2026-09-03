@@ -431,8 +431,18 @@ model WhatsAppQuarantine {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
   @@id([tenantId,id])
+  @@unique([tenantId,id,expiresAt])
   @@index([tenantId,expiresAt])
   @@map("whatsapp_quarantine")
+}
+
+model QuarantineExpiry {
+  tenantId String @map("tenant_id") @db.Uuid
+  id String @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  @@id([tenantId,id])
+  @@index([expiresAt,tenantId,id])
+  @@map("quarantine_expiry")
 }
 
 model WhatsAppStatusEvent {
