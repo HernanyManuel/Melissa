@@ -391,6 +391,22 @@ model ExternalEvent {
   @@map("external_events")
 }
 
+// SQL migration owns composite FKs, immutability grants and provider/text checks.
+model OutboundIntent {
+  tenantId String @map("tenant_id") @db.Uuid
+  id String @unique @default(uuid()) @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  conversationId String @map("conversation_id") @db.Uuid
+  providerKey String @default("mock") @map("provider_key")
+  contentText String @map("content_text") @db.VarChar(4096)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@id([tenantId,id])
+  @@unique([tenantId,actorId,requestId])
+  @@index([tenantId,conversationId,createdAt,id], map: "outbound_intents_conversation_idx")
+  @@map("outbound_intents")
+}
+
 model InboundOutbox {
   batchId String? @map("batch_id") @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid

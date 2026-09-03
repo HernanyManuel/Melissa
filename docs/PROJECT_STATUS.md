@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Intenções outbound duráveis (schema 16)
+
+Tabela imutável `outbound_intents`, RLS forçada, FKs compostas e chave idempotente por tenant/ator. Só provider mock; sem API/consumidor ou envio. Testes de persistência, rollback, isolamento, grants e concorrência. Ver [ADR-031](decisions/ADR-031-durable-outbound-intents.md). Autorização de envio, auditoria/replay, dispatch/worker, retenção e UI continuam pendentes. Readiness exige schema 16; validação integral nos checks do PR #5. Sem merge/deploy.
+
 ## Atualização Phase 4 — MessagingProvider outbound
 
 Contrato de envio de texto, registo fail-closed e MockMessagingProvider idempotente em processo. Testes de concorrência/conflito e bloqueio de live/desligado/tipo desconhecido. Ver [ADR-030](decisions/ADR-030-messaging-provider-abstraction.md). Fundação ainda não ligada a API/outbox/worker; nenhuma mensagem é enviada. Durabilidade, adapter Meta e UI continuam pendentes. CI nos checks do PR #5; sem migration, merge ou deploy.
