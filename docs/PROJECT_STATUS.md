@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — MessagingProvider outbound
+
+Contrato de envio de texto, registo fail-closed e MockMessagingProvider idempotente em processo. Testes de concorrência/conflito e bloqueio de live/desligado/tipo desconhecido. Ver [ADR-030](decisions/ADR-030-messaging-provider-abstraction.md). Fundação ainda não ligada a API/outbox/worker; nenhuma mensagem é enviada. Durabilidade, adapter Meta e UI continuam pendentes. CI nos checks do PR #5; sem migration, merge ou deploy.
+
 ## Atualização Phase 4 — Pesquisa de conversas
 
 API/Flutter pesquisam por nome do cliente ou canal, sem pesquisar conteúdo. Query limitada/escapada, paginação preservada, seis idiomas, limpar e proteção contra respostas atrasadas. Testes HTTP/UI e isolamento adicionados. Ver [ADR-029](decisions/ADR-029-conversation-name-search.md). Carga/índices para pesquisa em grande escala continuam pendentes. CI nos checks do PR #5; sem migration, merge ou deploy.
