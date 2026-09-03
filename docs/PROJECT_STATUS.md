@@ -4,7 +4,7 @@
 
 Receção mock agora assíncrona: HTTP 202 com recibo após commit durável; dispatcher PostgreSQL→BullMQ; worker valida tenant/canal/cliente/membership, grava mensagem e conclui envelope na mesma transação. Retry limitado com backoff, estados rejected/failed e limpeza do payload da outbox após processamento. Schema version 7. Ver docs/decisions/ADR-010-inbound-outbox.md e docs/messaging-sandbox.md.
 
-Regressões adicionadas: consumo por worker separado, duplicação pós-commit, recibo cross-tenant, backlog enquanto fila pausada, retoma, canal revogado e limite de tentativas. CI desta alteração pendente. Queda real de Redis e restart forçado ainda não testados; não equiparar teste de pause/resume a esses cenários. WhatsApp live, outgoing queue e locks/debounce de conversa permanecem pendentes. Sem merge/deploy.
+Regressões adicionadas: consumo por worker separado, duplicação pós-commit, recibo cross-tenant, backlog enquanto fila pausada, retoma, canal revogado e limite de tentativas. CI integral aprovada no commit `af852ba`: https://github.com/HernanyManuel/Melissa/actions/runs/33649816928. Queda real de Redis e restart forçado ainda não testados; não equiparar teste de pause/resume a esses cenários. WhatsApp live, outgoing queue e locks/debounce de conversa permanecem pendentes. Sem merge/deploy.
 
 ## Phase 4 — Rascunho parcial: clientes
 
