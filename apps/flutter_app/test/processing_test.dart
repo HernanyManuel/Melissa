@@ -9,7 +9,7 @@ import 'package:melissa/identity/api.dart';
 import 'package:melissa/l10n/generated/app_localizations.dart';
 
 http.Response json(Object body, [int status = 200]) => http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json; charset=utf-8'});
-http.Response page(String? id, [String? next]) => json({'items': id == null ? [] : [{'id': id, 'state': 'failed', 'attempts': 5, 'nextAttemptAt': null}], 'next': next});
+http.Response page(String? id, [String? next]) => json({'items': id == null ? <Map<String, Object?>>[] : [{'id': id, 'state': 'failed', 'attempts': 5, 'nextAttemptAt': null}], 'next': next});
 IdentityApi client(Future<http.Response> Function(http.Request) route) => IdentityApi(client: MockClient((r) async {
   if (r.url.path.endsWith('/csrf')) return json({'csrf_token': 'csrf'});
   if (r.url.path.endsWith('/refresh')) return json({'access_token': 'access', 'csrf_token': 'csrf'});
