@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Quarentena cifrada (schema 13)
+
+Eventos não suportados com âmbito de canal verificado podem ser capturados em quarentena AES-256-GCM, com chave independente opt-in, dedupe e auditoria. Sem executar IA/descarregar media/criar clientes. Ver [ADR-017](decisions/ADR-017-encrypted-whatsapp-quarantine.md). Expiração registada e DELETE restrito a expirados; purga automática/revisão ainda pendentes. Lint/testes locais do adapter aprovados; CI integral nos checks do PR #5. Sem ativação real, merge ou deploy.
+
 ## Atualização Phase 4 — Endpoint WhatsApp opt-in
 
 GET/POST /webhooks/whatsapp implementados com default 404, raw-body, limite de tamanho e rate limit Redis. ACK apenas após commit durável. Configuração explícita server-side obrigatória; produção mantém bloqueio. Testes HTTP adicionados, lint local aprovado; CI nos checks do PR #5. Ver [ADR-016](decisions/ADR-016-whatsapp-http-gate.md). Endpoint não exposto/ativado; provisioning real e tratamento durável de media continuam pendentes. Sem merge/deploy.

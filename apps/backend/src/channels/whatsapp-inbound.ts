@@ -5,19 +5,23 @@ import { InboundProvider, InboundResult } from './inbound-provider';
 const identifier = z.string().min(1).max(512);
 const numericId = z.string().regex(/^\d{1,32}$/);
 const timestamp = z.string().regex(/^\d{1,12}$/);
-const messageSchema = z.object({
-  id: identifier,
-  from: numericId,
-  timestamp,
-  type: z.string().min(1).max(64),
-  text: z.object({ body: z.string().min(1).max(4096) }).optional(),
-});
-const statusSchema = z.object({
-  id: identifier,
-  recipient_id: numericId,
-  timestamp,
-  status: z.string().min(1).max(64),
-});
+const messageSchema = z
+  .object({
+    id: identifier,
+    from: numericId,
+    timestamp,
+    type: z.string().min(1).max(64),
+    text: z.object({ body: z.string().min(1).max(4096) }).optional(),
+  })
+  .passthrough();
+const statusSchema = z
+  .object({
+    id: identifier,
+    recipient_id: numericId,
+    timestamp,
+    status: z.string().min(1).max(64),
+  })
+  .passthrough();
 const valueSchema = z.object({
   messaging_product: z.literal('whatsapp'),
   metadata: z.object({ phone_number_id: numericId }),
@@ -88,7 +92,7 @@ export class WhatsAppInboundProvider implements InboundProvider {
 
   private normalize(body: unknown): InboundResult {
     const envelope = envelopeSchema.parse(body);
-    const result: InboundResult = { events: [], unsupported: 0 };
+    const result: InboundResult = { events: [], unsupported: 0, unsupportedEvents: [] };
     for (const entry of envelope.entry) {
       for (const change of entry.changes) {
         if (change.field !== 'messages') {
@@ -105,6 +109,14 @@ export class WhatsAppInboundProvider implements InboundProvider {
         for (const message of value.messages ?? []) {
           if (message.type !== 'text') {
             result.unsupported++;
+            result.unsupportedEvents.push({
+              accountId: entry.id,
+              phoneId: scope.phoneId,
+              messageId: message.id,
+              timestamp: message.timestamp,
+              category: 'message',
+              payload: message,
+            });
             continue;
           }
           if (!message.text) throw new WebhookInputError('payload');
@@ -121,6 +133,14 @@ export class WhatsAppInboundProvider implements InboundProvider {
           const state = status.status;
           if (state !== 'sent' && state !== 'delivered' && state !== 'read' && state !== 'failed') {
             result.unsupported++;
+            result.unsupportedEvents.push({
+              accountId: entry.id,
+              phoneId: scope.phoneId,
+              messageId: status.id,
+              timestamp: status.timestamp,
+              category: 'status',
+              payload: status,
+            });
             continue;
           }
           result.events.push({

@@ -98,6 +98,12 @@ export class WhatsAppWebhookController {
         this.config.WHATSAPP_APP_SECRET!,
         this.config.WHATSAPP_VERIFY_TOKEN!,
         this.config.MESSAGE_DEBOUNCE_MS,
+        this.config.WHATSAPP_QUARANTINE_KEY && this.config.WHATSAPP_QUARANTINE_KEY_ID
+          ? {
+              id: this.config.WHATSAPP_QUARANTINE_KEY_ID,
+              key: Buffer.from(this.config.WHATSAPP_QUARANTINE_KEY, 'base64'),
+            }
+          : undefined,
       );
       const receipts = await ingress.receive(req.body, req.headers['x-hub-signature-256']);
       if (!receipts.length) throw new HttpException('No supported event', 503);

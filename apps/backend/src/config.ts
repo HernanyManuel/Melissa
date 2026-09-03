@@ -17,6 +17,20 @@ const schema = z.object({
   WHATSAPP_APP_SECRET: z.string().max(1024).optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().max(1024).optional(),
   WHATSAPP_WEBHOOK_RATE_LIMIT: z.coerce.number().int().min(1).max(10000).default(300),
+  WHATSAPP_QUARANTINE_KEY_ID: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{1,64}$/)
+    .optional()
+    .or(z.literal('')),
+  WHATSAPP_QUARANTINE_KEY: z
+    .string()
+    .refine(
+      (value) =>
+        !value ||
+        (Buffer.from(value, 'base64').length === 32 &&
+          Buffer.from(value, 'base64').toString('base64') === value),
+    )
+    .optional(),
   DATABASE_URL: z
     .string()
     .url()
@@ -50,6 +64,8 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     throw new Error(
       'WhatsApp webhook requires server-side integration key, app secret and verify token',
     );
+  if (!!result.data.WHATSAPP_QUARANTINE_KEY !== !!result.data.WHATSAPP_QUARANTINE_KEY_ID)
+    throw new Error('Quarantine requires both key and key ID');
   if (result.data.NODE_ENV === 'production') {
     // P1 deliberately has no authenticated product API or deployment profile.
     throw new Error(

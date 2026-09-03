@@ -5,6 +5,7 @@ import { WhatsAppRouting } from './whatsapp-routing';
 import { enqueueInbound } from '../messaging/enqueue-inbound';
 import { resolveInboundCustomer } from '../customers/inbound-customer';
 import { persistWhatsAppStatus } from './whatsapp-status';
+import { quarantineWhatsApp, QuarantineKey } from './whatsapp-quarantine';
 
 // Internal composition, not an HTTP controller. Accepts signed bytes, never caller tenant IDs.
 export class WhatsAppIngress {
@@ -16,6 +17,7 @@ export class WhatsAppIngress {
     appSecret: string,
     verifyToken: string,
     private readonly debounceMs = 1500,
+    private readonly quarantineKey?: QuarantineKey,
   ) {
     if (!Number.isInteger(debounceMs) || debounceMs < 100 || debounceMs > 2000)
       throw new Error('Invalid debounce');
@@ -26,8 +28,19 @@ export class WhatsAppIngress {
   async receive(raw: Buffer, signature: unknown) {
     const result = this.provider.decode(raw, signature);
     // No silent ACK for unsupported callback kinds/media; reject before any writes.
-    if (result.unsupported) throw new Error('Unsupported WhatsApp event');
+    if (
+      result.unsupported &&
+      (!this.quarantineKey || result.unsupported !== result.unsupportedEvents.length)
+    )
+      throw new Error('Unsupported WhatsApp event');
     const receipts: Array<{ eventId: string; duplicate: boolean }> = [];
+    for (const event of result.unsupportedEvents) {
+      const receipt = await this.routing.scoped(event.accountId, event.phoneId, (tx, route) =>
+        quarantineWhatsApp(tx, route, event, this.quarantineKey!),
+      );
+      if (receipt.conflict) throw new Error('WhatsApp quarantine conflict');
+      receipts.push({ eventId: receipt.eventId, duplicate: receipt.duplicate });
+    }
     for (const event of result.events) {
       if (event.kind === 'text' && !/^[1-9]\d{6,14}$/.test(event.senderId))
         throw new Error('Unsupported sender identity');

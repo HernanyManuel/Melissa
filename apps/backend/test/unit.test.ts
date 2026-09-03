@@ -44,6 +44,22 @@ const base = {
   REDIS_URL: 'redis://localhost:6379',
 };
 test('WhatsApp HTTP is opt-in and requires complete server configuration', () => {
+  assert.throws(() => parseConfig({ ...base, WHATSAPP_QUARANTINE_KEY_ID: 'v1' }));
+  assert.throws(() =>
+    parseConfig({
+      ...base,
+      WHATSAPP_QUARANTINE_KEY: 'not-a-key',
+      WHATSAPP_QUARANTINE_KEY_ID: 'v1',
+    }),
+  );
+  assert.equal(
+    parseConfig({
+      ...base,
+      WHATSAPP_QUARANTINE_KEY_ID: 'v1',
+      WHATSAPP_QUARANTINE_KEY: Buffer.alloc(32, 7).toString('base64'),
+    }).WHATSAPP_QUARANTINE_KEY_ID,
+    'v1',
+  );
   assert.equal(parseConfig(base).WHATSAPP_WEBHOOK_ENABLED, 'false');
   assert.throws(
     () => parseConfig({ ...base, WHATSAPP_WEBHOOK_ENABLED: 'true' }),

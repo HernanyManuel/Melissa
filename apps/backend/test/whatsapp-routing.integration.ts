@@ -7,6 +7,7 @@ import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
 import { resolveInboundCustomer } from '../src/customers/inbound-customer';
 import { testWhatsAppStatuses } from './whatsapp-status.integration';
 import { testWhatsAppHttp } from './whatsapp-http.integration';
+import { testWhatsAppQuarantine } from './whatsapp-quarantine.integration';
 import { PrismaClient } from '@prisma/client';
 import { WhatsAppRouting } from '../src/channels/whatsapp-routing';
 
@@ -274,6 +275,15 @@ export async function testWhatsAppRouting(db: PrismaClient, tenantA: string, ten
       phone,
       secret,
       tenantId: tenantA,
+      channelId,
+    });
+    await testWhatsAppQuarantine(admin, db, {
+      integration,
+      account,
+      phone,
+      secret,
+      tenantId: tenantA,
+      otherTenantId: tenantB,
       channelId,
     });
     const revokeQueue = new Queue('incoming-messages', {

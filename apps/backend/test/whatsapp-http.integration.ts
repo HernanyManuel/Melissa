@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import assert from 'node:assert/strict';
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHmac, randomUUID, randomBytes } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { CONFIG, parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
@@ -126,6 +126,20 @@ export async function testWhatsAppHttp(
     assert.equal(await admin.externalEvent.count({ where: { id: event.id } }), 1);
     const unsupported = raw.replace('"type": "text"', '"type": "image"');
     assert.equal((await send(unsupported)).status, 503);
+    config.WHATSAPP_QUARANTINE_KEY_ID = 'http-test-v1';
+    config.WHATSAPP_QUARANTINE_KEY = randomBytes(32).toString('base64');
+    assert.equal((await send(unsupported)).status, 200);
+    assert.equal((await send(unsupported)).status, 200);
+    assert.equal(
+      await admin.whatsAppQuarantine.count({
+        where: {
+          tenantId: scope.tenantId,
+          keyId: 'http-test-v1',
+          channelId: scope.channelId,
+        },
+      }),
+      1,
+    );
     const unknown = JSON.stringify({
       ...payload,
       entry: [{ ...payload.entry[0]!, id: '999999999999999999' }],

@@ -23,6 +23,14 @@ export interface InboundStatusEvent {
 export interface InboundResult {
   events: Array<InboundTextEvent | InboundStatusEvent>;
   unsupported: number;
+  unsupportedEvents: Array<{
+    accountId: string;
+    phoneId: string;
+    messageId: string;
+    timestamp: string;
+    category: 'message' | 'status';
+    payload: Record<string, unknown>;
+  }>;
 }
 
 // Transport-only boundary. No tenant IDs, database access or delivery acknowledgement.

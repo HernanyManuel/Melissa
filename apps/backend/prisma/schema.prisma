@@ -420,6 +420,21 @@ model InboundBatch {
   @@map("inbound_batches")
 }
 
+model WhatsAppQuarantine {
+  tenantId String @map("tenant_id") @db.Uuid
+  id String @db.Uuid
+  channelId String @map("channel_id") @db.Uuid
+  keyId String @map("key_id") @db.VarChar(64)
+  nonce Bytes
+  ciphertext Bytes
+  tag Bytes
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  @@id([tenantId,id])
+  @@index([tenantId,expiresAt])
+  @@map("whatsapp_quarantine")
+}
+
 model WhatsAppStatusEvent {
   tenantId String @map("tenant_id") @db.Uuid
   id String @db.Uuid
