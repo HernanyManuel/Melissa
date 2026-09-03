@@ -5,6 +5,7 @@ import { Actor } from '../identity/auth.service';
 import { MessagePageDto, MockInboundDto } from './dto';
 import { CONFIG, Configuration } from '../config';
 import { enqueueInbound } from './enqueue-inbound';
+import { checkedReceiptState } from './receipt-state';
 
 @Injectable()
 export class MessagingService {
@@ -77,10 +78,19 @@ export class MessagingService {
   receipt(actor: Actor, tenantId: string, id: string) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       const event = await tx.externalEvent.findUnique({ where: { tenantId_id: { tenantId, id } } });
-      if (!event) throw new NotFoundException();
+      if (
+        !event ||
+        event.eventType !== 'message.received' ||
+        !['mock', 'whatsapp'].includes(event.provider)
+      )
+        throw new NotFoundException();
       const route = await tx.inboundDispatch.findFirst({ where: { id, tenantId } });
       const message = await tx.message.findUnique({ where: { externalEventId: id } });
-      return { eventId: id, state: route?.state ?? 'processed', message };
+      return {
+        eventId: id,
+        state: checkedReceiptState(route?.state, message !== null, event.processedAt),
+        message,
+      };
     });
   }
 

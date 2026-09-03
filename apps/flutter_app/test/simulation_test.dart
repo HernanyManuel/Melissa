@@ -37,6 +37,7 @@ void main() {
   });
   testWidgets('uncertain POST retries exact payload and checks receipt without resending', (tester) async {
     final bodies = <String>[];
+    var checks = 0;
     final api = client((r) async {
       if (r.url.path.endsWith('/channels')) return channels();
       if (r.url.path.endsWith('/customers')) return customers('Cliente');
@@ -45,6 +46,8 @@ void main() {
         if (bodies.length == 1) throw http.ClientException('lost response');
         return json({'eventId': 'receipt', 'duplicate': true}, 202);
       }
+      checks++;
+      if (checks == 1) return json({'error': {'code': 'TEMPORARILY_UNAVAILABLE'}}, 503);
       return json({'state': 'processed', 'message': {'id': 'message'}});
     });
     addTearDown(api.dispose);
@@ -55,6 +58,9 @@ void main() {
     await tester.tap(find.text('Repetir a mesma tentativa')); await tester.pumpAndSettle();
     expect(bodies.length, 2); expect(bodies[0], bodies[1]);
     expect(find.text('Aceite na fila; aguarda processamento.'), findsOneWidget);
+    await tester.tap(find.text('Consultar resultado')); await tester.pumpAndSettle();
+    expect(find.textContaining('Processada e guardada'), findsNothing);
+    expect(bodies.length, 2);
     await tester.tap(find.text('Consultar resultado')); await tester.pumpAndSettle();
     expect(bodies.length, 2);
     expect(find.textContaining('Processada e guardada'), findsOneWidget);

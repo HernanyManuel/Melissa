@@ -50,6 +50,40 @@ export async function testQuarantineOperations(
       });
     });
     const first = await get(path, ownerToken);
+    // Internal ledger records must never be presented as completed message receipts.
+    const statusEventId = randomUUID();
+    const orphanId = randomUUID();
+    await admin.externalEvent.createMany({
+      data: [
+        {
+          id: statusEventId,
+          tenantId,
+          provider: 'whatsapp-status',
+          externalEventId: statusEventId,
+          eventType: 'message.status',
+          payloadHash: '0'.repeat(64),
+        },
+        {
+          id: orphanId,
+          tenantId,
+          provider: 'whatsapp',
+          externalEventId: orphanId,
+          eventType: 'message.received',
+          payloadHash: '0'.repeat(64),
+        },
+      ],
+    });
+    const receiptPath = (id: string) => `/tenants/${tenantId}/message-receipts/${id}`;
+    for (const id of [ids[0]!, statusEventId]) {
+      assert.equal((await get(receiptPath(id), ownerToken)).status, 404);
+    }
+    assert.equal((await get(receiptPath(orphanId))).status, 401);
+    assert.equal((await get(receiptPath(orphanId), otherToken)).status, 404);
+    const incomplete = await get(receiptPath(orphanId), ownerToken);
+    assert.equal(incomplete.status, 503);
+    const failure = (await incomplete.json()) as { error: { code: string; message: string } };
+    assert.equal(failure.error.code, 'TEMPORARILY_UNAVAILABLE');
+    assert.equal(failure.error.message, 'TEMPORARILY_UNAVAILABLE');
     assert.equal(first.status, 200);
     assert.equal(first.headers.get('cache-control'), 'no-store');
     assert.match(first.headers.get('x-request-id') ?? '', /^[0-9a-f-]{36}$/);

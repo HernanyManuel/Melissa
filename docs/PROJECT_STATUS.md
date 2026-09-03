@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Integridade dos recibos
+
+Corrigida inferência indevida de processed quando faltava dispatch. Apenas eventos inbound mock/whatsapp possuem recibo; quarentena/callbacks devolvem 404 e evidência incompleta devolve 503 sanitizado. Testes de invariantes, HTTP/isolamento e recuperação de consulta Flutter adicionados. Ver [ADR-026](decisions/ADR-026-receipt-integrity.md). Sem mudança de schema, merge ou deploy; validação nos checks do PR #5.
+
 ## Atualização Phase 4 — Simulação inbound no Flutter
 
 Canal mock ativo permite selecionar cliente, enviar texto pela outbox/fila e consultar recibo. Repetição em caso de rede reutiliza UUID/payload em memória; 202 não é apresentado como processamento concluído. Seis idiomas, clientes paginados, testes de replay/consulta/modo live/isolamento visual. Ver [ADR-025](decisions/ADR-025-inbound-simulation-ui.md). Não envia WhatsApp, não executa IA nem garante idempotência após reload. CI nos checks do PR #5; sem merge/deploy.

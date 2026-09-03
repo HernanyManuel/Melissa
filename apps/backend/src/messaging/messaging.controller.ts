@@ -10,7 +10,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { MessagingService } from './messaging.service';
 import { MessagePageDto, MockInboundDto } from './dto';
@@ -40,6 +40,20 @@ export class MessagingController {
     return this.messaging.conversations(req.actor, tenant, page);
   }
   @Get('message-receipts/:id')
+  @ApiOperation({
+    summary: 'Read an accepted inbound message receipt',
+    description:
+      'Only mock/WhatsApp message.received events. Quarantine and delivery-status events are not message receipts. Missing or inconsistent processing evidence never implies success.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Event absent, inaccessible or not an inbound message receipt.',
+  })
+  @ApiResponse({
+    status: 503,
+    description:
+      'TEMPORARILY_UNAVAILABLE: incomplete/inconsistent receipt evidence. Retry the GET; do not send a new message to repair this condition.',
+  })
   receipt(
     @Req() req: AuthRequest,
     @Param('tenantId', ParseUUIDPipe) tenant: string,
