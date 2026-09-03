@@ -7,6 +7,7 @@ const schema = z.object({
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   WORKER_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+  MESSAGE_DEBOUNCE_MS: z.coerce.number().int().min(100).max(2000).default(1500),
   DATABASE_URL: z
     .string()
     .url()

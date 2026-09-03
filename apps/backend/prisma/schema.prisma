@@ -353,6 +353,7 @@ model Conversation {
 }
 
 model Message {
+  batchId String? @map("batch_id") @db.Uuid
   id String @default(uuid()) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
   conversationId String @map("conversation_id") @db.Uuid
@@ -388,6 +389,7 @@ model ExternalEvent {
 }
 
 model InboundOutbox {
+  batchId String? @map("batch_id") @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
   id String @db.Uuid
   channelId String @map("channel_id") @db.Uuid
@@ -397,6 +399,20 @@ model InboundOutbox {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   @@id([tenantId,id])
   @@map("inbound_outbox")
+  @@index([tenantId,batchId])
+}
+
+model InboundBatch {
+  id String @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  channelId String @map("channel_id") @db.Uuid
+  customerId String @map("customer_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  dueAt DateTime @map("due_at") @db.Timestamptz(6)
+  sealedAt DateTime? @map("sealed_at") @db.Timestamptz(6)
+  @@id([tenantId,id])
+  @@index([tenantId,channelId,customerId,dueAt])
+  @@map("inbound_batches")
 }
 
 // Internal routing envelope only: no content, customer ID, phone or credentials.

@@ -1,5 +1,11 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Lock e batching inbound (schema 8)
+
+Implementados lease Redis renovável por tenant/canal/cliente e lotes duráveis com janela de silêncio configurável, limite de cinco segundos e 50 eventos. Mensagens permanecem individuais e associadas ao lote; ainda não há consumidor IA nem resposta agrupada. Ver [ADR-011](decisions/ADR-011-conversation-lock-batching.md). Lint local aprovado; execução integral desta alteração nos checks do PR #5. Sem merge/deploy.
+
+Entregas acumuladas: clientes e UI, canais mock, histórico e UI de conversas, outbox/worker/retries, lock e debounce mock. Continuam pendentes WhatsApp real, outbound, callbacks/media, handoff, IA e validação de falhas reais/stress. As secções seguintes são histórico das entregas e não substituem este resumo atual.
+
 ## Atualização Phase 4 — Outbox inbound
 
 Receção mock agora assíncrona: HTTP 202 com recibo após commit durável; dispatcher PostgreSQL→BullMQ; worker valida tenant/canal/cliente/membership, grava mensagem e conclui envelope na mesma transação. Retry limitado com backoff, estados rejected/failed e limpeza do payload da outbox após processamento. Schema version 7. Ver docs/decisions/ADR-010-inbound-outbox.md e docs/messaging-sandbox.md.

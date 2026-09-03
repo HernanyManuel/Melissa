@@ -1,12 +1,17 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { TenantService } from '../tenancy/tenant.service';
 import { Actor } from '../identity/auth.service';
 import { MessagePageDto, MockInboundDto } from './dto';
+import { CONFIG, Configuration } from '../config';
+import { batchDeadline } from './batching';
 
 @Injectable()
 export class MessagingService {
-  constructor(private readonly tenants: TenantService) {}
+  constructor(
+    private readonly tenants: TenantService,
+    @Inject(CONFIG) private readonly config: Configuration,
+  ) {}
 
   async receiveMock(actor: Actor, tenantId: string, channelId: string, input: MockInboundDto) {
     const result = await this.tenants.scoped(actor, tenantId, 'channels:manage', async (tx) => {
@@ -39,6 +44,29 @@ export class MessagingService {
         }
         return { conflict: false as const, duplicate: true, eventId: previous.id };
       }
+      const now = new Date();
+      let batch = await tx.inboundBatch.findFirst({
+        where: { tenantId, channelId, customerId: customer.id, sealedAt: null, dueAt: { gt: now } },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (batch && (await tx.inboundOutbox.count({ where: { tenantId, batchId: batch.id } })) >= 50)
+        batch = null;
+      if (batch) {
+        batch = await tx.inboundBatch.update({
+          where: { tenantId_id: { tenantId, id: batch.id } },
+          data: { dueAt: batchDeadline(batch.createdAt, now, this.config.MESSAGE_DEBOUNCE_MS) },
+        });
+      } else {
+        batch = await tx.inboundBatch.create({
+          data: {
+            tenantId,
+            channelId,
+            customerId: customer.id,
+            createdAt: now,
+            dueAt: batchDeadline(now, now, this.config.MESSAGE_DEBOUNCE_MS),
+          },
+        });
+      }
       const event = await tx.externalEvent.create({
         data: {
           tenantId,
@@ -56,9 +84,25 @@ export class MessagingService {
           customerId: customer.id,
           actorId: actor.userId,
           contentText: input.text,
+          batchId: batch.id,
         },
       });
-      await tx.inboundDispatch.create({ data: { id: event.id, tenantId } });
+      await tx.inboundDispatch.create({
+        data: { id: event.id, tenantId, nextAttemptAt: batch.dueAt },
+      });
+      const batchEvents = await tx.inboundOutbox.findMany({
+        where: { tenantId, batchId: batch.id },
+        select: { id: true },
+      });
+      await tx.inboundDispatch.updateMany({
+        where: {
+          tenantId,
+          state: 'pending',
+          attempts: 0,
+          id: { in: batchEvents.map((item) => item.id) },
+        },
+        data: { nextAttemptAt: batch.dueAt },
+      });
       await this.tenants.audit(tx, actor, tenantId, 'message.mock_accepted', event.id);
       return { conflict: false as const, duplicate: false, eventId: event.id };
     });

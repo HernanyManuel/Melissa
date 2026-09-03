@@ -55,6 +55,7 @@ services:
       CORS_ORIGIN: http://localhost:8080
       PORT: 3000
       WORKER_PORT: 3001
+      MESSAGE_DEBOUNCE_MS: ${MESSAGE_DEBOUNCE_MS:-1500}
       LOG_LEVEL: info
       SMTP_HOST: mailpit
       SMTP_PORT: 1025

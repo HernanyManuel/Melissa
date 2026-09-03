@@ -3,6 +3,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
 import { allows } from '../src/tenancy/permissions';
+import { batchDeadline } from '../src/messaging/batching';
+
+test('debounce extends quiet window but never exceeds five seconds', () => {
+  const start = new Date('2026-09-03T00:00:00Z');
+  assert.equal(batchDeadline(start, start, 1500).getTime(), start.getTime() + 1500);
+  assert.equal(
+    batchDeadline(start, new Date(start.getTime() + 4500), 1500).getTime(),
+    start.getTime() + 5000,
+  );
+});
 
 test('only owners and admins manage channels', () => {
   assert(allows('owner', 'channels:manage'));
@@ -36,6 +46,8 @@ test('accepts development settings with explicit defaults', () => {
   const config = parseConfig(base);
   assert.equal(config.PORT, 3000);
   assert.equal(config.NODE_ENV, 'development');
+  assert.equal(config.MESSAGE_DEBOUNCE_MS, 1500);
+  assert.throws(() => parseConfig({ ...base, MESSAGE_DEBOUNCE_MS: 2001 }));
 });
 test('rejects invalid ports and protocols without leaking secrets', () => {
   assert.throws(() => parseConfig({ ...base, PORT: '70000' }), /PORT/);

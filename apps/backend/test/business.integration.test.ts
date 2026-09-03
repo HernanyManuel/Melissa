@@ -291,6 +291,7 @@ test(
       });
       let rejectedId = '';
       let recoveryId = '';
+      let secondRecoveryId = '';
       try {
         await testQueue.pause();
         const pending = await data<{ eventId: string }>(
@@ -324,6 +325,36 @@ test(
           202,
         );
         recoveryId = recovery.eventId;
+        const secondRecovery = await data<{ eventId: string }>(
+          await call(
+            'POST',
+            `${channelsA}/${recoveryChannel.id}/mock-inbound`,
+            { ...inbound, eventId: randomUUID(), text: 'Mais uma mensagem' },
+            actorA.access_token,
+          ),
+          202,
+        );
+        secondRecoveryId = secondRecovery.eventId;
+        await deps.db.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT set_config('app.tenant_id',${tenantA.id},true)`;
+          const first = await tx.inboundOutbox.findUniqueOrThrow({
+            where: { tenantId_id: { tenantId: tenantA.id, id: recoveryId } },
+          });
+          const second = await tx.inboundOutbox.findUniqueOrThrow({
+            where: { tenantId_id: { tenantId: tenantA.id, id: secondRecoveryId } },
+          });
+          assert(first.batchId);
+          assert.equal(first.batchId, second.batchId);
+          const other = await tx.inboundOutbox.findUniqueOrThrow({
+            where: { tenantId_id: { tenantId: tenantA.id, id: rejectedId } },
+          });
+          assert.notEqual(first.batchId, other.batchId);
+          const batch = await tx.inboundBatch.findUniqueOrThrow({
+            where: { tenantId_id: { tenantId: tenantA.id, id: first.batchId } },
+          });
+          assert.equal(batch.sealedAt, null);
+          assert(batch.dueAt.getTime() <= batch.createdAt.getTime() + 5000);
+        });
         const exhausted = await data<{ eventId: string }>(
           await call(
             'POST',
@@ -343,8 +374,19 @@ test(
       }
       assert.equal((await waitReceipt(rejectedId, 'rejected')).message, null);
       assert((await waitReceipt(recoveryId, 'processed')).message);
+      assert((await waitReceipt(secondRecoveryId, 'processed')).message);
       await deps.db.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.tenant_id',${tenantA.id},true)`;
+        const messages = await tx.message.findMany({
+          where: { externalEventId: { in: [recoveryId, secondRecoveryId] } },
+        });
+        assert.equal(messages.length, 2);
+        assert(messages[0]!.batchId);
+        assert.equal(messages[0]!.batchId, messages[1]!.batchId);
+        const sealed = await tx.inboundBatch.findUniqueOrThrow({
+          where: { tenantId_id: { tenantId: tenantA.id, id: messages[0]!.batchId! } },
+        });
+        assert(sealed.sealedAt);
         assert.equal(
           (
             await tx.inboundOutbox.findUniqueOrThrow({
