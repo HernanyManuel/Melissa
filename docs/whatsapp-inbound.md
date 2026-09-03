@@ -1,5 +1,7 @@
 # WhatsApp inbound — adaptador de transporte
 
+Atualização schema 11: clientes desconhecidos com telefone válido são cadastrados atomicamente após verificação do evento/canal. Arquivados não são reativados; consentimentos começam em unknown. Ver [ADR-014](decisions/ADR-014-inbound-customer-resolution.md). As referências seguintes a “clientes existentes” descrevem a entrega anterior. Endpoint público, callbacks e media continuam pendentes.
+
 Atualização schema 10: a composição interna `WhatsAppIngress.receive` liga validação, routing e outbox para texto de clientes existentes, com worker e auditoria de origem externa. Ver [ADR-013](decisions/ADR-013-external-inbound-outbox.md). Sem endpoint HTTP; as notas abaixo sobre ausência de composição descrevem a etapa anterior. Não configurar Meta para este código ainda.
 
 Atualização schema 9: `WhatsAppRouting.scoped` e registo interno de bindings implementados; ver [ADR-012](decisions/ADR-012-whatsapp-routing.md). Ainda não integrados ao HTTP/adapter/outbox. Provisioning confiável não implementado; nenhum binding real criado. A lista abaixo inclui requisitos de integração end-to-end, não apenas funções isoladas.

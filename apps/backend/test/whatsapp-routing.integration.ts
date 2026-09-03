@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { Queue } from 'bullmq';
 import { queueConnection } from '../src/queue-connection';
 import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
+import { resolveInboundCustomer } from '../src/customers/inbound-customer';
 import { PrismaClient } from '@prisma/client';
 import { WhatsAppRouting } from '../src/channels/whatsapp-routing';
 
@@ -95,7 +96,91 @@ export async function testWhatsAppRouting(db: PrismaClient, tenantA: string, ten
     const body = makeBody();
     await assert.rejects(ingress.receive(body, 'invalid'), /signature/);
     const unknown = makeBody(randomUUID(), 'unknown', '351900000092');
-    await assert.rejects(ingress.receive(unknown, sign(unknown)), /customer unavailable/);
+    // A matching telephone in another company must neither be reused nor copied.
+    const otherCustomer = await admin.customer.create({
+      data: {
+        tenantId: tenantB,
+        displayName: 'Other company private profile',
+        phoneE164: '+351900000092',
+        marketingConsentStatus: 'denied',
+        whatsappOptInStatus: 'denied',
+      },
+    });
+    await assert.rejects(ingress.receive(unknown, 'invalid'), /signature/);
+    assert.equal(
+      await admin.customer.count({ where: { tenantId: tenantA, phoneE164: '+351900000092' } }),
+      0,
+    );
+    const secondNew = makeBody(randomUUID(), 'second', '351900000092');
+    const [autoFirst, autoSecond] = await Promise.all([
+      ingress.receive(unknown, sign(unknown)),
+      ingress.receive(secondNew, sign(secondNew)),
+    ]);
+    const newCustomer = await admin.customer.findUniqueOrThrow({
+      where: {
+        tenantId_phoneE164: { tenantId: tenantA, phoneE164: '+351900000092' },
+      },
+    });
+    assert.notEqual(newCustomer.id, otherCustomer.id);
+    assert.equal(newCustomer.displayName, '+351900000092');
+    assert.equal(newCustomer.marketingConsentStatus, 'unknown');
+    assert.equal(newCustomer.whatsappOptInStatus, 'unknown');
+    assert.equal(
+      newCustomer.language,
+      (await admin.tenant.findUniqueOrThrow({ where: { id: tenantA } })).locale,
+    );
+    assert.equal(
+      await admin.auditEvent.count({
+        where: {
+          tenantId: tenantA,
+          action: 'customer.whatsapp_created',
+          targetId: newCustomer.id,
+        },
+      }),
+      1,
+    );
+    assert.equal(
+      (await ingress.receive(unknown, sign(unknown)))[0]!.eventId,
+      autoFirst[0]!.eventId,
+    );
+    // Customer creation rolls back if downstream work in the same tenant transaction fails.
+    await assert.rejects(
+      routing.scoped(account, phone, async (tx, route) => {
+        await resolveInboundCustomer(tx, route.tenantId, '351900000093');
+        throw new Error('Synthetic downstream failure');
+      }),
+      /Synthetic downstream failure/,
+    );
+    assert.equal(
+      await admin.customer.count({ where: { tenantId: tenantA, phoneE164: '+351900000093' } }),
+      0,
+    );
+    const archivedCustomer = await admin.customer.create({
+      data: {
+        tenantId: tenantA,
+        displayName: 'Archived',
+        phoneE164: '+351900000094',
+        deletedAt: new Date(),
+      },
+    });
+    const archivedBody = makeBody(randomUUID(), 'archived', '351900000094');
+    await assert.rejects(ingress.receive(archivedBody, sign(archivedBody)), /customer archived/);
+    assert(
+      (
+        await admin.customer.findUniqueOrThrow({
+          where: {
+            tenantId_id: { tenantId: tenantA, id: archivedCustomer.id },
+          },
+        })
+      ).deletedAt,
+    );
+    const shortPhone = makeBody(randomUUID(), 'invalid', '123456');
+    await assert.rejects(ingress.receive(shortPhone, sign(shortPhone)), /sender identity/);
+    // Existing explicit consent/name preferences must not be overwritten by inbound traffic.
+    await admin.customer.update({
+      where: { tenantId_id: { tenantId: tenantA, id: customer.id } },
+      data: { marketingConsentStatus: 'denied', whatsappOptInStatus: 'denied' },
+    });
     const media = makeBody(randomUUID(), 'media', '351900000091', 'image');
     await assert.rejects(ingress.receive(media, sign(media)), /Unsupported/);
     const queue = new Queue('incoming-messages', {
@@ -148,6 +233,16 @@ export async function testWhatsAppRouting(db: PrismaClient, tenantA: string, ten
       assert.fail(`External receipt did not reach ${state}`);
     };
     await waitState(storedId, 'processed');
+    await waitState(autoFirst[0]!.eventId, 'processed');
+    await waitState(autoSecond[0]!.eventId, 'processed');
+    const preserved = await admin.customer.findUniqueOrThrow({
+      where: {
+        tenantId_id: { tenantId: tenantA, id: customer.id },
+      },
+    });
+    assert.equal(preserved.marketingConsentStatus, 'denied');
+    assert.equal(preserved.whatsappOptInStatus, 'denied');
+    assert.equal(preserved.displayName, 'External test');
     const message = await admin.message.findUniqueOrThrow({ where: { externalEventId: storedId } });
     assert.equal(message.contentText, 'Olá externo');
     assert.equal(message.createdAt.getTime(), Number(timestamp) * 1000);

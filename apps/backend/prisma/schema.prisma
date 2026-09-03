@@ -288,6 +288,8 @@ model AuditEvent {
 }
 
 model Customer {
+  marketingConsentStatus String @default("unknown") @map("marketing_consent_status")
+  whatsappOptInStatus String @default("unknown") @map("whatsapp_opt_in_status")
   conversations Conversation[]
   id String @default(uuid()) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid

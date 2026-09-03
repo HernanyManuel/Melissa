@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Novos clientes inbound (schema 11)
+
+Texto WhatsApp verificado pode cadastrar cliente na mesma transação da outbox. Índice tenant/telefone e lock impedem duplicação; arquivo não é revertido. Consentimentos explícitos com default unknown, sem inferência ou alteração de preferências existentes. Ver [ADR-014](decisions/ADR-014-inbound-customer-resolution.md). Lint local aprovado; validação integral nos checks do PR #5. Ingresso ainda interno, sem endpoint público, callbacks/media ou envios. Sem merge/deploy.
+
 ## Atualização Phase 4 — Outbox de origem externa (schema 10)
 
 WhatsAppIngress liga assinatura, normalização, routing e outbox para texto de clientes existentes. Worker distingue autorização externa de membership mock e volta a validar o binding. Auditoria de origem externa sem utilizador fictício; batching partilhado. Ver [ADR-013](decisions/ADR-013-external-inbound-outbox.md). Testes de integração adicionados; CI nos checks do PR #5. Não existe endpoint público/provisioning real; novos clientes, callbacks e media permanecem pendentes. Sem merge/deploy.

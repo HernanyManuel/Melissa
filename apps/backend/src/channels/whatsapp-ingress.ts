@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { WhatsAppInboundProvider } from './whatsapp-inbound';
 import { WhatsAppRouting } from './whatsapp-routing';
 import { enqueueInbound } from '../messaging/enqueue-inbound';
+import { resolveInboundCustomer } from '../customers/inbound-customer';
 
 // Internal composition, not an HTTP controller. Accepts signed bytes, never caller tenant IDs.
 export class WhatsAppIngress {
@@ -29,7 +30,7 @@ export class WhatsAppIngress {
     const receipts: Array<{ eventId: string; duplicate: boolean }> = [];
     for (const event of result.events) {
       if (event.kind !== 'text') throw new Error('Unsupported WhatsApp event');
-      if (!/^[1-9]\d{5,14}$/.test(event.senderId)) throw new Error('Unsupported sender identity');
+      if (!/^[1-9]\d{6,14}$/.test(event.senderId)) throw new Error('Unsupported sender identity');
       const occurredAt = new Date(Number(event.timestamp) * 1000);
       if (!Number.isFinite(occurredAt.getTime()) || occurredAt.getTime() > Date.now() + 300000)
         throw new Error('Invalid message timestamp');
@@ -61,16 +62,7 @@ export class WhatsAppIngress {
             }
             return { conflict: false as const, eventId: previous.id, duplicate: true };
           }
-          // Do not resurrect archived customers or infer consent. Automatic provisioning is separate.
-          const customer = await tx.customer.findFirst({
-            where: {
-              tenantId,
-              phoneE164: `+${event.senderId}`,
-              deletedAt: null,
-            },
-            select: { id: true },
-          });
-          if (!customer) throw new Error('WhatsApp customer unavailable');
+          const customer = await resolveInboundCustomer(tx, tenantId, event.senderId);
           const stored = await tx.externalEvent.create({
             data: {
               tenantId,
