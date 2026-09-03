@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'connection.dart';
+import 'channels/channels_page.dart';
 import 'conversations/conversations_page.dart';
 import 'customers/customers_page.dart';
 import 'quarantine/quarantine_page.dart';
@@ -12,6 +13,7 @@ import 'l10n/generated/app_localizations.dart';
 final localeProvider = StateProvider<Locale?>((ref) => null);
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(routes: [
+    GoRoute(path: '/channels/:tenantId', builder: (context, state) => ChannelsPage(key: ValueKey(state.pathParameters['tenantId']), tenantId: state.pathParameters['tenantId']!)),
     GoRoute(path: '/quarantine/:tenantId', builder: (context, state) => QuarantinePage(key: ValueKey(state.pathParameters['tenantId']), tenantId: state.pathParameters['tenantId']!)),
     GoRoute(path: '/conversations/:tenantId', builder: (context, state) => ConversationsPage(key: ValueKey(state.pathParameters['tenantId']), tenantId: state.pathParameters['tenantId']!)),
     GoRoute(path: '/customers/:tenantId', builder: (context, state) => CustomersPage(tenantId: state.pathParameters['tenantId']!)),
