@@ -1,4 +1,11 @@
 {
+  "outboundTitle": "Testabsicht",
+  "outboundHint": "Speichert nur eine Absicht: kein WhatsApp-Versand und keine Nachricht im Verlauf. Bei Fehlern auf dieser Seite erneut versuchen. Schließen oder Neuladen verliert den Schlüssel; vorherige Anfrage prüfen, bevor eine neue erstellt wird.",
+  "outboundStore": "Absicht speichern",
+  "outboundStored": "Absicht gespeichert. Nicht gesendet oder eingereiht.",
+  "outboundNew": "Neue Absicht",
+  "outboundLimited": "Anfragelimit erreicht. Vor dem Wiederholen desselben Versuchs warten.",
+  "outboundBlocked": "Vorgang blockiert. Kanal, Unterhaltung und Berechtigungen prüfen; keinen neuen Schlüssel verwenden.",
   "conversationSearch": "Kunden- oder Kanalname",
   "conversationSearchAction": "Suchen",
   "conversationClear": "Suche löschen",

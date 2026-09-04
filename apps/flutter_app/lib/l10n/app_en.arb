@@ -1,4 +1,11 @@
 {
+  "outboundTitle": "Test intent",
+  "outboundHint": "Stores an intent only: no WhatsApp send or message in history. After an error, retry on this page. Closing or reloading loses the retry key; do not create another request without checking the previous one.",
+  "outboundStore": "Store intent",
+  "outboundStored": "Intent stored. Not sent or queued.",
+  "outboundNew": "New intent",
+  "outboundLimited": "Request limit reached. Wait before retrying the same attempt.",
+  "outboundBlocked": "Operation blocked. Check the channel, conversation and permissions; do not retry with a new key.",
   "conversationSearch": "Customer or channel name",
   "conversationSearchAction": "Search",
   "conversationClear": "Clear search",

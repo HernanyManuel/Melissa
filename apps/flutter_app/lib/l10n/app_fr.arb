@@ -1,4 +1,11 @@
 {
+  "outboundTitle": "Intention de test",
+  "outboundHint": "Enregistre uniquement une intention : aucun envoi WhatsApp ni message dans l’historique. En cas d’erreur, réessaie sur cette page. Fermer ou recharger perd la clé ; vérifie la demande précédente avant d’en créer une autre.",
+  "outboundStore": "Enregistrer l’intention",
+  "outboundStored": "Intention enregistrée. Ni envoyée ni mise en file.",
+  "outboundNew": "Nouvelle intention",
+  "outboundLimited": "Limite de demandes atteinte. Attends avant de réessayer la même tentative.",
+  "outboundBlocked": "Opération bloquée. Vérifie le canal, la conversation et les autorisations ; n’utilise pas une nouvelle clé.",
   "conversationSearch": "Nom du client ou du canal",
   "conversationSearchAction": "Rechercher",
   "conversationClear": "Effacer la recherche",

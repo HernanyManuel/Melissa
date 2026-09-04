@@ -1,4 +1,11 @@
 {
+  "outboundTitle": "Intenzione di prova",
+  "outboundHint": "Salva solo un’intenzione: nessun invio WhatsApp o messaggio nella cronologia. In caso di errore, riprova in questa pagina. Chiudere o ricaricare perde la chiave; verifica la richiesta precedente prima di crearne un’altra.",
+  "outboundStore": "Salva intenzione",
+  "outboundStored": "Intenzione salvata. Non inviata né accodata.",
+  "outboundNew": "Nuova intenzione",
+  "outboundLimited": "Limite di richieste raggiunto. Attendi prima di ripetere lo stesso tentativo.",
+  "outboundBlocked": "Operazione bloccata. Verifica canale, conversazione e permessi; non usare una nuova chiave.",
   "conversationSearch": "Nome del cliente o del canale",
   "conversationSearchAction": "Cerca",
   "conversationClear": "Cancella ricerca",

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../identity/api.dart';
 import '../l10n/generated/app_localizations.dart';
+import 'outbound_page.dart';
 
 class ConversationsPage extends StatefulWidget {
   const ConversationsPage({super.key, required this.tenantId, this.api});
@@ -138,6 +139,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
         trailing: IconButton(tooltip: l.retry, onPressed: reading ? null : () => open(selected!), icon: const Icon(Icons.refresh)),
       ),
       Padding(padding: const EdgeInsets.all(12), child: Text(l.readOnlyConversation)),
+      if (selected!['channelConnection']['mode'] == 'mock' && selected!['channelConnectionId'] is String)
+        TextButton.icon(icon: const Icon(Icons.science_outlined), label: Text(l.outboundTitle), onPressed: reading || messageError ? null : () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => OutboundPage(tenantId: widget.tenantId, conversationId: selected!['id'] as String, channelId: selected!['channelConnectionId'] as String, api: api)))),
       if (reading) const LinearProgressIndicator(),
       if (messageError) errorPanel(() => open(selected!)),
       if (!reading && !messageError && messages.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(l.noMessages)),

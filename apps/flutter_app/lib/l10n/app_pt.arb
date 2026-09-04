@@ -1,4 +1,11 @@
 {
+  "outboundTitle": "Intenção de teste",
+  "outboundHint": "Guarda apenas uma intenção: não envia WhatsApp nem cria uma mensagem no histórico. Se houver erro, repete nesta página. Fechar ou recarregar perde a chave de repetição; não cries outro pedido sem confirmar o anterior.",
+  "outboundStore": "Guardar intenção",
+  "outboundStored": "Intenção guardada. Não foi enviada nem colocada numa fila.",
+  "outboundNew": "Nova intenção",
+  "outboundLimited": "Limite de pedidos atingido. Aguarda antes de repetir a mesma tentativa.",
+  "outboundBlocked": "Operação bloqueada. Verifica o canal, a conversa e as permissões; não repitas com uma nova chave.",
   "conversationSearch": "Nome do cliente ou canal",
   "conversationSearchAction": "Pesquisar",
   "conversationClear": "Limpar pesquisa",

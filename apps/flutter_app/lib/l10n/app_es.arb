@@ -1,4 +1,11 @@
 {
+  "outboundTitle": "Intención de prueba",
+  "outboundHint": "Solo guarda una intención: no envía WhatsApp ni crea un mensaje en el historial. Si hay un error, reintenta en esta página. Al cerrar o recargar se pierde la clave; no crees otra solicitud sin comprobar la anterior.",
+  "outboundStore": "Guardar intención",
+  "outboundStored": "Intención guardada. No enviada ni en cola.",
+  "outboundNew": "Nueva intención",
+  "outboundLimited": "Límite de solicitudes alcanzado. Espera antes de repetir el mismo intento.",
+  "outboundBlocked": "Operación bloqueada. Comprueba el canal, la conversación y los permisos; no uses una clave nueva.",
   "conversationSearch": "Nombre del cliente o canal",
   "conversationSearchAction": "Buscar",
   "conversationClear": "Borrar búsqueda",

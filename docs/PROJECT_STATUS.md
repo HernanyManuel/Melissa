@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Interface outbound de sandbox
+
+Página a partir de conversas mock, com verificação de acesso/canal, armazenamento e consulta de recibo. Texto/UUID preservados em memória para retry; espera Retry-After e bloqueio após erros definitivos. Seis idiomas e testes widget de replay/consulta/limite/troca de tenant. Ver [ADR-036](decisions/ADR-036-outbound-sandbox-ui.md). Não envia mensagens nem altera histórico; recuperação após reload e dispatch pendentes. CI nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Rate limit outbound
 
 Contadores Redis atómicos por utilizador: 30 gravações e 120 consultas por janela de 60s. 429 com Retry-After; falha do limiter devolve 503 antes de guardar intenção. Testes de concorrência, TTL, bloqueio, consulta independente e replay; OpenAPI atualizado. Ver [ADR-035](decisions/ADR-035-outbound-rate-limit.md). Sem envio real/UI; CI nos checks do PR #5, schema 16 mantido, sem merge/deploy.
