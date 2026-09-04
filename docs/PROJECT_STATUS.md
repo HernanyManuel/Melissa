@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Rate limit outbound
+
+Contadores Redis atómicos por utilizador: 30 gravações e 120 consultas por janela de 60s. 429 com Retry-After; falha do limiter devolve 503 antes de guardar intenção. Testes de concorrência, TTL, bloqueio, consulta independente e replay; OpenAPI atualizado. Ver [ADR-035](decisions/ADR-035-outbound-rate-limit.md). Sem envio real/UI; CI nos checks do PR #5, schema 16 mantido, sem merge/deploy.
+
 ## Atualização — Tooling de auditoria
 
 pnpm 11.25.0 alinhado em projeto/CI/Docker para usar Bulk Advisory, com allowBuilds explícito e verificação da versão efetiva. Node 22 e dependências da aplicação preservados. Auditoria continua obrigatória, sem ignorar erros externos. Ver [ADR-034](decisions/ADR-034-pnpm-bulk-audit.md); resultado integral nos checks do PR #5. Sem merge/deploy.

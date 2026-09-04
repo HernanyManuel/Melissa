@@ -768,6 +768,7 @@ test(
         call,
         ownerToken: actorA.access_token,
         otherToken: actorB.access_token,
+        redis: deps.redis,
       });
       await testProcessing(
         tenantA.id,

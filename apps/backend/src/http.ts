@@ -49,6 +49,7 @@ export function configureHttp(
     origin: config.CORS_ORIGIN,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     credentials: true,
+    exposedHeaders: ['Retry-After', 'X-Request-Id'],
   });
   app.use((_request: Request, response: Response, next: NextFunction) => {
     const requestId = randomUUID();

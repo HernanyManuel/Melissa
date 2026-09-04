@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { OpenAPIObject } from '@nestjs/swagger';
+import Redis from 'ioredis';
+import { consumeOutboundLimit, outboundLimitKey } from '../src/messaging/outbound-rate-limit';
 
 export interface OutboundHttpFixture {
+  redis: Redis;
   call(method: string, path: string, body?: object, token?: string): Promise<Response>;
   ownerToken: string;
   otherToken: string;
@@ -18,7 +21,7 @@ export function assertOutboundOpenApi(doc: OpenAPIObject) {
   assert.equal(get.operationId, 'getStoredOutboundIntent');
   for (const operation of [post, get]) {
     assert.deepEqual(operation.security, [{ bearer: [] }]);
-    for (const code of ['200', '400', '401', '403', '404', '500'])
+    for (const code of ['200', '400', '401', '403', '404', '429', '500', '503'])
       assert(operation.responses[code]);
     assert(!operation.responses['202']);
     const parameters = operation.parameters?.filter((p) => !('$ref' in p)) ?? [];
@@ -132,5 +135,45 @@ export async function testOutboundHttp(
     }
   } finally {
     await db.membership.update({ where: { id: membershipId }, data: { role: 'owner' } });
+  }
+  const member = await db.membership.findUniqueOrThrow({ where: { id: membershipId } });
+  const key = outboundLimitKey(member.userId, 'store');
+  const isolatedUser = randomUUID();
+  const isolatedKey = outboundLimitKey(isolatedUser, 'store');
+  try {
+    const waits = await Promise.all(
+      Array.from({ length: 35 }, () => consumeOutboundLimit(http.redis, isolatedUser, 'store')),
+    );
+    assert.equal(waits.filter((wait) => wait === 0).length, 30);
+    assert(waits.filter((wait) => wait > 0).every((wait) => wait <= 60));
+    assert.equal(await http.redis.get(isolatedKey), '30');
+    assert((await http.redis.pttl(isolatedKey)) > 0);
+    await http.redis.set(key, '30', 'PX', 60000);
+    const rejectedKey = randomUUID();
+    const limited = await call('POST', path, { ...input, requestId: rejectedKey }, ownerToken);
+    assert.equal(limited.status, 429);
+    assert(limited.headers.get('access-control-expose-headers')?.includes('Retry-After'));
+    assert(Number(limited.headers.get('retry-after')) >= 1);
+    assert(Number(limited.headers.get('retry-after')) <= 60);
+    assert.equal((await call('GET', receipt, undefined, ownerToken)).status, 200);
+    assert.equal(await db.outboundIntent.count({ where: { tenantId, requestId: rejectedKey } }), 0);
+    // Corrupt/unavailable limiter state must fail closed, without persisting the body.
+    await http.redis.set(key, 'invalid', 'PX', 60000);
+    assert.equal(
+      (await call('POST', path, { ...input, requestId: rejectedKey }, ownerToken)).status,
+      503,
+    );
+    assert.equal(await db.outboundIntent.count({ where: { tenantId, requestId: rejectedKey } }), 0);
+    // Removing this synthetic counter simulates the next window; replay preserves identity.
+    await http.redis.del(key);
+    const replay = await call('POST', path, input, ownerToken);
+    assert.equal(replay.status, 200);
+    assert.deepEqual(await replay.json(), { intentId: id, duplicate: true, state: 'stored' });
+    // Repair missing expiry without making a saturated counter unlimited.
+    await http.redis.set(isolatedKey, '30');
+    assert.equal(await consumeOutboundLimit(http.redis, isolatedUser, 'store'), 60);
+    assert((await http.redis.pttl(isolatedKey)) > 0);
+  } finally {
+    await http.redis.del(key, isolatedKey);
   }
 }

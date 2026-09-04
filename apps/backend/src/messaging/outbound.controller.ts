@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { OutboundIntentService } from './outbound-intent.service';
+import { OutboundRateLimitGuard } from './outbound-rate-limit';
 import {
   OutboundErrorDto,
   StoredOutboundDto,
@@ -28,7 +29,24 @@ import {
 
 @ApiTags('Messaging sandbox')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, OutboundRateLimitGuard)
+@ApiResponse({
+  status: 429,
+  description:
+    'Per-user fixed 60-second window: 30 POSTs or 120 GETs, independent across operations. Retries also count. Wait Retry-After seconds and reuse the same requestId.',
+  type: OutboundErrorDto,
+  headers: {
+    'Retry-After': {
+      description: 'Seconds until the current window expires.',
+      schema: { type: 'integer', minimum: 1 },
+    },
+  },
+})
+@ApiResponse({
+  status: 503,
+  description: 'Rate limiter unavailable; no intent is stored by this request.',
+  type: OutboundErrorDto,
+})
 @ApiParam({ name: 'tenantId', format: 'uuid', required: true })
 @ApiResponse({
   status: 400,
