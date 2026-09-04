@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Adaptador HTTP de media WhatsApp
+
+WhatsAppGraphMediaSource desligado por defeito: metadata em origem Graph fixa, Bearer server-side, versão explícita, allowlist exata de hosts, HTTPS/redirect/porta, timeout e streaming limitado. Erros sanitizados e testes fetch injetado. Ver [ADR-044](decisions/ADR-044-whatsapp-media-http-adapter.md). Sem defaults de hosts, credenciais, wiring, chamadas reais ou validação com conta Meta; ativação bloqueada. Validação nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Núcleo de ingestão de media
 
 MediaSourceProvider e MediaIngestor com IDs opacos, allowlist MIME, correspondência do tipo declarado, limite de 10 MiB, SHA-256 opcional e chave tenant opaca. Mock sem rede e testes de replay/validação/falhas. Ver [ADR-043](decisions/ADR-043-safe-media-ingestion-core.md). Não ligado ao webhook/DB; sem download Meta, magic bytes, malware scan, reconciliação ou limpeza. Validação nos checks do PR #5; sem merge/deploy.
