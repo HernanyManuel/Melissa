@@ -80,6 +80,10 @@ jobs:
           path: |
             pnpm-lock.yaml
             packages/api-contracts/generated/infrastructure.openapi.json
+      - name: Test audit connectivity diagnostics
+        run: node --test infra/scripts/audit-connectivity.test.mjs
+      - name: Diagnose npm connectivity (not a vulnerability scan)
+        run: node infra/scripts/audit-connectivity.mjs --run
       - name: Dependency audit
         run: pnpm audit --audit-level high
   flutter:
