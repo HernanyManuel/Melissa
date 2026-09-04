@@ -2,6 +2,8 @@
 
 Estado: migração de tooling; validação integral nos checks do PR.
 
+A primeira instalação v11 exigiu decisões explícitas para @scarf/scarf, argon2 e msgpackr-extract. Todos permanecem false, preservando o bloqueio implícito anterior. Os testes de autenticação/worker e o build Docker devem confirmar compatibilidade sem executar estes scripts; strictDepBuilds não é desligado.
+
 As reexecuções do commit 618dc7f falharam com timeout no endpoint legado `/security/audits`, usando pnpm 10.11.0. A [documentação oficial do pnpm 11](https://pnpm.io/blog/releases/11.0) confirma que esse contrato foi retirado e substituído por `/security/advisories/bulk`. O timeout não prova sozinho a causa de rede; insistir no contrato retirado não é uma estratégia de recuperação.
 
 Fixar pnpm 11.25.0 no packageManager, CI e Docker. Node 22.23.2 permanece. Migrar onlyBuiltDependencies para allowBuilds preservando a autorização de Prisma/esbuild; o postinstall não necessário do Nest permanece bloqueado explicitamente. Scripts de dependências desconhecidos não são autorizados automaticamente. CI confirma a versão efetiva para detetar fallback para pnpm 10.
