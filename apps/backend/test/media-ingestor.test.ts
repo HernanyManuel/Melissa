@@ -53,7 +53,7 @@ test('media ingestion fails closed on identity, type, size, checksum and absence
     ['invalid', 'media_1', 'image/png'],
     [tenant, '../media', 'image/png'],
     [tenant, 'media_1', 'text/html'],
-  ])
+  ] as const)
     await assert.rejects(ingestor.ingest(tenantId, mediaId, type), /Invalid media request/);
   await assert.rejects(ingestor.ingest(tenant, 'missing', 'image/png'), MediaUnavailable);
 });
