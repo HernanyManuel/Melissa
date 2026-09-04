@@ -43,7 +43,7 @@ void main() {
     await tester.tap(find.text('Repetir a mesma tentativa')); await tester.pumpAndSettle();
     expect(bodies.length, 2); expect(bodies[0], bodies[1]);
     expect(find.text('Intenção em processamento na fila de teste.'), findsOneWidget);
-    await tester.tap(find.text('Consultar resultado')); await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1)); await tester.pumpAndSettle();
     expect(reads, 1); expect(bodies.length, 2);
     expect(find.text('Simulação aceite. Nenhuma mensagem WhatsApp foi enviada.'), findsOneWidget);
   });
@@ -51,6 +51,7 @@ void main() {
     final bodies = <String>[];
     final api = client((r) async {
       if (r.url.path.endsWith('/channels')) return channels();
+      if (r.method == 'GET') return json({'intentId': 'receipt', 'state': 'mock_accepted'});
       bodies.add(r.body);
       if (bodies.length == 1) return http.Response('{}', 429, headers: {'retry-after': '2'});
       return json({'intentId': 'receipt', 'state': 'pending', 'duplicate': false});
@@ -83,5 +84,24 @@ void main() {
     late.complete(json({'intentId': 'old-receipt', 'state': 'stored'})); await tester.pumpAndSettle();
     expect(find.text('old-receipt'), findsNothing); expect(find.text('Old secret'), findsNothing);
     expect(find.text('Guardar intenção'), findsOneWidget);
+  });
+  testWidgets('automatic polling is bounded and never repeats POST', (tester) async {
+    var posts = 0, reads = 0;
+    final api = client((r) async {
+      if (r.url.path.endsWith('/channels')) return channels();
+      if (r.method == 'POST') {
+        posts++;
+        return json({'intentId': 'receipt', 'state': 'pending', 'duplicate': false});
+      }
+      reads++;
+      return json({'intentId': 'receipt', 'state': 'pending'});
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api)); await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Olá teste');
+    await tester.tap(find.text('Guardar intenção')); await tester.pump();
+    for (var i = 0; i < 20; i++) await tester.pump(const Duration(seconds: 1));
+    expect(posts, 1); expect(reads, 15);
+    expect(find.text('Consultar resultado'), findsOneWidget);
   });
 }

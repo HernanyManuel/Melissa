@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Polling outbound limitado
+
+Após `pending`, Flutter consulta por GET uma vez/segundo até estado terminal ou 15 tentativas; nunca repete POST. Cancela em troca de contexto/fecho/nova intenção e mantém consulta manual. 429 respeita Retry-After. Ver [ADR-041](decisions/ADR-041-bounded-outbound-polling.md). Sem WebSocket, recovery após reload, requeue operacional ou envio real. Validação nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Estado outbound na API/UI
 
 POST/GET expõem estado mínimo `pending`, `mock_accepted`, `rejected` ou `failed`; intenções históricas sem fila ficam `stored`. Sem payload, destinatário, tentativas ou erro. Flutter distingue estados em seis idiomas e consulta sem reenvio. Ver [ADR-040](decisions/ADR-040-outbound-processing-status.md). Retry operacional, polling e envio real pendentes. Validação nos checks do PR #5; sem merge/deploy.

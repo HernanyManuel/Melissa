@@ -18,19 +18,29 @@ class _OutboundPageState extends State<OutboundPage> {
   String? intentId;
   String? receiptState;
   bool busy = true, ready = false, failed = false, blocked = false, waiting = false;
-  int generation = 0;
-  Timer? timer;
+  int generation = 0, pollCount = 0;
+  Timer? retryTimer, pollTimer;
   @override
   void initState() { super.initState(); load(); }
   @override
   void didUpdateWidget(covariant OutboundPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tenantId != widget.tenantId || oldWidget.conversationId != widget.conversationId || oldWidget.channelId != widget.channelId || oldWidget.api != widget.api) {
-      timer?.cancel(); waiting = false; pending = null; intentId = null; receiptState = null; text.clear(); load();
+      retryTimer?.cancel(); pollTimer?.cancel(); waiting = false; pending = null; intentId = null; receiptState = null; pollCount = 0; text.clear(); load();
     }
   }
   @override
-  void dispose() { timer?.cancel(); text.dispose(); super.dispose(); }
+  void dispose() { retryTimer?.cancel(); pollTimer?.cancel(); text.dispose(); super.dispose(); }
+
+  void schedulePoll() {
+    pollTimer?.cancel();
+    if (receiptState != 'pending' || pollCount >= 15 || waiting || blocked) return;
+    pollTimer = Timer(const Duration(seconds: 1), () {
+      if (!mounted || receiptState != 'pending') return;
+      pollCount++;
+      submit(check: true, automatic: true);
+    });
+  }
 
   Future<void> load() async {
     final current = ++generation;
@@ -48,7 +58,7 @@ class _OutboundPageState extends State<OutboundPage> {
     if (mounted && current == generation) setState(() => busy = false);
   }
 
-  Future<void> submit({bool check = false}) async {
+  Future<void> submit({bool check = false, bool automatic = false}) async {
     if (busy || waiting || blocked || !ready) return;
     if (!check && pending == null) {
       if (text.text.trim().isEmpty || text.text.runes.length > 4096) return;
@@ -64,6 +74,7 @@ class _OutboundPageState extends State<OutboundPage> {
       const states = {'stored', 'pending', 'mock_accepted', 'rejected', 'failed'};
       if (!states.contains(result['state']) || result['intentId'] is! String || (result['intentId'] as String).isEmpty || (check && result['intentId'] != intentId)) throw const FormatException('Invalid receipt');
       setState(() { intentId = result['intentId'] as String; receiptState = result['state'] as String; text.clear(); });
+      if (receiptState == 'pending') schedulePoll(); else pollTimer?.cancel();
     } catch (error) {
       if (!mounted || current != generation) return;
       setState(() {
@@ -71,9 +82,12 @@ class _OutboundPageState extends State<OutboundPage> {
         if (error is ApiFailure && [400, 401, 403, 404, 409].contains(error.status)) { blocked = true; intentId = null; }
         if (error is ApiFailure && error.status == 429) {
           waiting = true;
-          timer?.cancel();
-          timer = Timer(Duration(seconds: error.retryAfterSeconds ?? 60), () {
-            if (mounted && current == generation) setState(() => waiting = false);
+          retryTimer?.cancel();
+          retryTimer = Timer(Duration(seconds: error.retryAfterSeconds ?? 60), () {
+            if (mounted && current == generation) {
+              setState(() => waiting = false);
+              if (automatic) schedulePoll();
+            }
           });
         }
       });
@@ -104,7 +118,7 @@ class _OutboundPageState extends State<OutboundPage> {
           })),
           SelectableText(intentId!),
           TextButton(onPressed: busy || waiting ? null : () => submit(check: true), child: Text(l.simulationCheck)),
-          TextButton(onPressed: busy || waiting ? null : () => setState(() { pending = null; intentId = null; receiptState = null; failed = false; text.clear(); }), child: Text(l.outboundNew)),
+          TextButton(onPressed: busy || waiting ? null : () => setState(() { retryTimer?.cancel(); pollTimer?.cancel(); pending = null; intentId = null; receiptState = null; pollCount = 0; failed = false; text.clear(); }), child: Text(l.outboundNew)),
         ],
       ],
     ]))));
