@@ -79,9 +79,9 @@ export class OutboundController {
   @ApiParam({ name: 'id', format: 'uuid', required: true })
   @ApiOperation({
     operationId: 'storeMockOutboundIntent',
-    summary: 'Store a mock outbound intent without sending',
+    summary: 'Queue a mock outbound intent without real delivery',
     description:
-      'Owner/admin sandbox only. HTTP 200 means committed storage, including identical replay. No queue or provider invocation. Reuse requestId and exact text after uncertain responses. 1000 intents per tenant; replay remains available at capacity. Tenant and target are authorized server-side.',
+      'Owner/admin sandbox only. HTTP 200 means durable acceptance or an identical replay; state describes current mock processing. It never means a WhatsApp send or delivery. Reuse requestId and exact text after uncertain responses. 1000 intents per tenant; replay remains available at capacity.',
   })
   @ApiOkResponse({ type: StoreMockOutboundResponseDto })
   @ApiResponse({
@@ -103,9 +103,9 @@ export class OutboundController {
   @ApiParam({ name: 'id', format: 'uuid', required: true })
   @ApiOperation({
     operationId: 'getStoredOutboundIntent',
-    summary: 'Read minimal storage receipt',
+    summary: 'Read minimal mock processing receipt',
     description:
-      'Owner/admin in the authorized tenant can read the receipt, including intents from another operator. No content, actor, recipient or delivery state is returned. This GET never submits or requeues.',
+      'Owner/admin in the authorized tenant can read mock queue state, including intents from another operator. No content, actor, recipient, attempts, provider identifier or real delivery state is returned. This GET never submits or requeues.',
   })
   @ApiOkResponse({ type: StoredOutboundDto })
   receipt(

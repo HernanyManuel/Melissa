@@ -31,7 +31,11 @@ export class OutboundIntentService {
         select: { id: true },
       });
       if (!intent) throw new NotFoundException();
-      return { intentId: intent.id, state: 'stored' as const };
+      const dispatch = await tx.outboundDispatch.findUnique({
+        where: { id: intent.id },
+        select: { state: true },
+      });
+      return { intentId: intent.id, state: dispatch?.state ?? ('stored' as const) };
     });
   }
 
@@ -76,7 +80,16 @@ export class OutboundIntentService {
           return { conflict: true as const };
         }
         // A replay reports stored intent only; it never requeues or promises delivery.
-        return { conflict: false as const, intentId: previous.id, duplicate: true };
+        const dispatch = await tx.outboundDispatch.findUnique({
+          where: { id: previous.id },
+          select: { state: true },
+        });
+        return {
+          conflict: false as const,
+          intentId: previous.id,
+          duplicate: true,
+          state: dispatch?.state ?? ('stored' as const),
+        };
       }
       const conversation = await tx.conversation.findFirst({
         where: {
@@ -106,10 +119,10 @@ export class OutboundIntentService {
       });
       await tx.outboundDispatch.create({ data: { tenantId, id: intent.id } });
       await this.tenants.audit(tx, actor, tenantId, 'outbound.intent_stored', intent.id);
-      return { conflict: false as const, intentId: intent.id, duplicate: false };
+      return { conflict: false as const, intentId: intent.id, duplicate: false, state: 'pending' };
     });
     // Conflict evidence commits before the error is returned; no message content in audit.
     if (result.conflict) throw new ConflictException();
-    return { intentId: result.intentId, duplicate: result.duplicate, state: 'stored' as const };
+    return { intentId: result.intentId, duplicate: result.duplicate, state: result.state };
   }
 }

@@ -22,10 +22,11 @@ export class StoreMockOutboundDto {
 export class StoredOutboundDto {
   @ApiProperty({ format: 'uuid' }) intentId!: string;
   @ApiProperty({
-    enum: ['stored'],
-    description: 'Durable sandbox intent only. Not queued, sent or delivered.',
+    enum: ['stored', 'pending', 'mock_accepted', 'rejected', 'failed'],
+    description:
+      'stored is a legacy non-dispatched intent; pending is queued; mock_accepted is simulation-only. No value means real delivery.',
   })
-  state!: 'stored';
+  state!: 'stored' | 'pending' | 'mock_accepted' | 'rejected' | 'failed';
 }
 
 export class StoreMockOutboundResponseDto extends StoredOutboundDto {

@@ -40,6 +40,11 @@ export function assertOutboundOpenApi(doc: OpenAPIObject) {
     assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), [...fields].sort());
     assert.deepEqual([...(schema.required ?? [])].sort(), [...fields].sort());
   }
+  const receiptState = schemas?.StoredOutboundDto;
+  assert(receiptState && !('$ref' in receiptState));
+  const stateSchema = receiptState.properties?.state;
+  assert(stateSchema && !('$ref' in stateSchema));
+  assert.deepEqual(stateSchema.enum, ['stored', 'pending', 'mock_accepted', 'rejected', 'failed']);
 }
 
 export async function testOutboundHttp(
@@ -80,7 +85,7 @@ export async function testOutboundHttp(
   assert.equal(bodies.filter((b) => b.duplicate).length, 1);
   for (const body of bodies) {
     assert.deepEqual(Object.keys(body).sort(), ['duplicate', 'intentId', 'state']);
-    assert.equal(body.state, 'stored');
+    assert(['pending', 'mock_accepted'].includes(body.state));
   }
   const id = bodies[0]!.intentId;
   const receipt = `/tenants/${tenantId}/outbound-intents/${id}`;
@@ -131,7 +136,11 @@ export async function testOutboundHttp(
       const read = await call('GET', receipt, undefined, ownerToken);
       assert.equal(read.status, allowed ? 200 : 403);
       assert.equal((await call('POST', path, input, ownerToken)).status, allowed ? 200 : 403);
-      if (allowed) assert.deepEqual(await read.json(), { intentId: id, state: 'stored' });
+      if (allowed) {
+        const body = (await read.json()) as { intentId: string; state: string };
+        assert.equal(body.intentId, id);
+        assert(['pending', 'mock_accepted', 'rejected', 'failed'].includes(body.state));
+      }
     }
   } finally {
     await db.membership.update({ where: { id: membershipId }, data: { role: 'owner' } });
@@ -168,7 +177,14 @@ export async function testOutboundHttp(
     await http.redis.del(key);
     const replay = await call('POST', path, input, ownerToken);
     assert.equal(replay.status, 200);
-    assert.deepEqual(await replay.json(), { intentId: id, duplicate: true, state: 'stored' });
+    const replayBody = (await replay.json()) as {
+      intentId: string;
+      duplicate: boolean;
+      state: string;
+    };
+    assert.equal(replayBody.intentId, id);
+    assert.equal(replayBody.duplicate, true);
+    assert(['pending', 'mock_accepted', 'rejected', 'failed'].includes(replayBody.state));
     // Repair missing expiry without making a saturated counter unlimited.
     await http.redis.set(isolatedKey, '30');
     assert.equal(await consumeOutboundLimit(http.redis, isolatedUser, 'store'), 60);

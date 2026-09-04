@@ -16,6 +16,7 @@ class _OutboundPageState extends State<OutboundPage> {
   final text = TextEditingController();
   Map<String, Object?>? pending;
   String? intentId;
+  String? receiptState;
   bool busy = true, ready = false, failed = false, blocked = false, waiting = false;
   int generation = 0;
   Timer? timer;
@@ -25,7 +26,7 @@ class _OutboundPageState extends State<OutboundPage> {
   void didUpdateWidget(covariant OutboundPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tenantId != widget.tenantId || oldWidget.conversationId != widget.conversationId || oldWidget.channelId != widget.channelId || oldWidget.api != widget.api) {
-      timer?.cancel(); waiting = false; pending = null; intentId = null; text.clear(); load();
+      timer?.cancel(); waiting = false; pending = null; intentId = null; receiptState = null; text.clear(); load();
     }
   }
   @override
@@ -60,8 +61,9 @@ class _OutboundPageState extends State<OutboundPage> {
     try {
       final result = await widget.api.request(check ? 'GET' : 'POST', path, check ? null : pending, false) as Map<String, dynamic>;
       if (!mounted || current != generation) return;
-      if (result['state'] != 'stored' || result['intentId'] is! String || (result['intentId'] as String).isEmpty || (check && result['intentId'] != intentId)) throw const FormatException('Invalid receipt');
-      setState(() { intentId = result['intentId'] as String; text.clear(); });
+      const states = {'stored', 'pending', 'mock_accepted', 'rejected', 'failed'};
+      if (!states.contains(result['state']) || result['intentId'] is! String || (result['intentId'] as String).isEmpty || (check && result['intentId'] != intentId)) throw const FormatException('Invalid receipt');
+      setState(() { intentId = result['intentId'] as String; receiptState = result['state'] as String; text.clear(); });
     } catch (error) {
       if (!mounted || current != generation) return;
       setState(() {
@@ -93,10 +95,16 @@ class _OutboundPageState extends State<OutboundPage> {
         if (pending == null) TextField(controller: text, enabled: !busy, maxLength: 4096, minLines: 3, maxLines: 8, decoration: InputDecoration(labelText: l.simulationMessage)),
         if (intentId == null) FilledButton(onPressed: busy || waiting ? null : () => submit(), child: Text(pending == null ? l.outboundStore : l.simulationRetry)),
         if (intentId != null) ...[
-          Semantics(liveRegion: true, child: Text(l.outboundStored)),
+          Semantics(liveRegion: true, child: Text(switch (receiptState) {
+            'pending' => l.outboundPending,
+            'mock_accepted' => l.outboundAccepted,
+            'rejected' => l.outboundRejected,
+            'failed' => l.outboundFailed,
+            _ => l.outboundStored,
+          })),
           SelectableText(intentId!),
           TextButton(onPressed: busy || waiting ? null : () => submit(check: true), child: Text(l.simulationCheck)),
-          TextButton(onPressed: busy || waiting ? null : () => setState(() { pending = null; intentId = null; failed = false; text.clear(); }), child: Text(l.outboundNew)),
+          TextButton(onPressed: busy || waiting ? null : () => setState(() { pending = null; intentId = null; receiptState = null; failed = false; text.clear(); }), child: Text(l.outboundNew)),
         ],
       ],
     ]))));

@@ -66,7 +66,7 @@ export async function testOutboundAcceptance(
     );
     assert.equal(new Set(results.map((r) => r.intentId)).size, 1);
     assert.equal(results.filter((r) => !r.duplicate).length, 1);
-    assert(results.every((r) => r.state === 'stored'));
+    assert(results.every((r) => r.state === 'pending'));
     const id = results[0]!.intentId;
     assert.notEqual(id, input.requestId);
     assert.equal(

@@ -1,8 +1,12 @@
 {
   "outboundTitle": "Testabsicht",
-  "outboundHint": "Speichert nur eine Absicht: kein WhatsApp-Versand und keine Nachricht im Verlauf. Bei Fehlern auf dieser Seite erneut versuchen. Schließen oder Neuladen verliert den Schlüssel; vorherige Anfrage prüfen, bevor eine neue erstellt wird.",
+  "outboundHint": "Stellt eine Absicht in die Testwarteschlange: kein WhatsApp-Versand und keine Nachricht im Verlauf. Bei Fehlern auf dieser Seite erneut versuchen. Schließen oder Neuladen verliert den Schlüssel; vorherige Anfrage prüfen, bevor eine neue erstellt wird.",
   "outboundStore": "Absicht speichern",
   "outboundStored": "Absicht gespeichert. Nicht gesendet oder eingereiht.",
+  "outboundPending": "Absicht wird in der Testwarteschlange verarbeitet.",
+  "outboundAccepted": "Simulation akzeptiert. Es wurde keine WhatsApp-Nachricht gesendet.",
+  "outboundRejected": "Simulation nach erneuter Prüfung von Zugriff und Konfiguration abgelehnt.",
+  "outboundFailed": "Verarbeitung nach allen Versuchen fehlgeschlagen.",
   "outboundNew": "Neue Absicht",
   "outboundLimited": "Anfragelimit erreicht. Vor dem Wiederholen desselben Versuchs warten.",
   "outboundBlocked": "Vorgang blockiert. Kanal, Unterhaltung und Berechtigungen prüfen; keinen neuen Schlüssel verwenden.",

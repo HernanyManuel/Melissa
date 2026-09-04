@@ -1,8 +1,12 @@
 {
   "outboundTitle": "Intenzione di prova",
-  "outboundHint": "Salva solo un’intenzione: nessun invio WhatsApp o messaggio nella cronologia. In caso di errore, riprova in questa pagina. Chiudere o ricaricare perde la chiave; verifica la richiesta precedente prima di crearne un’altra.",
+  "outboundHint": "Inserisce un’intenzione nella coda di test: nessun invio WhatsApp o messaggio nella cronologia. In caso di errore, riprova in questa pagina. Chiudere o ricaricare perde la chiave; verifica la richiesta precedente prima di crearne un’altra.",
   "outboundStore": "Salva intenzione",
   "outboundStored": "Intenzione salvata. Non inviata né accodata.",
+  "outboundPending": "Intenzione in elaborazione nella coda di test.",
+  "outboundAccepted": "Simulazione accettata. Nessun messaggio WhatsApp è stato inviato.",
+  "outboundRejected": "Simulazione rifiutata dopo la nuova convalida di accesso e configurazione.",
+  "outboundFailed": "Elaborazione non riuscita dopo tutti i tentativi.",
   "outboundNew": "Nuova intenzione",
   "outboundLimited": "Limite di richieste raggiunto. Attendi prima di ripetere lo stesso tentativo.",
   "outboundBlocked": "Operazione bloccata. Verifica canale, conversazione e permessi; non usare una nuova chiave.",

@@ -1,8 +1,12 @@
 {
   "outboundTitle": "Test intent",
-  "outboundHint": "Stores an intent only: no WhatsApp send or message in history. After an error, retry on this page. Closing or reloading loses the retry key; do not create another request without checking the previous one.",
+  "outboundHint": "Queues an intent for test processing: no WhatsApp send or message in history. After an error, retry on this page. Closing or reloading loses the retry key; check the previous request before creating another.",
   "outboundStore": "Store intent",
   "outboundStored": "Intent stored. Not sent or queued.",
+  "outboundPending": "Intent is processing in the test queue.",
+  "outboundAccepted": "Simulation accepted. No WhatsApp message was sent.",
+  "outboundRejected": "Simulation rejected after access and configuration were revalidated.",
+  "outboundFailed": "Processing failed after all attempts.",
   "outboundNew": "New intent",
   "outboundLimited": "Request limit reached. Wait before retrying the same attempt.",
   "outboundBlocked": "Operation blocked. Check the channel, conversation and permissions; do not retry with a new key.",

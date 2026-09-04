@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Estado outbound na API/UI
+
+POST/GET expõem estado mínimo `pending`, `mock_accepted`, `rejected` ou `failed`; intenções históricas sem fila ficam `stored`. Sem payload, destinatário, tentativas ou erro. Flutter distingue estados em seis idiomas e consulta sem reenvio. Ver [ADR-040](decisions/ADR-040-outbound-processing-status.md). Retry operacional, polling e envio real pendentes. Validação nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Fila outbound mock
 
 Schema 18 e envelope atómico para novas intenções; worker BullMQ com descoberta PostgreSQL, replay seguro e cinco falhas registadas antes de estado terminal. Testes de worker separado, recuperação do resultado persistido, retries e isolamento. Ver [ADR-039](decisions/ADR-039-outbound-mock-queue.md). Intenções antigas não são ativadas; API/UI continuam a indicar apenas armazenamento. Resultado visual, operação de falhas, retenção e envio real pendentes. Validação nos checks do PR #5; sem merge/deploy.

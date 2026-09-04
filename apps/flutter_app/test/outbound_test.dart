@@ -31,10 +31,10 @@ void main() {
       if (r.method == 'POST') {
         bodies.add(r.body);
         if (bodies.length == 1) throw http.ClientException('lost response');
-        return json({'intentId': 'receipt', 'state': 'stored', 'duplicate': true});
+        return json({'intentId': 'receipt', 'state': 'pending', 'duplicate': true});
       }
       reads++;
-      return json({'intentId': 'receipt', 'state': 'stored'});
+      return json({'intentId': 'receipt', 'state': 'mock_accepted'});
     });
     addTearDown(api.dispose);
     await tester.pumpWidget(screen(api)); await tester.pumpAndSettle();
@@ -42,9 +42,10 @@ void main() {
     expect(find.byType(TextField), findsNothing);
     await tester.tap(find.text('Repetir a mesma tentativa')); await tester.pumpAndSettle();
     expect(bodies.length, 2); expect(bodies[0], bodies[1]);
-    expect(find.text('Intenção guardada. Não foi enviada nem colocada numa fila.'), findsOneWidget);
+    expect(find.text('Intenção em processamento na fila de teste.'), findsOneWidget);
     await tester.tap(find.text('Consultar resultado')); await tester.pumpAndSettle();
     expect(reads, 1); expect(bodies.length, 2);
+    expect(find.text('Simulação aceite. Nenhuma mensagem WhatsApp foi enviada.'), findsOneWidget);
   });
   testWidgets('429 delays retry without changing the request key', (tester) async {
     final bodies = <String>[];
@@ -52,7 +53,7 @@ void main() {
       if (r.url.path.endsWith('/channels')) return channels();
       bodies.add(r.body);
       if (bodies.length == 1) return http.Response('{}', 429, headers: {'retry-after': '2'});
-      return json({'intentId': 'receipt', 'state': 'stored', 'duplicate': false});
+      return json({'intentId': 'receipt', 'state': 'pending', 'duplicate': false});
     });
     addTearDown(api.dispose);
     await tester.pumpWidget(screen(api)); await tester.pumpAndSettle(); await store(tester);
