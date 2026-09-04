@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Núcleo de ingestão de media
+
+MediaSourceProvider e MediaIngestor com IDs opacos, allowlist MIME, correspondência do tipo declarado, limite de 10 MiB, SHA-256 opcional e chave tenant opaca. Mock sem rede e testes de replay/validação/falhas. Ver [ADR-043](decisions/ADR-043-safe-media-ingestion-core.md). Não ligado ao webhook/DB; sem download Meta, magic bytes, malware scan, reconciliação ou limpeza. Validação nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — StorageProvider para media
 
 Contrato binário vendor-neutral e MockStorageProvider privado, limitado, idempotente e com cópias defensivas. Testes de concorrência, conflito, capacidade, chaves/tipos e delete. Ver [ADR-042](decisions/ADR-042-storage-provider-foundation.md). Ainda não descarrega media Meta, não liga DB/quarentena e não configura storage de produção; estes controlos são pré-requisitos do próximo incremento. Validação nos checks do PR #5; sem merge/deploy.
