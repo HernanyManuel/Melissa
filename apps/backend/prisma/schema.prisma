@@ -476,6 +476,16 @@ model WhatsAppStatusEvent {
 }
 
 // Internal routing envelope only: no content, customer ID, phone or credentials.
+model OutboundDispatch {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  state String @default("pending")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  @@index([state,nextAttemptAt,id], map: "outbound_dispatch_due_idx")
+  @@map("outbound_dispatch")
+}
+
 model OutboundMockResult {
   tenantId String @map("tenant_id") @db.Uuid
   id String @db.Uuid

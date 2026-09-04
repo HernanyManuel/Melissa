@@ -104,6 +104,7 @@ export class OutboundIntentService {
         },
         select: { id: true },
       });
+      await tx.outboundDispatch.create({ data: { tenantId, id: intent.id } });
       await this.tenants.audit(tx, actor, tenantId, 'outbound.intent_stored', intent.id);
       return { conflict: false as const, intentId: intent.id, duplicate: false };
     });

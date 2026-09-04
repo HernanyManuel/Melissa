@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { TenantService } from '../src/tenancy/tenant.service';
 import { OutboundHttpFixture, testOutboundHttp } from './outbound-http.integration';
 import { testOutboundProcessing } from './outbound-processing.integration';
+import { testOutboundQueue } from './outbound-queue.integration';
 import {
   MAX_MOCK_OUTBOUND_INTENTS,
   OutboundIntentService,
@@ -190,6 +191,7 @@ export async function testOutboundAcceptance(
     );
     await testOutboundHttp(db, tenantId, otherTenant, conversation.id, owner.id, http);
     await testOutboundProcessing(db, tenantId, otherTenant, conversation.id, owner.id);
+    await testOutboundQueue(db, tenantId, otherTenant, conversation.id, actor.userId);
     const count = await db.outboundIntent.count({ where: { tenantId } });
     await db.outboundIntent.createMany({
       data: Array.from({ length: MAX_MOCK_OUTBOUND_INTENTS - count }, () => ({

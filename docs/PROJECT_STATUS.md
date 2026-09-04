@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Fila outbound mock
+
+Schema 18 e envelope atómico para novas intenções; worker BullMQ com descoberta PostgreSQL, replay seguro e cinco falhas registadas antes de estado terminal. Testes de worker separado, recuperação do resultado persistido, retries e isolamento. Ver [ADR-039](decisions/ADR-039-outbound-mock-queue.md). Intenções antigas não são ativadas; API/UI continuam a indicar apenas armazenamento. Resultado visual, operação de falhas, retenção e envio real pendentes. Validação nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Processamento interno outbound mock
 
 Schema 17: resultado imutável por intenção, RLS e auditoria transacional. Processador interno revalida permissões/canal/cliente/conversa e retorna o mesmo resultado em replay. Testes de concorrência, revogação, rollback e isolamento. Ver [ADR-037](decisions/ADR-037-outbound-mock-processing.md). Ainda sem dispatcher, ligação às filas ou resultado na API/UI; nenhum envio real. Validação integral nos checks do PR #5; sem merge/deploy.
