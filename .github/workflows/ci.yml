@@ -42,7 +42,9 @@ jobs:
           node-version-file: .nvmrc
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.11.0
+          version: 11.25.0
+      - name: Verify package manager version
+        run: test "$(pnpm --version)" = "11.25.0"
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
