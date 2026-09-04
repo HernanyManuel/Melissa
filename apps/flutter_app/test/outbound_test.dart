@@ -100,7 +100,9 @@ void main() {
     await tester.pumpWidget(screen(api)); await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Olá teste');
     await tester.tap(find.text('Guardar intenção')); await tester.pump();
-    for (var i = 0; i < 20; i++) await tester.pump(const Duration(seconds: 1));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
     expect(posts, 1); expect(reads, 15);
     expect(find.text('Consultar resultado'), findsOneWidget);
   });

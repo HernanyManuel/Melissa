@@ -74,7 +74,11 @@ class _OutboundPageState extends State<OutboundPage> {
       const states = {'stored', 'pending', 'mock_accepted', 'rejected', 'failed'};
       if (!states.contains(result['state']) || result['intentId'] is! String || (result['intentId'] as String).isEmpty || (check && result['intentId'] != intentId)) throw const FormatException('Invalid receipt');
       setState(() { intentId = result['intentId'] as String; receiptState = result['state'] as String; text.clear(); });
-      if (receiptState == 'pending') schedulePoll(); else pollTimer?.cancel();
+      if (receiptState == 'pending') {
+        schedulePoll();
+      } else {
+        pollTimer?.cancel();
+      }
     } catch (error) {
       if (!mounted || current != generation) return;
       setState(() {
