@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Processamento interno outbound mock
+
+Schema 17: resultado imutável por intenção, RLS e auditoria transacional. Processador interno revalida permissões/canal/cliente/conversa e retorna o mesmo resultado em replay. Testes de concorrência, revogação, rollback e isolamento. Ver [ADR-037](decisions/ADR-037-outbound-mock-processing.md). Ainda sem dispatcher, ligação às filas ou resultado na API/UI; nenhum envio real. Validação integral nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Interface outbound de sandbox
 
 Página a partir de conversas mock, com verificação de acesso/canal, armazenamento e consulta de recibo. Texto/UUID preservados em memória para retry; espera Retry-After e bloqueio após erros definitivos. Seis idiomas e testes widget de replay/consulta/limite/troca de tenant. Ver [ADR-036](decisions/ADR-036-outbound-sandbox-ui.md). Não envia mensagens nem altera histórico; recuperação após reload e dispatch pendentes. CI nos checks do PR #5; sem merge/deploy.

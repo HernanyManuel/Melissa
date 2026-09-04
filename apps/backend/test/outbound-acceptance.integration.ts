@@ -4,6 +4,7 @@ import { HttpException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { TenantService } from '../src/tenancy/tenant.service';
 import { OutboundHttpFixture, testOutboundHttp } from './outbound-http.integration';
+import { testOutboundProcessing } from './outbound-processing.integration';
 import {
   MAX_MOCK_OUTBOUND_INTENTS,
   OutboundIntentService,
@@ -188,6 +189,7 @@ export async function testOutboundAcceptance(
       0,
     );
     await testOutboundHttp(db, tenantId, otherTenant, conversation.id, owner.id, http);
+    await testOutboundProcessing(db, tenantId, otherTenant, conversation.id, owner.id);
     const count = await db.outboundIntent.count({ where: { tenantId } });
     await db.outboundIntent.createMany({
       data: Array.from({ length: MAX_MOCK_OUTBOUND_INTENTS - count }, () => ({
