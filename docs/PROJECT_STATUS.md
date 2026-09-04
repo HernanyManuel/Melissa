@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — StorageProvider para media
+
+Contrato binário vendor-neutral e MockStorageProvider privado, limitado, idempotente e com cópias defensivas. Testes de concorrência, conflito, capacidade, chaves/tipos e delete. Ver [ADR-042](decisions/ADR-042-storage-provider-foundation.md). Ainda não descarrega media Meta, não liga DB/quarentena e não configura storage de produção; estes controlos são pré-requisitos do próximo incremento. Validação nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Polling outbound limitado
 
 Após `pending`, Flutter consulta por GET uma vez/segundo até estado terminal ou 15 tentativas; nunca repete POST. Cancela em troca de contexto/fecho/nova intenção e mantém consulta manual. 429 respeita Retry-After. Ver [ADR-041](decisions/ADR-041-bounded-outbound-polling.md). Sem WebSocket, recovery após reload, requeue operacional ou envio real. Validação nos checks do PR #5; sem merge/deploy.
