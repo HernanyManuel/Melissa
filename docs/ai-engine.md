@@ -1,6 +1,12 @@
 # Motor de conversação e IA
 
-Pipeline partilhado por todos os tenants; configuração versionada, contexto mínimo e ferramentas explícitas. AIProvider oferece generateResponse, extractStructuredData, classifyIntent e summarizeConversation. Implementações OpenAI e mock determinístico; seleção de modelo por tarefa via config, sem nomes/preços hardcoded no domínio.
+Pipeline partilhado por todos os tenants; configuração versionada, contexto mínimo e ferramentas explícitas. A IA interpreta linguagem e propõe intenções; o backend valida e executa ações determinísticas. O modelo nunca acede diretamente ao PostgreSQL, Redis, storage ou credenciais.
+
+## Estado atual
+
+`AIProvider` define o primeiro contrato vendor-neutral de completion. `AIGateway` valida contexto e respostas, limita tool calls e rejeita tools não autorizadas. `MockAIProvider` permite testes sem rede. Ver [ADR-053](decisions/ADR-053-ai-provider-gateway-boundary.md). Ainda não existem adapter OpenAI, execução de tools, persistência de estado, integração com conversas ou UI.
+
+O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 
 ## Ciclo de execução
 
@@ -10,22 +16,22 @@ Valores iniciais propostos/configuráveis: debounce 1,5s com janela máxima 5s; 
 
 ## Contratos das 14 tools
 
-| Tool | Validação e âmbito |
-|---|---|
-| get_business_info | Apenas campos públicos da empresa atual |
-| get_services | Serviços ativos, paginação e campos mínimos |
-| get_service_details | ID do mesmo tenant; excluir metadata interna |
-| get_price | Preço efetivo, moeda e condições atuais; sem inferência |
-| get_business_hours | Timezone, dia e exceções do mesmo tenant |
-| get_available_slots | BookingEngine e regras de data/staff; disponibilidade não é reserva |
-| create_booking | Customer da conversa, confirmação explícita, serviço/slot, plano, idempotência e constraint |
-| get_booking | Apenas booking pertencente ao customer da conversa |
-| cancel_booking | Ownership do customer, política, confirmação e versão |
-| reschedule_booking | Ownership, política, nova disponibilidade e operação atómica |
-| get_staff | Só staff ativo e dados públicos pertinentes |
-| create_lead | Customer atual, input limitado, dedup por ação |
-| update_customer | Apenas campos permitidos do customer atual; sem flags de consentimento inventadas |
-| human_handoff | Muda modo, invalida epoch, notifica equipa; idempotente |
+| Tool                | Validação e âmbito                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| get_business_info   | Apenas campos públicos da empresa atual                                                     |
+| get_services        | Serviços ativos, paginação e campos mínimos                                                 |
+| get_service_details | ID do mesmo tenant; excluir metadata interna                                                |
+| get_price           | Preço efetivo, moeda e condições atuais; sem inferência                                     |
+| get_business_hours  | Timezone, dia e exceções do mesmo tenant                                                    |
+| get_available_slots | BookingEngine e regras de data/staff; disponibilidade não é reserva                         |
+| create_booking      | Customer da conversa, confirmação explícita, serviço/slot, plano, idempotência e constraint |
+| get_booking         | Apenas booking pertencente ao customer da conversa                                          |
+| cancel_booking      | Ownership do customer, política, confirmação e versão                                       |
+| reschedule_booking  | Ownership, política, nova disponibilidade e operação atómica                                |
+| get_staff           | Só staff ativo e dados públicos pertinentes                                                 |
+| create_lead         | Customer atual, input limitado, dedup por ação                                              |
+| update_customer     | Apenas campos permitidos do customer atual; sem flags de consentimento inventadas           |
+| human_handoff       | Muda modo, invalida epoch, notifica equipa; idempotente                                     |
 
 Schemas estritos: `additionalProperties: false`, limites de strings/arrays e enums. TenantContext, customer, ambiente e actor são injetados pelo backend, nunca parâmetros escolhidos pelo LLM. Testar tentativas de obter booking de outro cliente do mesmo tenant, além de cross-tenant.
 

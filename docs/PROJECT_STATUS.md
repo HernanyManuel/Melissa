@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 5 — AIProvider e AIGateway
+
+Contrato vendor-neutral sem DB/rede, gateway com limites de contexto/output, tools allowlisted, JSON defensivo e erros sanitizados. Tenant/correlation não chegam ao provider; MockAIProvider determinístico permite testes. Ver [ADR-053](decisions/ADR-053-ai-provider-gateway-boundary.md) e [motor de IA](ai-engine.md). Sem adapter real, tool executor, persistência, integração com conversas, merge ou deploy.
+
 ## Atualização Phase 4 — Gate de malware ClamAV
 
 MalwareScanner/ClamAV INSTREAM analisa bytes validados antes do storage. Apenas `OK` permite escrita; `FOUND`, timeout, erro ou resposta desconhecida falham fechados. Worker exige scanner completo, com limites de corpo/resposta/tempo; testes cobrem protocolo, deteção, indisponibilidade, configuração e ausência de escrita. Ver [ADR-052](decisions/ADR-052-clamav-malware-gate.md). Base real/updates/health/network policy ainda não validados; sem merge/deploy.

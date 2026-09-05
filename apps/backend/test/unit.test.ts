@@ -11,6 +11,7 @@ import './quarantine-keyring.test';
 import './s3-storage-provider.test';
 import './media-ingestion-queue.test';
 import './malware-scanner.test';
+import './ai-gateway.test';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
