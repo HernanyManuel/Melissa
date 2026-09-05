@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Ciclo transacional de ingestão media (schema 20)
+
+Processador resolve tenant sem confiar na fila, autentica AES-256-GCM/AAD, valida a referência e usa o MediaIngestor idempotente. Tentativas, backoff e resultado mínimo ficam duráveis; conclusão e auditoria são serializadas e falhas não expõem detalhes do provider. Ver [ADR-047](decisions/ADR-047-media-ingestion-lifecycle.md). O worker continua desligado enquanto não existir StorageProvider persistente e rotação de chaves; sem downloads reais, merge ou deploy.
+
 ## Atualização Phase 4 — Envelope durável de media (schema 19)
 
 Novos eventos media em quarentena criam envelope mínimo na mesma transação, sem ID externo/MIME/URL/telefone/payload; duplicação não repete e purga da quarentena remove por cascade. RLS, grants imutáveis, readiness e testes. Sem backfill ou consumidor. Ver [ADR-046](decisions/ADR-046-durable-media-ingestion-envelope.md). Nenhum download/storage real; sem merge/deploy.

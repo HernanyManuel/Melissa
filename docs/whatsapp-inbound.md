@@ -24,6 +24,8 @@ O transporte de media tem configuração separada e continua desligado: `WHATSAP
 
 Schema 19 cria um envelope mínimo e imutável, na mesma transação da quarentena, apenas para novos eventos de audio/document/image/video com ID e MIME. O envelope não contém ID externo, tipo, telefone, URL ou payload; desaparece quando a quarentena expira. Não existe backfill e nenhum worker o consome ainda. Ver [ADR-046](decisions/ADR-046-durable-media-ingestion-envelope.md).
 
+Schema 20 implementa o núcleo do ciclo de ingestão: decriptação autenticada no contexto RLS, validação do identificador/MIME, armazenamento idempotente, resultado mínimo e cinco tentativas com backoff. O consumidor não é iniciado automaticamente enquanto não existir storage persistente; o mock nunca recebe downloads reais. Ver [ADR-047](decisions/ADR-047-media-ingestion-lifecycle.md).
+
 Os commits são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. O controller só confirma com 200 depois dos commits. O ACK não inclui recibos ou IDs de tenant. Ver ADR-016 para erros e limites.
 
 ## Antes de expor o webhook

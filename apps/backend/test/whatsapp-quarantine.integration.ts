@@ -4,6 +4,10 @@ import { PrismaClient } from '@prisma/client';
 import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
 import { purgeExpiredQuarantine } from '../src/channels/quarantine-retention';
 import { setTimeout as delay } from 'node:timers/promises';
+import { MediaIngestor } from '../src/storage/media-ingestor';
+import { MediaIngestionProcessor } from '../src/storage/media-ingestion-processor';
+import { MockMediaSourceProvider } from '../src/storage/mock-media-source-provider';
+import { MockStorageProvider } from '../src/storage/mock-storage-provider';
 
 export async function testWhatsAppQuarantine(
   admin: PrismaClient,
@@ -83,8 +87,48 @@ export async function testWhatsAppQuarantine(
   const mediaEnvelope = await admin.mediaIngestionDispatch.findUniqueOrThrow({
     where: { tenantId_id: { tenantId: scope.tenantId, id: row.id } },
   });
-  assert.deepEqual(Object.keys(mediaEnvelope).sort(), ['createdAt', 'id', 'state', 'tenantId']);
+  assert.deepEqual(Object.keys(mediaEnvelope).sort(), [
+    'attempts',
+    'checksumSha256',
+    'contentType',
+    'createdAt',
+    'id',
+    'nextAttemptAt',
+    'sizeBytes',
+    'state',
+    'storageKey',
+    'tenantId',
+  ]);
   assert.equal(mediaEnvelope.state, 'quarantined');
+  const storage = new MockStorageProvider();
+  const processor = new MediaIngestionProcessor(
+    runtime,
+    new MediaIngestor(
+      new MockMediaSourceProvider({
+        'synthetic-media-id': {
+          contentType: 'image/jpeg',
+          body: Uint8Array.from([1, 2, 3]),
+        },
+      }),
+      storage,
+    ),
+    (keyId) => (keyId === key.id ? key.key : null),
+  );
+  await Promise.all([processor.process(row.id, 0), processor.process(row.id, 0)]);
+  const storedMedia = await admin.mediaIngestionDispatch.findUniqueOrThrow({
+    where: { id: row.id },
+  });
+  assert.equal(storedMedia.state, 'stored');
+  assert.equal(storedMedia.contentType, 'image/jpeg');
+  assert.equal(storedMedia.sizeBytes, 3);
+  assert(storedMedia.storageKey);
+  assert.deepEqual((await storage.get(storedMedia.storageKey))?.body, Uint8Array.from([1, 2, 3]));
+  assert.equal(
+    await admin.auditEvent.count({
+      where: { tenantId: scope.tenantId, targetId: row.id, action: 'media.ingestion_stored' },
+    }),
+    1,
+  );
   assert.throws(() => decrypt(scope.otherTenantId));
   // Object key order is not a semantic payload change.
   assert.equal(
@@ -113,7 +157,7 @@ export async function testWhatsAppQuarantine(
     await tx.$executeRaw`SELECT set_config('app.tenant_id',${scope.otherTenantId},true)`;
     assert.equal(await tx.whatsAppQuarantine.count({ where: { id: row.id } }), 0);
   });
-  // Discovery is global but minimal; identities and lifecycle are immutable to runtime.
+  // Discovery is global but minimal; lifecycle mutation requires an explicit tenant context.
   assert(await runtime.mediaIngestionDispatch.findUnique({ where: { id: row.id } }));
   await assert.rejects(
     runtime.mediaIngestionDispatch.update({
@@ -191,6 +235,29 @@ export async function testWhatsAppQuarantine(
   assert.equal(await admin.whatsAppQuarantine.findUnique({ where: keyWhere }), null);
   const concurrent = (await send(body({ ...message, id: `wamid.${randomUUID()}` })))[0]!;
   const concurrentWhere = { tenantId_id: { tenantId: scope.tenantId, id: concurrent.eventId } };
+  const unavailable = new MediaIngestionProcessor(
+    runtime,
+    new MediaIngestor(new MockMediaSourceProvider({}), new MockStorageProvider()),
+    () => null,
+  );
+  await assert.rejects(unavailable.process(concurrent.eventId, 0), /Media ingestion failed/);
+  const retry = await admin.mediaIngestionDispatch.findUniqueOrThrow({
+    where: { id: concurrent.eventId },
+  });
+  assert.equal(retry.state, 'quarantined');
+  assert.equal(retry.attempts, 1);
+  assert(retry.nextAttemptAt > new Date());
+  await unavailable.process(concurrent.eventId, 0); // stale attempt is ignored
+  assert.equal(
+    await admin.auditEvent.count({
+      where: {
+        tenantId: scope.tenantId,
+        targetId: concurrent.eventId,
+        action: 'media.ingestion_retry',
+      },
+    }),
+    1,
+  );
   await admin.whatsAppQuarantine.update({
     where: concurrentWhere,
     data: { expiresAt: new Date(Date.now() - 1000) },
