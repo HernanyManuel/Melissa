@@ -9,6 +9,8 @@ import { AppModule } from '../src/app.module';
 import { CONFIG, Configuration } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 import { configureHttp } from '../src/http';
+import { ConversationLock } from '../src/messaging/conversation-lock';
+import { randomUUID } from 'node:crypto';
 
 test(
   'real dependencies, HTTP probes, sanitization and worker round-trip',
@@ -35,7 +37,9 @@ test(
       assert(!body.includes('stack'));
       const connection = queueConnection(config.REDIS_URL);
       const queue = new Queue('infrastructure', { connection });
-      const events = new QueueEvents('infrastructure', { connection });
+      // Read the retained stream from its start. Redis readiness does not guarantee
+      // the first XREAD has started; '$' can miss a fast worker's completion event.
+      const events = new QueueEvents('infrastructure', { connection, lastEventId: '0-0' });
       try {
         await events.waitUntilReady();
         const job = await queue.add(
@@ -54,6 +58,38 @@ test(
       } finally {
         await events.close();
         await queue.close();
+      }
+      const redis = app.get(Dependencies).redis;
+      const lockKey = `test:conversation-lock:${randomUUID()}`;
+      const lock = new ConversationLock(redis, 1500);
+      try {
+        assert.equal(
+          await lock.run(lockKey, async (owned) => {
+            assert.equal(
+              await lock.run(lockKey, async () => assert.fail('Concurrent holder')),
+              false,
+            );
+            await delay(1800);
+            await owned();
+            assert.equal(await lock.run(lockKey, async () => assert.fail('Renewal failed')), false);
+          }),
+          true,
+        );
+        assert.equal(await redis.get(lockKey), null);
+        await assert.rejects(
+          lock.run(lockKey, async (owned) => {
+            await redis.set(lockKey, 'successor', 'PX', 10000);
+            await owned();
+          }),
+          /lease lost/,
+        );
+        assert.equal(
+          await redis.get(lockKey),
+          'successor',
+          'Old holder must not release successor',
+        );
+      } finally {
+        await redis.del(lockKey);
       }
       // A dependency outage must fail readiness without killing liveness.
       app.get(Dependencies).redis.disconnect();

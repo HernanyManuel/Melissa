@@ -41,7 +41,7 @@ O job migrate aplica a migration antes de API/worker iniciarem. Serviços de dad
 
 Backend no host:
 ```sh
-npm install -g pnpm@10.11.0
+npm install -g pnpm@11.25.0
 pnpm install --frozen-lockfile
 docker compose up -d postgres redis
 set -a

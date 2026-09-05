@@ -3,8 +3,9 @@ import 'package:http/http.dart' as http;
 import 'client.dart';
 
 class ApiFailure implements Exception {
-  const ApiFailure(this.status);
+  const ApiFailure(this.status, {this.retryAfterSeconds});
   final int status;
+  final int? retryAfterSeconds;
 }
 
 class IdentityApi {
@@ -29,7 +30,10 @@ class IdentityApi {
       await refresh();
       return request(method, path, body, false);
     }
-    if (response.statusCode >= 400) throw ApiFailure(response.statusCode);
+    if (response.statusCode >= 400) {
+      final retryAfter = int.tryParse(response.headers['retry-after'] ?? '');
+      throw ApiFailure(response.statusCode, retryAfterSeconds: retryAfter != null && retryAfter > 0 ? retryAfter.clamp(1, 3600).toInt() : null);
+    }
     return response.body.isEmpty ? null : jsonDecode(response.body);
   }
   Future<void> login(String email, String password) async {

@@ -1,8 +1,8 @@
-import type { ConnectionOptions } from 'bullmq';
+import type { RedisOptions } from 'ioredis';
 
 // Pass connection options, not a client from a different Redis dependency version.
 // BullMQ owns and closes the clients it creates from these options.
-export function queueConnection(value: string): ConnectionOptions {
+export function queueConnection(value: string): RedisOptions {
   const url = new URL(value);
   const database = url.pathname.replace(/^\//, '') || '0';
   if (!['redis:', 'rediss:'].includes(url.protocol) || !/^\d+$/.test(database)) {

@@ -42,7 +42,9 @@ jobs:
           node-version-file: .nvmrc
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.11.0
+          version: 11.25.0
+      - name: Verify package manager version
+        run: test "$(pnpm --version)" = "11.25.0"
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
@@ -62,13 +64,15 @@ jobs:
         run: |
           node apps/backend/dist/src/worker.js &
           worker_pid=$!
-          trap 'kill "$worker_pid" 2>/dev/null || true' EXIT
+          trap 'kill "$worker_pid" 2>/dev/null || true; wait "$worker_pid" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 30); do
             if curl -fsS http://localhost:3001/health/ready; then break; fi
             sleep 1
           done
           curl -fsS http://localhost:3001/health/ready
           pnpm test:integration
+      - name: Worker restart and Redis transport recovery
+        run: RUN_WORKER_RESTART_TEST=true node --test apps/backend/dist/test/worker-restart.integration.test.js
       - run: pnpm openapi
       - uses: actions/upload-artifact@v4
         with:
@@ -76,6 +80,10 @@ jobs:
           path: |
             pnpm-lock.yaml
             packages/api-contracts/generated/infrastructure.openapi.json
+      - name: Test audit connectivity diagnostics
+        run: node --test infra/scripts/audit-connectivity.test.mjs
+      - name: Diagnose npm connectivity (not a vulnerability scan)
+        run: node infra/scripts/audit-connectivity.mjs --run
       - name: Dependency audit
         run: pnpm audit --audit-level high
   flutter:

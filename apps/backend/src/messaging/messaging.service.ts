@@ -1,0 +1,182 @@
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { TenantService } from '../tenancy/tenant.service';
+import { Actor } from '../identity/auth.service';
+import { MessagePageDto, MockInboundDto, ConversationQuery } from './dto';
+import { CONFIG, Configuration } from '../config';
+import { enqueueInbound } from './enqueue-inbound';
+import { checkedReceiptState } from './receipt-state';
+import { ProcessingQuery, ProcessingPageDto } from './processing.dto';
+
+@Injectable()
+export class MessagingService {
+  constructor(
+    private readonly tenants: TenantService,
+    @Inject(CONFIG) private readonly config: Configuration,
+  ) {}
+
+  async receiveMock(actor: Actor, tenantId: string, channelId: string, input: MockInboundDto) {
+    const result = await this.tenants.scoped(actor, tenantId, 'channels:manage', async (tx) => {
+      const channel = await tx.channelConnection.findFirst({
+        where: { tenantId, id: channelId, mode: 'mock', status: 'active' },
+      });
+      if (!channel) throw new NotFoundException();
+      const customer = await tx.customer.findFirst({
+        where: { tenantId, id: input.customerId, deletedAt: null },
+      });
+      if (!customer) throw new NotFoundException();
+      // Server-owned channel namespace prevents a tenant selecting another tenant's event key.
+      const externalEventId = `${channel.id}:${input.eventId}`;
+      const payloadHash = createHash('sha256')
+        .update(JSON.stringify([customer.id, input.text]))
+        .digest('hex');
+      const previous = await tx.externalEvent.findUnique({
+        where: { provider_externalEventId: { provider: 'mock', externalEventId } },
+      });
+      if (previous) {
+        if (previous.payloadHash !== payloadHash) {
+          await this.tenants.audit(
+            tx,
+            actor,
+            tenantId,
+            'message.duplicate_payload_conflict',
+            previous.id,
+          );
+          return { conflict: true as const };
+        }
+        return { conflict: false as const, duplicate: true, eventId: previous.id };
+      }
+      const event = await tx.externalEvent.create({
+        data: {
+          tenantId,
+          provider: 'mock',
+          externalEventId,
+          eventType: 'message.received',
+          payloadHash,
+        },
+      });
+      await enqueueInbound(
+        tx,
+        {
+          tenantId,
+          channelId,
+          customerId: customer.id,
+          eventId: event.id,
+          text: input.text,
+          origin: 'mock',
+          actorId: actor.userId,
+        },
+        this.config.MESSAGE_DEBOUNCE_MS,
+      );
+      await this.tenants.audit(tx, actor, tenantId, 'message.mock_accepted', event.id);
+      return { conflict: false as const, duplicate: false, eventId: event.id };
+    });
+    // Throw after commit so conflict evidence is retained, without recording message content.
+    if (result.conflict) throw new ConflictException();
+    return { duplicate: result.duplicate, eventId: result.eventId };
+  }
+
+  receipt(actor: Actor, tenantId: string, id: string) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      const event = await tx.externalEvent.findUnique({ where: { tenantId_id: { tenantId, id } } });
+      if (
+        !event ||
+        event.eventType !== 'message.received' ||
+        !['mock', 'whatsapp'].includes(event.provider)
+      )
+        throw new NotFoundException();
+      const route = await tx.inboundDispatch.findFirst({ where: { id, tenantId } });
+      const message = await tx.message.findUnique({ where: { externalEventId: id } });
+      return {
+        eventId: id,
+        state: checkedReceiptState(route?.state, message !== null, event.processedAt),
+        message,
+      };
+    });
+  }
+
+  processing(actor: Actor, tenantId: string, query: ProcessingQuery): Promise<ProcessingPageDto> {
+    return this.tenants.scoped(actor, tenantId, 'channels:manage', async (tx) => {
+      // Dispatch has global worker visibility: explicit tenant predicate is mandatory here.
+      const rows = await tx.inboundDispatch.findMany({
+        where: {
+          tenantId,
+          state: query.state,
+          ...(query.after ? { id: { gt: query.after } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: 51,
+        select: { id: true, state: true, attempts: true, nextAttemptAt: true },
+      });
+      return {
+        items: rows.slice(0, 50).map((row) => ({
+          ...row,
+          nextAttemptAt: row.state === 'pending' ? row.nextAttemptAt : null,
+        })),
+        next: rows.length > 50 ? rows[49]!.id : null,
+      };
+    });
+  }
+
+  conversations(actor: Actor, tenantId: string, page: ConversationQuery) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      if (
+        page.after &&
+        !(await tx.conversation.findUnique({
+          where: { tenantId_id: { tenantId, id: page.after } },
+        }))
+      )
+        throw new NotFoundException();
+      // Escape LIKE metacharacters: user input is a literal name fragment.
+      const search = page.q?.replace(/[\\%_]/g, '\\$&');
+      const rows = await tx.conversation.findMany({
+        where: {
+          tenantId,
+          ...(search
+            ? {
+                OR: [
+                  { customer: { displayName: { contains: search, mode: 'insensitive' as const } } },
+                  {
+                    channelConnection: {
+                      displayName: { contains: search, mode: 'insensitive' as const },
+                    },
+                  },
+                ],
+              }
+            : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: 51,
+        ...(page.after ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 } : {}),
+        include: {
+          customer: { select: { displayName: true } },
+          channelConnection: { select: { displayName: true, mode: true } },
+        },
+      });
+      return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49]!.id : null };
+    });
+  }
+
+  messages(actor: Actor, tenantId: string, conversationId: string, page: MessagePageDto) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      if (
+        !(await tx.conversation.findUnique({
+          where: { tenantId_id: { tenantId, id: conversationId } },
+        }))
+      )
+        throw new NotFoundException();
+      if (
+        page.after &&
+        !(await tx.message.findFirst({ where: { tenantId, conversationId, id: page.after } }))
+      )
+        throw new NotFoundException();
+      const rows = await tx.message.findMany({
+        where: { tenantId, conversationId },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: 51,
+        ...(page.after ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 } : {}),
+      });
+      return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49]!.id : null };
+    });
+  }
+}

@@ -1,7 +1,7 @@
 FROM node:22.23.2-bookworm-slim AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
-RUN npm install -g pnpm@10.11.0
+RUN npm install -g pnpm@11.25.0
 COPY package.json pnpm-workspace.yaml ./
 COPY apps/backend/package.json apps/backend/package.json
 COPY . .

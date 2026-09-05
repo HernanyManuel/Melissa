@@ -8,7 +8,7 @@ Phase 3: onboarding e configuração empresarial sobre contas, sessões revogáv
 
 ## Começar
 
-Requisitos: Docker Compose, Node 22/pnpm 10.11.0 para desenvolvimento backend e Flutter 3.35.7 para Web.
+Requisitos: Docker Compose, Node 22/pnpm 11.25.0 para desenvolvimento backend e Flutter 3.35.7 para Web.
 
 ```sh
 cp .env.example .env

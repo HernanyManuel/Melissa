@@ -121,6 +121,26 @@ class _AccountPageState extends State<AccountPage> {
             if (selected != null) ...[
               const Divider(height: 32),
               Text('${l.selectedBusiness}: ${selected!['name']}'),
+              if (selected!['role'] == 'owner' || selected!['role'] == 'admin') OutlinedButton.icon(
+                onPressed: busy ? null : () => context.go('/message-processing/${selected!['id']}'),
+                icon: const Icon(Icons.pending_actions_outlined), label: Text(l.processingTitle),
+              ),
+              if (selected!['role'] == 'owner' || selected!['role'] == 'admin') OutlinedButton.icon(
+                onPressed: busy ? null : () => context.go('/channels/${selected!['id']}'),
+                icon: const Icon(Icons.hub_outlined), label: Text(l.channelsTitle),
+              ),
+              if (selected!['role'] == 'owner' || selected!['role'] == 'admin') OutlinedButton.icon(
+                onPressed: busy ? null : () => context.go('/quarantine/${selected!['id']}'),
+                icon: const Icon(Icons.shield_outlined), label: Text(l.quarantine),
+              ),
+              if (selected!['role'] != 'viewer') OutlinedButton.icon(
+                onPressed: busy ? null : () => context.go('/conversations/${selected!['id']}'),
+                icon: const Icon(Icons.chat_bubble_outline), label: Text(l.conversations),
+              ),
+              if (selected!['role'] != 'viewer') OutlinedButton.icon(
+                onPressed: busy ? null : () => context.go('/customers/${selected!['id']}'),
+                icon: const Icon(Icons.people_outline), label: Text(l.customers),
+              ),
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: busy ? null : () => context.go('/onboarding/${selected!['id']}'),
