@@ -32,6 +32,8 @@ O destino persistente disponível é S3-compatible, opt-in e privado. Exige endp
 
 O worker só arranca com `MEDIA_INGESTION_WORKER_ENABLED=true` e configuração completa de Meta, S3 e keyring. Redis recebe apenas UUID interno e tentativa; todo o contexto é revalidado no PostgreSQL. Por defeito continua desligado. Ver [ADR-050](decisions/ADR-050-opt-in-media-ingestion-worker.md).
 
+Antes do storage, o ingestor confirma assinaturas binárias mínimas para JPEG, PNG, PDF, OGG, MP3 e MP4. MIME declarado, MIME recebido e conteúdo têm de concordar. Esta barreira não substitui parsing estrutural ou malware scanning. Ver [ADR-051](decisions/ADR-051-media-binary-signatures.md).
+
 Os commits são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. O controller só confirma com 200 depois dos commits. O ACK não inclui recibos ou IDs de tenant. Ver ADR-016 para erros e limites.
 
 ## Antes de expor o webhook

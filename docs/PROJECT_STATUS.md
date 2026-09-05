@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Assinaturas binárias de media
+
+MediaIngestor confirma magic bytes de JPEG, PNG, PDF, OGG, MP3 e MP4 antes do storage, além da correspondência MIME/checksum/tamanho existente. Payload spoofed ou demasiado curto falha sem escrita; testes cobrem todas as assinaturas permitidas e divergência. Ver [ADR-051](decisions/ADR-051-media-binary-signatures.md). Parsing completo, polyglots e malware scanning continuam pendentes; sem merge/deploy.
+
 ## Atualização Phase 4 — Worker opt-in de ingestão media
 
 Dispatcher PostgreSQL/BullMQ publica apenas UUID interno e tentativa; processador revalida tenant/payload. Arranque exige flag explícita, transporte Meta, S3 e keyring completos, sem fallback mock. Concorrência 2, lote 25, retries duráveis e shutdown ordenado; teste integrado usa Redis/PostgreSQL reais sem rede externa. Ver [ADR-050](decisions/ADR-050-opt-in-media-ingestion-worker.md). Nenhuma chamada Meta/S3 real, merge ou deploy.

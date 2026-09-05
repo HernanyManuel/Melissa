@@ -108,7 +108,7 @@ export async function testWhatsAppQuarantine(
       new MockMediaSourceProvider({
         'synthetic-media-id': {
           contentType: 'image/jpeg',
-          body: Uint8Array.from([1, 2, 3]),
+          body: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]),
         },
       }),
       storage,
@@ -134,9 +134,12 @@ export async function testWhatsAppQuarantine(
   });
   assert.equal(storedMedia.state, 'stored');
   assert.equal(storedMedia.contentType, 'image/jpeg');
-  assert.equal(storedMedia.sizeBytes, 3);
+  assert.equal(storedMedia.sizeBytes, 6);
   assert(storedMedia.storageKey);
-  assert.deepEqual((await storage.get(storedMedia.storageKey))?.body, Uint8Array.from([1, 2, 3]));
+  assert.deepEqual(
+    (await storage.get(storedMedia.storageKey))?.body,
+    Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]),
+  );
   assert.equal(
     await admin.auditEvent.count({
       where: { tenantId: scope.tenantId, targetId: row.id, action: 'media.ingestion_stored' },
