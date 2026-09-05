@@ -19,6 +19,7 @@ O processador não é iniciado pelo worker nesta decisão. Ainda não existe ada
 ## Consequências
 
 - O runtime apenas pode atualizar colunas explícitas do ciclo e sempre sob RLS do tenant.
+- A auditoria distingue o worker como ator `system` sem fabricar um utilizador; a constraint continua a exigir utilizador para ações `user` e `NULL` para `whatsapp`/`system`.
 - A descoberta global continua a expor apenas metadados operacionais mínimos.
 - A retenção da quarentena elimina o envelope por cascade, incluindo resultados já armazenados; a política de eliminação do objeto será definida com o storage persistente.
 - Metadados armazenados não são expostos por API ou Flutter neste incremento.

@@ -2,6 +2,12 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '60s';
 
+ALTER TABLE audit_events DROP CONSTRAINT audit_actor_check;
+ALTER TABLE audit_events ADD CONSTRAINT audit_actor_check CHECK (
+  (actor_type='user' AND actor_id IS NOT NULL) OR
+  (actor_type IN ('whatsapp','system') AND actor_id IS NULL)
+);
+
 ALTER TABLE media_ingestion_dispatch
   DROP CONSTRAINT media_ingestion_dispatch_state_check,
   ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 5),
