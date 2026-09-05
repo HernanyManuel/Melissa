@@ -28,6 +28,8 @@ Schema 20 implementa o núcleo do ciclo de ingestão: decriptação autenticada 
 
 A rotação usa uma única chave atual para escrita e até quatro chaves anteriores apenas para leitura em `WHATSAPP_QUARANTINE_PREVIOUS_KEYS`. IDs/material duplicados, formato inválido ou chaves anteriores sem chave atual impedem o arranque. Ver [ADR-048](decisions/ADR-048-quarantine-key-rotation.md).
 
+O destino persistente disponível é S3-compatible, opt-in e privado. Exige endpoint HTTPS explícito, região, bucket e credenciais server-side; usa escrita condicional e valida checksum/tamanho nos replays e leituras. Não produz URLs públicas nem cai para mock. Ver [ADR-049](decisions/ADR-049-s3-storage-provider.md).
+
 Os commits são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. O controller só confirma com 200 depois dos commits. O ACK não inclui recibos ou IDs de tenant. Ver ADR-016 para erros e limites.
 
 ## Antes de expor o webhook

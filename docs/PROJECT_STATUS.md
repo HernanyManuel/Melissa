@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Storage persistente S3-compatible
+
+Adapter privado com SigV4, HTTPS estrito, credenciais temporárias opcionais, escrita condicional sem overwrite e GET limitado com verificação de tamanho/checksum. Factory fail-closed e configuração server-side explícita; sem fallback mock ou URL pública. Ver [ADR-049](decisions/ADR-049-s3-storage-provider.md). Ainda sem validação cloud real, bucket policy, lifecycle, ativação do worker, merge ou deploy.
+
 ## Atualização Phase 4 — Rotação de chaves de quarentena
 
 Keyring fail-closed mantém uma chave atual de escrita e até quatro anteriores apenas para leitura. Valida base64 canónico de 32 bytes, IDs/material únicos, configuração completa e cópias defensivas; o webhook nunca cifra com chave anterior. Ver [ADR-048](decisions/ADR-048-quarantine-key-rotation.md). Sem secret manager, rotação automática, ativação do consumidor, merge ou deploy.

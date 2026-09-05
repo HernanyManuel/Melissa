@@ -40,6 +40,21 @@ const schema = z.object({
     )
     .optional(),
   WHATSAPP_QUARANTINE_PREVIOUS_KEYS: z.string().max(16384).optional(),
+  STORAGE_PROVIDER: z.enum(['disabled', 's3']).default('disabled'),
+  S3_ENDPOINT: z.string().url().optional().or(z.literal('')),
+  S3_REGION: z
+    .string()
+    .regex(/^[a-z0-9-]{1,64}$/)
+    .optional()
+    .or(z.literal('')),
+  S3_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+    .optional()
+    .or(z.literal('')),
+  S3_ACCESS_KEY_ID: z.string().min(8).max(256).optional().or(z.literal('')),
+  S3_SECRET_ACCESS_KEY: z.string().min(16).max(4096).optional().or(z.literal('')),
+  S3_SESSION_TOKEN: z.string().min(16).max(8192).optional().or(z.literal('')),
   DATABASE_URL: z
     .string()
     .url()
@@ -150,6 +165,32 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     throw new Error(
       'WhatsApp media requires server-side access token, API version and download hosts',
     );
+  if (result.data.STORAGE_PROVIDER === 's3') {
+    const endpoint = result.data.S3_ENDPOINT ? new URL(result.data.S3_ENDPOINT) : null;
+    if (
+      !endpoint ||
+      endpoint.protocol !== 'https:' ||
+      endpoint.username ||
+      endpoint.password ||
+      endpoint.pathname !== '/' ||
+      endpoint.search ||
+      endpoint.hash ||
+      (endpoint.port && endpoint.port !== '443') ||
+      !result.data.S3_REGION ||
+      !result.data.S3_BUCKET ||
+      !result.data.S3_ACCESS_KEY_ID ||
+      !result.data.S3_SECRET_ACCESS_KEY
+    )
+      throw new Error('S3 storage requires a secure and complete server-side configuration');
+  } else if (
+    result.data.S3_ENDPOINT ||
+    result.data.S3_REGION ||
+    result.data.S3_BUCKET ||
+    result.data.S3_ACCESS_KEY_ID ||
+    result.data.S3_SECRET_ACCESS_KEY ||
+    result.data.S3_SESSION_TOKEN
+  )
+    throw new Error('S3 fields require STORAGE_PROVIDER=s3');
   if (result.data.NODE_ENV === 'production') {
     // P1 deliberately has no authenticated product API or deployment profile.
     throw new Error(
