@@ -30,6 +30,8 @@ A rotação usa uma única chave atual para escrita e até quatro chaves anterio
 
 O destino persistente disponível é S3-compatible, opt-in e privado. Exige endpoint HTTPS explícito, região, bucket e credenciais server-side; usa escrita condicional e valida checksum/tamanho nos replays e leituras. Não produz URLs públicas nem cai para mock. Ver [ADR-049](decisions/ADR-049-s3-storage-provider.md).
 
+O worker só arranca com `MEDIA_INGESTION_WORKER_ENABLED=true` e configuração completa de Meta, S3 e keyring. Redis recebe apenas UUID interno e tentativa; todo o contexto é revalidado no PostgreSQL. Por defeito continua desligado. Ver [ADR-050](decisions/ADR-050-opt-in-media-ingestion-worker.md).
+
 Os commits são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. O controller só confirma com 200 depois dos commits. O ACK não inclui recibos ou IDs de tenant. Ver ADR-016 para erros e limites.
 
 ## Antes de expor o webhook

@@ -122,6 +122,23 @@ test('S3 storage is disabled by default and rejects incomplete or unsafe configu
     S3_SECRET_ACCESS_KEY: 'test-secret-never-real',
   };
   assert.equal(createStorageProvider(parseConfig(enabled))?.providerKey, 's3');
+  assert.throws(
+    () => parseConfig({ ...enabled, MEDIA_INGESTION_WORKER_ENABLED: 'true' }),
+    /requires transport, storage and quarantine keyring/,
+  );
+  assert.equal(
+    parseConfig({
+      ...enabled,
+      MEDIA_INGESTION_WORKER_ENABLED: 'true',
+      WHATSAPP_MEDIA_ENABLED: 'true',
+      WHATSAPP_MEDIA_ACCESS_TOKEN: 'synthetic-test-token-never-real',
+      WHATSAPP_MEDIA_API_VERSION: 'v23.0',
+      WHATSAPP_MEDIA_DOWNLOAD_HOSTS: 'media.example.test',
+      WHATSAPP_QUARANTINE_KEY_ID: 'current',
+      WHATSAPP_QUARANTINE_KEY: Buffer.alloc(32, 7).toString('base64'),
+    }).MEDIA_INGESTION_WORKER_ENABLED,
+    'true',
+  );
   for (const endpoint of [
     'http://objects.example.test',
     'https://user:pass@objects.example.test',

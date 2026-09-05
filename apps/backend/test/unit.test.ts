@@ -9,6 +9,7 @@ import './whatsapp-media-source.test';
 import './whatsapp-media-config.test';
 import './quarantine-keyring.test';
 import './s3-storage-provider.test';
+import './media-ingestion-queue.test';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';

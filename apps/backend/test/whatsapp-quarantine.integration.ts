@@ -8,6 +8,7 @@ import { MediaIngestor } from '../src/storage/media-ingestor';
 import { MediaIngestionProcessor } from '../src/storage/media-ingestion-processor';
 import { MockMediaSourceProvider } from '../src/storage/mock-media-source-provider';
 import { MockStorageProvider } from '../src/storage/mock-storage-provider';
+import { startMediaIngestionQueue } from '../src/storage/media-ingestion-queue';
 
 export async function testWhatsAppQuarantine(
   admin: PrismaClient,
@@ -114,7 +115,20 @@ export async function testWhatsAppQuarantine(
     ),
     (keyId) => (keyId === key.id ? key.key : null),
   );
-  await Promise.all([processor.process(row.id, 0), processor.process(row.id, 0)]);
+  const stopMediaQueue = await startMediaIngestionQueue(
+    { db: runtime },
+    process.env.REDIS_URL!,
+    processor,
+  );
+  try {
+    for (let i = 0; i < 100; i++) {
+      const state = await admin.mediaIngestionDispatch.findUniqueOrThrow({ where: { id: row.id } });
+      if (state.state === 'stored') break;
+      await delay(100);
+    }
+  } finally {
+    await stopMediaQueue();
+  }
   const storedMedia = await admin.mediaIngestionDispatch.findUniqueOrThrow({
     where: { id: row.id },
   });
@@ -129,6 +143,7 @@ export async function testWhatsAppQuarantine(
     }),
     1,
   );
+  await processor.process(row.id, 0); // replay after completion is a no-op
   assert.throws(() => decrypt(scope.otherTenantId));
   // Object key order is not a semantic payload change.
   assert.equal(

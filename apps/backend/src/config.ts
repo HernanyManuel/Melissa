@@ -55,6 +55,7 @@ const schema = z.object({
   S3_ACCESS_KEY_ID: z.string().min(8).max(256).optional().or(z.literal('')),
   S3_SECRET_ACCESS_KEY: z.string().min(16).max(4096).optional().or(z.literal('')),
   S3_SESSION_TOKEN: z.string().min(16).max(8192).optional().or(z.literal('')),
+  MEDIA_INGESTION_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   DATABASE_URL: z
     .string()
     .url()
@@ -191,6 +192,14 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     result.data.S3_SESSION_TOKEN
   )
     throw new Error('S3 fields require STORAGE_PROVIDER=s3');
+  if (
+    result.data.MEDIA_INGESTION_WORKER_ENABLED === 'true' &&
+    (result.data.WHATSAPP_MEDIA_ENABLED !== 'true' ||
+      result.data.STORAGE_PROVIDER !== 's3' ||
+      !result.data.WHATSAPP_QUARANTINE_KEY ||
+      !result.data.WHATSAPP_QUARANTINE_KEY_ID)
+  )
+    throw new Error('Media ingestion worker requires transport, storage and quarantine keyring');
   if (result.data.NODE_ENV === 'production') {
     // P1 deliberately has no authenticated product API or deployment profile.
     throw new Error(

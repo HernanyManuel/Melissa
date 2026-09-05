@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Worker opt-in de ingestão media
+
+Dispatcher PostgreSQL/BullMQ publica apenas UUID interno e tentativa; processador revalida tenant/payload. Arranque exige flag explícita, transporte Meta, S3 e keyring completos, sem fallback mock. Concorrência 2, lote 25, retries duráveis e shutdown ordenado; teste integrado usa Redis/PostgreSQL reais sem rede externa. Ver [ADR-050](decisions/ADR-050-opt-in-media-ingestion-worker.md). Nenhuma chamada Meta/S3 real, merge ou deploy.
+
 ## Atualização Phase 4 — Storage persistente S3-compatible
 
 Adapter privado com SigV4, HTTPS estrito, credenciais temporárias opcionais, escrita condicional sem overwrite e GET limitado com verificação de tamanho/checksum. Factory fail-closed e configuração server-side explícita; sem fallback mock ou URL pública. Ver [ADR-049](decisions/ADR-049-s3-storage-provider.md). Ainda sem validação cloud real, bucket policy, lifecycle, ativação do worker, merge ou deploy.
