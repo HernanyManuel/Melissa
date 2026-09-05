@@ -17,6 +17,7 @@ import { CONFIG, Configuration } from '../config';
 import { Dependencies } from '../dependencies';
 import { WhatsAppIngress } from './whatsapp-ingress';
 import { WhatsAppInboundProvider, WebhookInputError } from './whatsapp-inbound';
+import { createQuarantineKeyring } from './quarantine-keyring';
 
 // Register before Nest's JSON parser. The signature authenticates original bytes, not parsed JSON.
 export function configureWhatsAppBody(app: INestApplication, config: Configuration) {
@@ -92,18 +93,14 @@ export class WhatsAppWebhookController {
     if (!req.is('application/json') || !Buffer.isBuffer(req.body))
       throw new HttpException('Unsupported media type', 415);
     try {
+      const keyring = createQuarantineKeyring(this.config);
       const ingress = new WhatsAppIngress(
         this.deps.db,
         this.config.WHATSAPP_INTEGRATION_KEY!,
         this.config.WHATSAPP_APP_SECRET!,
         this.config.WHATSAPP_VERIFY_TOKEN!,
         this.config.MESSAGE_DEBOUNCE_MS,
-        this.config.WHATSAPP_QUARANTINE_KEY && this.config.WHATSAPP_QUARANTINE_KEY_ID
-          ? {
-              id: this.config.WHATSAPP_QUARANTINE_KEY_ID,
-              key: Buffer.from(this.config.WHATSAPP_QUARANTINE_KEY, 'base64'),
-            }
-          : undefined,
+        keyring.current,
       );
       const receipts = await ingress.receive(req.body, req.headers['x-hub-signature-256']);
       if (!receipts.length) throw new HttpException('No supported event', 503);

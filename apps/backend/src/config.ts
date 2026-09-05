@@ -39,6 +39,7 @@ const schema = z.object({
           Buffer.from(value, 'base64').toString('base64') === value),
     )
     .optional(),
+  WHATSAPP_QUARANTINE_PREVIOUS_KEYS: z.string().max(16384).optional(),
   DATABASE_URL: z
     .string()
     .url()
@@ -68,6 +69,39 @@ export function whatsappMediaHosts(value: string | undefined): string[] {
   return [...new Set(hosts)];
 }
 
+export interface ParsedQuarantineKey {
+  id: string;
+  key: Buffer;
+}
+
+function decodeQuarantineKey(value: string): Buffer {
+  const key = Buffer.from(value, 'base64');
+  if (key.length !== 32 || key.toString('base64') !== value)
+    throw new Error('Invalid environment fields: WHATSAPP_QUARANTINE_PREVIOUS_KEYS');
+  return key;
+}
+
+export function whatsappPreviousQuarantineKeys(value: string | undefined): ParsedQuarantineKey[] {
+  if (!value) return [];
+  const entries = value.split(',');
+  if (entries.length > 4) throw new Error('Too many previous quarantine keys');
+  const seen = new Set<string>();
+  return entries.map((entry) => {
+    const separator = entry.indexOf('=');
+    const id = entry.slice(0, separator);
+    const encoded = entry.slice(separator + 1);
+    if (
+      separator < 1 ||
+      entry !== entry.trim() ||
+      !/^[a-zA-Z0-9_-]{1,64}$/.test(id) ||
+      seen.has(id)
+    )
+      throw new Error('Invalid environment fields: WHATSAPP_QUARANTINE_PREVIOUS_KEYS');
+    seen.add(id);
+    return { id, key: decodeQuarantineKey(encoded) };
+  });
+}
+
 export function parseConfig(input: Record<string, unknown>): Configuration {
   const result = schema.safeParse(input);
   if (!result.success) {
@@ -88,6 +122,23 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     );
   if (!!result.data.WHATSAPP_QUARANTINE_KEY !== !!result.data.WHATSAPP_QUARANTINE_KEY_ID)
     throw new Error('Quarantine requires both key and key ID');
+  const previousKeys = whatsappPreviousQuarantineKeys(
+    result.data.WHATSAPP_QUARANTINE_PREVIOUS_KEYS,
+  );
+  if (previousKeys.length && !result.data.WHATSAPP_QUARANTINE_KEY)
+    throw new Error('Previous quarantine keys require a current write key');
+  if (result.data.WHATSAPP_QUARANTINE_KEY && result.data.WHATSAPP_QUARANTINE_KEY_ID) {
+    const current = decodeQuarantineKey(result.data.WHATSAPP_QUARANTINE_KEY);
+    if (
+      previousKeys.some(
+        (item) => item.id === result.data.WHATSAPP_QUARANTINE_KEY_ID || item.key.equals(current),
+      ) ||
+      previousKeys.some((item, index) =>
+        previousKeys.slice(index + 1).some((other) => other.key.equals(item.key)),
+      )
+    )
+      throw new Error('Quarantine key IDs and material must be unique');
+  }
   const mediaHosts = whatsappMediaHosts(result.data.WHATSAPP_MEDIA_DOWNLOAD_HOSTS);
   if (
     result.data.WHATSAPP_MEDIA_ENABLED === 'true' &&

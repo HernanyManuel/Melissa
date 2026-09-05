@@ -26,6 +26,8 @@ Schema 19 cria um envelope mínimo e imutável, na mesma transação da quarente
 
 Schema 20 implementa o núcleo do ciclo de ingestão: decriptação autenticada no contexto RLS, validação do identificador/MIME, armazenamento idempotente, resultado mínimo e cinco tentativas com backoff. O consumidor não é iniciado automaticamente enquanto não existir storage persistente; o mock nunca recebe downloads reais. Ver [ADR-047](decisions/ADR-047-media-ingestion-lifecycle.md).
 
+A rotação usa uma única chave atual para escrita e até quatro chaves anteriores apenas para leitura em `WHATSAPP_QUARANTINE_PREVIOUS_KEYS`. IDs/material duplicados, formato inválido ou chaves anteriores sem chave atual impedem o arranque. Ver [ADR-048](decisions/ADR-048-quarantine-key-rotation.md).
+
 Os commits são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. O controller só confirma com 200 depois dos commits. O ACK não inclui recibos ou IDs de tenant. Ver ADR-016 para erros e limites.
 
 ## Antes de expor o webhook

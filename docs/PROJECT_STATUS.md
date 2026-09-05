@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Rotação de chaves de quarentena
+
+Keyring fail-closed mantém uma chave atual de escrita e até quatro anteriores apenas para leitura. Valida base64 canónico de 32 bytes, IDs/material únicos, configuração completa e cópias defensivas; o webhook nunca cifra com chave anterior. Ver [ADR-048](decisions/ADR-048-quarantine-key-rotation.md). Sem secret manager, rotação automática, ativação do consumidor, merge ou deploy.
+
 ## Atualização Phase 4 — Ciclo transacional de ingestão media (schema 20)
 
 Processador resolve tenant sem confiar na fila, autentica AES-256-GCM/AAD, valida a referência e usa o MediaIngestor idempotente. Tentativas, backoff e resultado mínimo ficam duráveis; conclusão e auditoria são serializadas e falhas não expõem detalhes do provider. Ver [ADR-047](decisions/ADR-047-media-ingestion-lifecycle.md). O worker continua desligado enquanto não existir StorageProvider persistente e rotação de chaves; sem downloads reais, merge ou deploy.
