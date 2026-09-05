@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Configuração media WhatsApp
+
+Flag opt-in e campos separados para token, versão e hosts exatos; configuração incompleta/unsafe falha no arranque. Factory retorna null desligada e nunca cai para mock. `.env.example`, testes e docs atualizados. Ver [ADR-045](decisions/ADR-045-whatsapp-media-configuration.md). Adapter ainda não registado nem ligado a webhook/worker/DB; sem credenciais ou chamadas reais. Validação nos checks do PR #5; sem merge/deploy.
+
 ## Atualização Phase 4 — Adaptador HTTP de media WhatsApp
 
 WhatsAppGraphMediaSource desligado por defeito: metadata em origem Graph fixa, Bearer server-side, versão explícita, allowlist exata de hosts, HTTPS/redirect/porta, timeout e streaming limitado. Erros sanitizados e testes fetch injetado. Ver [ADR-044](decisions/ADR-044-whatsapp-media-http-adapter.md). Sem defaults de hosts, credenciais, wiring, chamadas reais ou validação com conta Meta; ativação bloqueada. Validação nos checks do PR #5; sem merge/deploy.

@@ -20,6 +20,8 @@ O adapter valida HMAC-SHA256 sobre os bytes originais antes de UTF-8/JSON. verif
 
 Media e estados desconhecidos com canal verificável podem ir para quarentena cifrada se WHATSAPP_QUARANTINE_KEY (32 bytes base64) e WHATSAPP_QUARANTINE_KEY_ID estiverem configurados. Sem chave ou sem âmbito seguro, continuam recusados. O payload individual é preservado, não o request multi-tenant inteiro. Ver [ADR-017](decisions/ADR-017-encrypted-whatsapp-quarantine.md) para cifra/limites. O worker já purga payloads expirados, preservando ledger/auditoria: [ADR-018](decisions/ADR-018-quarantine-retention-worker.md). Revisão/reprocessamento, alertas e gestão de chaves continuam pendentes. Não há download nem processamento de media.
 
+O transporte de media tem configuração separada e continua desligado: `WHATSAPP_MEDIA_ENABLED=false`. A ativação exige access token server-side, versão explícita e lista exata de hosts em `WHATSAPP_MEDIA_DOWNLOAD_HOSTS`; configuração incompleta impede o arranque e não usa mock como fallback. A factory apenas constrói o adapter e ainda não está ligada ao webhook/worker. Ver [ADR-044](decisions/ADR-044-whatsapp-media-http-adapter.md) e [ADR-045](decisions/ADR-045-whatsapp-media-configuration.md).
+
 Os commits são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. O controller só confirma com 200 depois dos commits. O ACK não inclui recibos ou IDs de tenant. Ver ADR-016 para erros e limites.
 
 ## Antes de expor o webhook

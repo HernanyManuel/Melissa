@@ -17,6 +17,14 @@ const schema = z.object({
   WHATSAPP_APP_SECRET: z.string().max(1024).optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().max(1024).optional(),
   WHATSAPP_WEBHOOK_RATE_LIMIT: z.coerce.number().int().min(1).max(10000).default(300),
+  WHATSAPP_MEDIA_ENABLED: z.enum(['false', 'true']).default('false'),
+  WHATSAPP_MEDIA_ACCESS_TOKEN: z.string().max(4096).optional(),
+  WHATSAPP_MEDIA_API_VERSION: z
+    .string()
+    .regex(/^v[1-9][0-9]*\.[0-9]+$/)
+    .optional()
+    .or(z.literal('')),
+  WHATSAPP_MEDIA_DOWNLOAD_HOSTS: z.string().max(2048).optional(),
   WHATSAPP_QUARANTINE_KEY_ID: z
     .string()
     .regex(/^[a-zA-Z0-9_-]{1,64}$/)
@@ -46,6 +54,20 @@ const schema = z.object({
 export type Configuration = z.infer<typeof schema>;
 export const CONFIG = Symbol('CONFIG');
 
+const MEDIA_HOST = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+
+export function whatsappMediaHosts(value: string | undefined): string[] {
+  if (!value) return [];
+  const hosts = value.split(',');
+  if (
+    hosts.some(
+      (host) => host !== host.trim() || host !== host.toLowerCase() || !MEDIA_HOST.test(host),
+    )
+  )
+    throw new Error('Invalid environment fields: WHATSAPP_MEDIA_DOWNLOAD_HOSTS');
+  return [...new Set(hosts)];
+}
+
 export function parseConfig(input: Record<string, unknown>): Configuration {
   const result = schema.safeParse(input);
   if (!result.success) {
@@ -66,6 +88,17 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     );
   if (!!result.data.WHATSAPP_QUARANTINE_KEY !== !!result.data.WHATSAPP_QUARANTINE_KEY_ID)
     throw new Error('Quarantine requires both key and key ID');
+  const mediaHosts = whatsappMediaHosts(result.data.WHATSAPP_MEDIA_DOWNLOAD_HOSTS);
+  if (
+    result.data.WHATSAPP_MEDIA_ENABLED === 'true' &&
+    ((result.data.WHATSAPP_MEDIA_ACCESS_TOKEN?.trim().length ?? 0) < 16 ||
+      result.data.WHATSAPP_MEDIA_ACCESS_TOKEN !== result.data.WHATSAPP_MEDIA_ACCESS_TOKEN?.trim() ||
+      !result.data.WHATSAPP_MEDIA_API_VERSION ||
+      mediaHosts.length === 0)
+  )
+    throw new Error(
+      'WhatsApp media requires server-side access token, API version and download hosts',
+    );
   if (result.data.NODE_ENV === 'production') {
     // P1 deliberately has no authenticated product API or deployment profile.
     throw new Error(
