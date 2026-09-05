@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Gate de malware ClamAV
+
+MalwareScanner/ClamAV INSTREAM analisa bytes validados antes do storage. Apenas `OK` permite escrita; `FOUND`, timeout, erro ou resposta desconhecida falham fechados. Worker exige scanner completo, com limites de corpo/resposta/tempo; testes cobrem protocolo, deteção, indisponibilidade, configuração e ausência de escrita. Ver [ADR-052](decisions/ADR-052-clamav-malware-gate.md). Base real/updates/health/network policy ainda não validados; sem merge/deploy.
+
 ## Atualização Phase 4 — Assinaturas binárias de media
 
 MediaIngestor confirma magic bytes de JPEG, PNG, PDF, OGG, MP3 e MP4 antes do storage, além da correspondência MIME/checksum/tamanho existente. Payload spoofed ou demasiado curto falha sem escrita; testes cobrem todas as assinaturas permitidas e divergência. Ver [ADR-051](decisions/ADR-051-media-binary-signatures.md). Parsing completo, polyglots e malware scanning continuam pendentes; sem merge/deploy.

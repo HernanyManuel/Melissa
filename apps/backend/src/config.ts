@@ -56,6 +56,16 @@ const schema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().min(16).max(4096).optional().or(z.literal('')),
   S3_SESSION_TOKEN: z.string().min(16).max(8192).optional().or(z.literal('')),
   MEDIA_INGESTION_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
+  MALWARE_SCANNER: z.enum(['disabled', 'clamav']).default('disabled'),
+  CLAMAV_HOST: z
+    .string()
+    .regex(/^[a-zA-Z0-9.-]{1,253}$/)
+    .optional()
+    .or(z.literal('')),
+  CLAMAV_PORT: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.coerce.number().int().min(1).max(65535).optional(),
+  ),
   DATABASE_URL: z
     .string()
     .url()
@@ -197,9 +207,24 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     (result.data.WHATSAPP_MEDIA_ENABLED !== 'true' ||
       result.data.STORAGE_PROVIDER !== 's3' ||
       !result.data.WHATSAPP_QUARANTINE_KEY ||
-      !result.data.WHATSAPP_QUARANTINE_KEY_ID)
+      !result.data.WHATSAPP_QUARANTINE_KEY_ID ||
+      result.data.MALWARE_SCANNER !== 'clamav' ||
+      !result.data.CLAMAV_HOST ||
+      !result.data.CLAMAV_PORT)
   )
-    throw new Error('Media ingestion worker requires transport, storage and quarantine keyring');
+    throw new Error(
+      'Media ingestion worker requires transport, storage, quarantine keyring and malware scanner',
+    );
+  if (
+    result.data.MALWARE_SCANNER === 'clamav' &&
+    (!result.data.CLAMAV_HOST || !result.data.CLAMAV_PORT)
+  )
+    throw new Error('ClamAV requires host and port');
+  if (
+    result.data.MALWARE_SCANNER === 'disabled' &&
+    (result.data.CLAMAV_HOST || result.data.CLAMAV_PORT)
+  )
+    throw new Error('ClamAV fields require MALWARE_SCANNER=clamav');
   if (result.data.NODE_ENV === 'production') {
     // P1 deliberately has no authenticated product API or deployment profile.
     throw new Error(

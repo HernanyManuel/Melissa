@@ -6,7 +6,7 @@ Aceite em 2026-09-05.
 
 ## Decisão
 
-O worker de ingestão só arranca com `MEDIA_INGESTION_WORKER_ENABLED=true`. O arranque falha se o transporte WhatsApp media, storage S3 ou keyring atual não estiverem simultaneamente configurados. Não existe fallback para mocks.
+O worker de ingestão só arranca com `MEDIA_INGESTION_WORKER_ENABLED=true`. O arranque falha se o transporte WhatsApp media, storage S3, keyring atual ou malware scanner não estiverem simultaneamente configurados. Não existe fallback para mocks.
 
 O PostgreSQL continua a ser a fonte de verdade. Um dispatcher lê até 25 envelopes elegíveis por ciclo e publica jobs BullMQ contendo exatamente `{id, attempt}`. Tenant, ID Meta, MIME, URL, payload e credenciais nunca entram no Redis. O processador volta a resolver e validar todo o contexto persistido.
 

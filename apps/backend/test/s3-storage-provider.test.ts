@@ -124,7 +124,7 @@ test('S3 storage is disabled by default and rejects incomplete or unsafe configu
   assert.equal(createStorageProvider(parseConfig(enabled))?.providerKey, 's3');
   assert.throws(
     () => parseConfig({ ...enabled, MEDIA_INGESTION_WORKER_ENABLED: 'true' }),
-    /requires transport, storage and quarantine keyring/,
+    /requires transport, storage, quarantine keyring and malware scanner/,
   );
   assert.equal(
     parseConfig({
@@ -136,6 +136,9 @@ test('S3 storage is disabled by default and rejects incomplete or unsafe configu
       WHATSAPP_MEDIA_DOWNLOAD_HOSTS: 'media.example.test',
       WHATSAPP_QUARANTINE_KEY_ID: 'current',
       WHATSAPP_QUARANTINE_KEY: Buffer.alloc(32, 7).toString('base64'),
+      MALWARE_SCANNER: 'clamav',
+      CLAMAV_HOST: 'clamav.internal',
+      CLAMAV_PORT: '3310',
     }).MEDIA_INGESTION_WORKER_ENABLED,
     'true',
   );

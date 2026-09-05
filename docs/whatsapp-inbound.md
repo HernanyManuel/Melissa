@@ -34,6 +34,8 @@ O worker só arranca com `MEDIA_INGESTION_WORKER_ENABLED=true` e configuração 
 
 Antes do storage, o ingestor confirma assinaturas binárias mínimas para JPEG, PNG, PDF, OGG, MP3 e MP4. MIME declarado, MIME recebido e conteúdo têm de concordar. Esta barreira não substitui parsing estrutural ou malware scanning. Ver [ADR-051](decisions/ADR-051-media-binary-signatures.md).
 
+Depois das validações binárias e antes do storage, o worker exige ClamAV por `INSTREAM`. Só `OK` permite escrita; malware, timeout, falha ou resposta ambígua são recusados e seguem o ciclo de retries. A ativação exige `MALWARE_SCANNER=clamav`, host e porta. Ver [ADR-052](decisions/ADR-052-clamav-malware-gate.md).
+
 Os commits são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. O controller só confirma com 200 depois dos commits. O ACK não inclui recibos ou IDs de tenant. Ver ADR-016 para erros e limites.
 
 ## Antes de expor o webhook

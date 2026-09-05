@@ -16,6 +16,7 @@ import { MediaIngestor } from './storage/media-ingestor';
 import { startMediaIngestionQueue } from './storage/media-ingestion-queue';
 import { createStorageProvider } from './storage/storage-factory';
 import { createWhatsAppMediaSource } from './storage/whatsapp-media-factory';
+import { createMalwareScanner } from './storage/malware-scanner-factory';
 
 // Isolated probe and durable inbound consumers; no public product API on this process.
 async function bootstrap(): Promise<void> {
@@ -43,13 +44,16 @@ async function bootstrap(): Promise<void> {
     const source = createWhatsAppMediaSource(config);
     const storage = createStorageProvider(config);
     const keyring = createQuarantineKeyring(config);
-    if (!source || !storage || !keyring.current)
+    const scanner = createMalwareScanner(config);
+    if (!source || !storage || !keyring.current || !scanner)
       throw new Error('Incomplete media ingestion dependencies');
     stopMedia = await startMediaIngestionQueue(
       deps,
       config.REDIS_URL,
-      new MediaIngestionProcessor(deps.db, new MediaIngestor(source, storage), (keyId) =>
-        keyring.resolve(keyId),
+      new MediaIngestionProcessor(
+        deps.db,
+        new MediaIngestor(source, storage, 10 * 1024 * 1024, scanner),
+        (keyId) => keyring.resolve(keyId),
       ),
     );
   }

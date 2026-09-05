@@ -5,6 +5,7 @@ import { MediaIngestor } from '../src/storage/media-ingestor';
 import { MockMediaSourceProvider } from '../src/storage/mock-media-source-provider';
 import { MockStorageProvider } from '../src/storage/mock-storage-provider';
 import { MediaDownload, MediaUnavailable } from '../src/storage/media-source-provider';
+import { MalwareDetected } from '../src/storage/malware-scanner';
 
 const tenant = '00000000-0000-4000-8000-000000000001';
 const bytes = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
@@ -85,4 +86,24 @@ test('media ingestion rejects spoofed MIME and accepts supported binary signatur
     new MockStorageProvider(),
   );
   await assert.rejects(spoofed.ingest(tenant, 'media_1', 'image/png'), /signature mismatch/);
+});
+
+test('media ingestion scans after validation and never stores a detected payload', async () => {
+  const storage = new MockStorageProvider();
+  const ingestor = new MediaIngestor(
+    new MockMediaSourceProvider({
+      media_1: { contentType: 'image/png', body: bytes },
+    }),
+    storage,
+    32,
+    {
+      providerKey: 'test-scanner',
+      scan: async () => {
+        throw new MalwareDetected();
+      },
+    },
+  );
+  await assert.rejects(ingestor.ingest(tenant, 'media_1', 'image/png'), MalwareDetected);
+  const opaqueId = createHash('sha256').update('mock').update('\0').update('media_1').digest('hex');
+  assert.equal(await storage.get(`tenants/${tenant}/media/${opaqueId}`), null);
 });

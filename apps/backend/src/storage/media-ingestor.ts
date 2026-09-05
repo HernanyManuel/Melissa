@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { isUUID } from 'class-validator';
 import { MediaSourceProvider } from './media-source-provider';
 import { StorageMetadata, StorageProvider } from './storage-provider';
+import { MalwareScanner } from './malware-scanner';
 
 const TYPES = new Set([
   'application/pdf',
@@ -52,6 +53,7 @@ export class MediaIngestor {
     private readonly source: MediaSourceProvider,
     private readonly storage: StorageProvider,
     private readonly maxBytes = 10 * 1024 * 1024,
+    private readonly scanner?: MalwareScanner,
   ) {
     if (maxBytes < 1) throw new Error('Invalid media limit');
   }
@@ -74,6 +76,7 @@ export class MediaIngestor {
       (!CHECKSUM.test(media.checksumSha256) || media.checksumSha256 !== checksum)
     )
       throw new Error('Media checksum mismatch');
+    if (this.scanner) await this.scanner.scan({ contentType: media.contentType, body: media.body });
     const opaqueId = createHash('sha256')
       .update(this.source.providerKey)
       .update('\0')
