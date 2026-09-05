@@ -8,6 +8,19 @@ export interface QuarantineKey {
   key: Buffer;
 }
 
+function isMediaPayload(event: InboundResult['unsupportedEvents'][number]): boolean {
+  if (event.category !== 'message') return false;
+  const type = event.payload.type;
+  if (!['audio', 'document', 'image', 'video'].includes(String(type))) return false;
+  const detail = event.payload[String(type)];
+  return (
+    !!detail &&
+    typeof detail === 'object' &&
+    typeof (detail as Record<string, unknown>).id === 'string' &&
+    typeof (detail as Record<string, unknown>).mime_type === 'string'
+  );
+}
+
 function canonical(value: unknown, depth = 0): string {
   if (depth > 32) throw new Error('Quarantine payload too deep');
   if (value === null || typeof value !== 'object') {
@@ -96,6 +109,8 @@ export async function quarantineWhatsApp(
       expiresAt: quarantine.expiresAt,
     },
   });
+  if (isMediaPayload(event))
+    await tx.mediaIngestionDispatch.create({ data: { tenantId, id: stored.id } });
   await tx.auditEvent.create({
     data: {
       tenantId,

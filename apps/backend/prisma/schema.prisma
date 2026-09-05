@@ -461,6 +461,17 @@ model QuarantineExpiry {
   @@map("quarantine_expiry")
 }
 
+// Global worker discovery contains routing identity only; payload stays tenant-scoped/ciphertext.
+model MediaIngestionDispatch {
+  tenantId String @map("tenant_id") @db.Uuid
+  id String @unique @db.Uuid
+  state String @default("quarantined")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@id([tenantId,id])
+  @@index([state,createdAt,id], map: "media_ingestion_dispatch_state_idx")
+  @@map("media_ingestion_dispatch")
+}
+
 model WhatsAppStatusEvent {
   tenantId String @map("tenant_id") @db.Uuid
   id String @db.Uuid

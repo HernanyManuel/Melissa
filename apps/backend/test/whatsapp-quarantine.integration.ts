@@ -80,6 +80,11 @@ export async function testWhatsAppQuarantine(
     return Buffer.concat([decipher.update(row.ciphertext), decipher.final()]).toString('utf8');
   };
   assert.deepEqual(JSON.parse(decrypt(scope.tenantId)), message);
+  const mediaEnvelope = await admin.mediaIngestionDispatch.findUniqueOrThrow({
+    where: { tenantId_id: { tenantId: scope.tenantId, id: row.id } },
+  });
+  assert.deepEqual(Object.keys(mediaEnvelope).sort(), ['createdAt', 'id', 'state', 'tenantId']);
+  assert.equal(mediaEnvelope.state, 'quarantined');
   assert.throws(() => decrypt(scope.otherTenantId));
   // Object key order is not a semantic payload change.
   assert.equal(
@@ -108,6 +113,15 @@ export async function testWhatsAppQuarantine(
     await tx.$executeRaw`SELECT set_config('app.tenant_id',${scope.otherTenantId},true)`;
     assert.equal(await tx.whatsAppQuarantine.count({ where: { id: row.id } }), 0);
   });
+  // Discovery is global but minimal; identities and lifecycle are immutable to runtime.
+  assert(await runtime.mediaIngestionDispatch.findUnique({ where: { id: row.id } }));
+  await assert.rejects(
+    runtime.mediaIngestionDispatch.update({
+      where: { id: row.id },
+      data: { state: 'quarantined' },
+    }),
+  );
+  await assert.rejects(runtime.mediaIngestionDispatch.delete({ where: { id: row.id } }));
   await runtime.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT set_config('app.tenant_id',${scope.tenantId},true)`;
     assert.equal((await tx.whatsAppQuarantine.deleteMany({ where: { id: row.id } })).count, 0);
@@ -149,6 +163,7 @@ export async function testWhatsAppQuarantine(
     }
     assert.equal(await admin.whatsAppQuarantine.findUnique({ where: keyWhere }), null);
     assert.equal(await runtime.quarantineExpiry.findUnique({ where: keyWhere }), null);
+    assert.equal(await admin.mediaIngestionDispatch.findUnique({ where: keyWhere }), null);
     assert(
       await admin.whatsAppQuarantine.findUnique({
         where: {

@@ -22,6 +22,8 @@ Media e estados desconhecidos com canal verificável podem ir para quarentena ci
 
 O transporte de media tem configuração separada e continua desligado: `WHATSAPP_MEDIA_ENABLED=false`. A ativação exige access token server-side, versão explícita e lista exata de hosts em `WHATSAPP_MEDIA_DOWNLOAD_HOSTS`; configuração incompleta impede o arranque e não usa mock como fallback. A factory apenas constrói o adapter e ainda não está ligada ao webhook/worker. Ver [ADR-044](decisions/ADR-044-whatsapp-media-http-adapter.md) e [ADR-045](decisions/ADR-045-whatsapp-media-configuration.md).
 
+Schema 19 cria um envelope mínimo e imutável, na mesma transação da quarentena, apenas para novos eventos de audio/document/image/video com ID e MIME. O envelope não contém ID externo, tipo, telefone, URL ou payload; desaparece quando a quarentena expira. Não existe backfill e nenhum worker o consome ainda. Ver [ADR-046](decisions/ADR-046-durable-media-ingestion-envelope.md).
+
 Os commits são por evento: erro posterior pode deixar anteriores persistidos; repetir o pedido é seguro pela deduplicação. O controller só confirma com 200 depois dos commits. O ACK não inclui recibos ou IDs de tenant. Ver ADR-016 para erros e limites.
 
 ## Antes de expor o webhook

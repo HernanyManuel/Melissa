@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 4 — Envelope durável de media (schema 19)
+
+Novos eventos media em quarentena criam envelope mínimo na mesma transação, sem ID externo/MIME/URL/telefone/payload; duplicação não repete e purga da quarentena remove por cascade. RLS, grants imutáveis, readiness e testes. Sem backfill ou consumidor. Ver [ADR-046](decisions/ADR-046-durable-media-ingestion-envelope.md). Nenhum download/storage real; sem merge/deploy.
+
 ## Atualização Phase 4 — Configuração media WhatsApp
 
 Flag opt-in e campos separados para token, versão e hosts exatos; configuração incompleta/unsafe falha no arranque. Factory retorna null desligada e nunca cai para mock. `.env.example`, testes e docs atualizados. Ver [ADR-045](decisions/ADR-045-whatsapp-media-configuration.md). Adapter ainda não registado nem ligado a webhook/worker/DB; sem credenciais ou chamadas reais. Validação nos checks do PR #5; sem merge/deploy.

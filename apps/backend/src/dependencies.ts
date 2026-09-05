@@ -30,7 +30,7 @@ export class Dependencies implements OnModuleDestroy {
         SELECT NOT (rolsuper OR rolbypassrls) AND
           NOT EXISTS (SELECT FROM pg_class WHERE relname='tenants' AND relowner=pg_roles.oid)
           AS safe FROM pg_roles WHERE rolname=current_user`;
-      return rows?.value === '18' && pong === 'PONG' && role?.safe === true;
+      return rows?.value === '19' && pong === 'PONG' && role?.safe === true;
     } catch {
       return false;
     }
