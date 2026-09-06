@@ -116,6 +116,10 @@ Canal mock ativo permite selecionar cliente, enviar texto pela outbox/fila e con
 
 Flutter permite listar/criar canais mock e desligá-los com confirmação, através das APIs existentes. Acesso owner/admin, seis idiomas, estados de UI e proteção contra respostas tardias/duplicação por repetição automática. Canais live apenas de consulta. Ver [ADR-024](decisions/ADR-024-channel-management-ui.md). Testes novos de interface; CI nos checks do PR #5. Simulação de mensagens pela UI e provisioning Meta permanecem pendentes. Sem merge/deploy.
 
+## Atualização Phase 5 — Registry e executor seguro de tools
+
+Adicionados `ToolRegistry` e `ToolExecutor` controlados pelo backend: schemas e handlers server-side, capabilities obrigatórias, contexto tenant/customer/conversation injetado, idempotency key derivada do turno, validação semântica, outputs JSON limitados, até oito calls sequenciais, timeout e erros sanitizados. Registos de escrita/handoff sem suporte declarado a idempotência são recusados. Ver [ADR-055](decisions/ADR-055-server-owned-tool-registry.md). Ainda não existem handlers reais, loop conversacional, persistência, auditoria ou metering; a IA continua sem acesso a dados/efeitos reais. Validação local e CI pendentes; sem merge/deploy.
+
 ## Atualização Phase 5 — Adapter OpenAI Responses
 
 Adicionado adapter real, mas opt-in, atrás de `AIProvider`/`AIGateway`: endpoint fixo, chave e modelo explícitos server-side, timeout, resposta limitada, `store: false`, schemas de tools estritos e parsing fechado de texto/tool calls. Seleção `disabled|mock|openai` sem fallback silencioso e testes de contrato sem rede. Ver [ADR-054](decisions/ADR-054-openai-responses-adapter.md). Não foram usadas credenciais nem feitas chamadas reais; executor de tools, estado, metering, integração com conversas e UI continuam pendentes. Validação local e CI do commit desta alteração ainda pendentes; sem merge/deploy.

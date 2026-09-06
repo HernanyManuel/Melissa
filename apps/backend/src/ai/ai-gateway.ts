@@ -6,8 +6,8 @@ import {
   AIProviderRequest,
   AIProviderResponse,
   AIToolDefinition,
-  JsonValue,
 } from './ai-provider';
+import { assertSafeJson } from './json-safety';
 
 export interface AIGatewayRequest {
   tenantId: string;
@@ -20,31 +20,6 @@ export interface AIGatewayRequest {
 
 const NAME = /^[a-z][a-z0-9_]{0,63}$/;
 const CALL_ID = /^[a-zA-Z0-9_-]{1,128}$/;
-const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-
-function validateJson(value: JsonValue, depth = 0): void {
-  if (depth > 16) throw new Error('JSON depth exceeded');
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return;
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error('Invalid JSON number');
-    return;
-  }
-  if (Array.isArray(value)) {
-    if (value.length > 100) throw new Error('JSON array too large');
-    for (const item of value) validateJson(item, depth + 1);
-    return;
-  }
-  if (typeof value !== 'object') throw new Error('Invalid JSON value');
-  const prototype = Object.getPrototypeOf(value);
-  if (prototype !== Object.prototype && prototype !== null) throw new Error('Invalid JSON object');
-  const entries = Object.entries(value);
-  if (entries.length > 100) throw new Error('JSON object too large');
-  for (const [key, item] of entries) {
-    if (!key || key.length > 128 || FORBIDDEN_KEYS.has(key)) throw new Error('Invalid JSON key');
-    validateJson(item, depth + 1);
-  }
-}
-
 function validateTools(tools: AIToolDefinition[]): void {
   if (!Array.isArray(tools) || tools.length > 32) throw new Error('Invalid AI tools');
   const names = new Set<string>();
@@ -58,7 +33,7 @@ function validateTools(tools: AIToolDefinition[]): void {
       tool.description.length > 1000
     )
       throw new Error('Invalid AI tool');
-    validateJson(tool.inputSchema);
+    assertSafeJson(tool.inputSchema);
     if (JSON.stringify(tool.inputSchema).length > 12000)
       throw new Error('AI tool schema too large');
     names.add(tool.name);
@@ -152,7 +127,7 @@ export class AIGateway {
     for (const call of response.toolCalls) {
       if (!call || !CALL_ID.test(call.id) || ids.has(call.id) || !allowed.has(call.name))
         throw new Error('Invalid provider tool call');
-      validateJson(call.arguments);
+      assertSafeJson(call.arguments);
       if (JSON.stringify(call.arguments).length > 12000)
         throw new Error('Tool arguments too large');
       ids.add(call.id);

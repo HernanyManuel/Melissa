@@ -15,6 +15,12 @@ Pipeline partilhado por todos os tenants; configuração versionada, contexto m�
 
 Não existe fallback automático para mock. O endpoint OpenAI é fixo para impedir que configuração transforme este transporte num cliente HTTP arbitrário.
 
+### Registry e execução de tools
+
+`ToolRegistry` mantém o catálogo server-side com schema, efeito, capabilities, validator e handler. `ToolExecutor` revalida a resposta do provider, injeta tenant/customer/conversation e modo de execução confiáveis, gera idempotency key por turno/call e devolve somente resultados ou códigos de erro sanitizados. Escritas e handoff exigem suporte declarado a idempotência; execução é sequencial, limitada a oito calls e sujeita a timeout. Ver [ADR-055](decisions/ADR-055-server-owned-tool-registry.md).
+
+O registry/executor ainda não contém os 14 handlers de domínio e não está ligado ao worker de conversações. Portanto, este incremento não permite à IA consultar ou alterar dados reais.
+
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 
 ## Ciclo de execução

@@ -13,6 +13,7 @@ import './media-ingestion-queue.test';
 import './malware-scanner.test';
 import './ai-gateway.test';
 import './openai-responses-provider.test';
+import './tool-executor.test';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
