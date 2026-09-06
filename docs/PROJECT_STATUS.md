@@ -116,6 +116,10 @@ Canal mock ativo permite selecionar cliente, enviar texto pela outbox/fila e con
 
 Flutter permite listar/criar canais mock e desligá-los com confirmação, através das APIs existentes. Acesso owner/admin, seis idiomas, estados de UI e proteção contra respostas tardias/duplicação por repetição automática. Canais live apenas de consulta. Ver [ADR-024](decisions/ADR-024-channel-management-ui.md). Testes novos de interface; CI nos checks do PR #5. Simulação de mensagens pela UI e provisioning Meta permanecem pendentes. Sem merge/deploy.
 
+## Atualização Phase 5 — Tools read-only de negócio
+
+Implementadas seis tools server-owned (`get_business_info`, `get_services`, `get_service_details`, `get_price`, `get_business_hours`, `get_staff`) com schemas fechados, validators semânticos, capabilities e porta `BusinessToolReader`. O adapter Prisma usa transação curta, `app.tenant_id`, filtros tenant explícitos, campos públicos mínimos e strings decimais. Testes impedem injeção de tenant, UUID/data inválidos e acesso sem capability. Ver [ADR-056](decisions/ADR-056-tenant-scoped-business-read-tools.md). Ainda não ligadas ao worker/loop; sem tráfego, escrita ou ativação real. Validação local e CI pendentes; sem merge/deploy.
+
 ## Atualização Phase 5 — Registry e executor seguro de tools
 
 Adicionados `ToolRegistry` e `ToolExecutor` controlados pelo backend: schemas e handlers server-side, capabilities obrigatórias, contexto tenant/customer/conversation injetado, idempotency key derivada do turno, validação semântica, outputs JSON limitados, até oito calls sequenciais, timeout e erros sanitizados. Registos de escrita/handoff sem suporte declarado a idempotência são recusados. Ver [ADR-055](decisions/ADR-055-server-owned-tool-registry.md). Ainda não existem handlers reais, loop conversacional, persistência, auditoria ou metering; a IA continua sem acesso a dados/efeitos reais. Validação local e CI pendentes; sem merge/deploy.

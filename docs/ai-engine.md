@@ -21,6 +21,12 @@ Não existe fallback automático para mock. O endpoint OpenAI é fixo para imped
 
 O registry/executor ainda não contém os 14 handlers de domínio e não está ligado ao worker de conversações. Portanto, este incremento não permite à IA consultar ou alterar dados reais.
 
+### Primeiras tools de leitura
+
+Foram registados handlers para `get_business_info`, `get_services`, `get_service_details`, `get_price`, `get_business_hours` e `get_staff`. Todos usam schemas fechados e uma porta `BusinessToolReader`; o adapter Prisma abre uma transação curta com RLS, aplica o tenant do contexto e devolve apenas campos públicos mínimos. Preços são strings decimais, serviços inativos/arquivados e staff inativo são excluídos. Ver [ADR-056](decisions/ADR-056-tenant-scoped-business-read-tools.md).
+
+Os handlers não foram ligados ao worker de conversações. A existência deste código não ativa IA nem acesso a dados em produção.
+
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 
 ## Ciclo de execução
