@@ -116,6 +116,10 @@ Canal mock ativo permite selecionar cliente, enviar texto pela outbox/fila e con
 
 Flutter permite listar/criar canais mock e desligá-los com confirmação, através das APIs existentes. Acesso owner/admin, seis idiomas, estados de UI e proteção contra respostas tardias/duplicação por repetição automática. Canais live apenas de consulta. Ver [ADR-024](decisions/ADR-024-channel-management-ui.md). Testes novos de interface; CI nos checks do PR #5. Simulação de mensagens pela UI e provisioning Meta permanecem pendentes. Sem merge/deploy.
 
+## Atualização Phase 5 — Adapter OpenAI Responses
+
+Adicionado adapter real, mas opt-in, atrás de `AIProvider`/`AIGateway`: endpoint fixo, chave e modelo explícitos server-side, timeout, resposta limitada, `store: false`, schemas de tools estritos e parsing fechado de texto/tool calls. Seleção `disabled|mock|openai` sem fallback silencioso e testes de contrato sem rede. Ver [ADR-054](decisions/ADR-054-openai-responses-adapter.md). Não foram usadas credenciais nem feitas chamadas reais; executor de tools, estado, metering, integração com conversas e UI continuam pendentes. Validação local e CI do commit desta alteração ainda pendentes; sem merge/deploy.
+
 ## Atualização Phase 4 — Contrato OpenAPI de quarentena
 
 DTOs explícitos, operationId estável, cursor, campos obrigatórios, datas, avisos, erros e cabeçalhos documentados. Testes verificam o esquema gerado e os cabeçalhos/validação HTTP. Ver [ADR-023](decisions/ADR-023-quarantine-openapi-contract.md). Sem alteração do formato HTTP ou UI; geração de cliente Dart e contratos restantes não concluídos. Validação integral nos checks do PR #5; sem merge/deploy.

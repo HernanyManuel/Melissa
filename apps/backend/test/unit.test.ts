@@ -12,6 +12,7 @@ import './s3-storage-provider.test';
 import './media-ingestion-queue.test';
 import './malware-scanner.test';
 import './ai-gateway.test';
+import './openai-responses-provider.test';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';

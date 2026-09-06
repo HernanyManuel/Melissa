@@ -4,7 +4,16 @@ Pipeline partilhado por todos os tenants; configuração versionada, contexto m�
 
 ## Estado atual
 
-`AIProvider` define o primeiro contrato vendor-neutral de completion. `AIGateway` valida contexto e respostas, limita tool calls e rejeita tools não autorizadas. `MockAIProvider` permite testes sem rede. Ver [ADR-053](decisions/ADR-053-ai-provider-gateway-boundary.md). Ainda não existem adapter OpenAI, execução de tools, persistência de estado, integração com conversas ou UI.
+`AIProvider` define o contrato vendor-neutral de completion. `AIGateway` valida contexto e respostas, limita tool calls e rejeita tools não autorizadas. `MockAIProvider` permite testes sem rede. O adapter opt-in `OpenAIResponsesProvider` traduz o contrato para a Responses API, com timeout, resposta limitada, `store: false`, tools estritas e erros fechados. Ver [ADR-053](decisions/ADR-053-ai-provider-gateway-boundary.md) e [ADR-054](decisions/ADR-054-openai-responses-adapter.md). Ainda não existem execução de tools, persistência de estado, integração com conversas ou UI; nenhuma chamada OpenAI real foi efetuada.
+
+### Configuração do provider
+
+- `AI_PROVIDER=disabled` é o default seguro.
+- `AI_PROVIDER=mock` ativa somente o provider determinístico local.
+- `AI_PROVIDER=openai` exige `OPENAI_API_KEY` e `OPENAI_MODEL` server-side.
+- `OPENAI_TIMEOUT_MS` aceita 1000–60000 e usa 45000 por omissão.
+
+Não existe fallback automático para mock. O endpoint OpenAI é fixo para impedir que configuração transforme este transporte num cliente HTTP arbitrário.
 
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 

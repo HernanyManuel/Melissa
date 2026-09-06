@@ -66,6 +66,14 @@ const schema = z.object({
     (value) => (value === '' ? undefined : value),
     z.coerce.number().int().min(1).max(65535).optional(),
   ),
+  AI_PROVIDER: z.enum(['disabled', 'mock', 'openai']).default('disabled'),
+  OPENAI_API_KEY: z.string().min(20).max(4096).optional().or(z.literal('')),
+  OPENAI_MODEL: z
+    .string()
+    .regex(/^[a-zA-Z0-9._:-]{1,128}$/)
+    .optional()
+    .or(z.literal('')),
+  OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(45000),
   DATABASE_URL: z
     .string()
     .url()
@@ -225,6 +233,18 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     (result.data.CLAMAV_HOST || result.data.CLAMAV_PORT)
   )
     throw new Error('ClamAV fields require MALWARE_SCANNER=clamav');
+  if (
+    result.data.AI_PROVIDER === 'openai' &&
+    (!result.data.OPENAI_API_KEY ||
+      result.data.OPENAI_API_KEY !== result.data.OPENAI_API_KEY.trim() ||
+      !result.data.OPENAI_MODEL)
+  )
+    throw new Error('OpenAI provider requires a server-side API key and explicit model');
+  if (
+    result.data.AI_PROVIDER !== 'openai' &&
+    (result.data.OPENAI_API_KEY || result.data.OPENAI_MODEL)
+  )
+    throw new Error('OpenAI fields require AI_PROVIDER=openai');
   if (result.data.NODE_ENV === 'production') {
     // P1 deliberately has no authenticated product API or deployment profile.
     throw new Error(
