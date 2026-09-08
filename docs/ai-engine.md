@@ -39,6 +39,12 @@ O schema 21 adiciona `mode_epoch` e `state_version` monotónicos às conversas e
 
 O fencing protege commits futuros, mas ainda não existe loop de inferência/outbound. Uma operação externa já aceite não pode ser desfeita apenas pelo epoch; o envio deverá revalidar o modo imediatamente antes do efeito.
 
+### ConversationEngine
+
+O núcleo executa até quatro rondas e oito tools totais. Cada resposta com tools é reintroduzida no protocolo neutral como pares `tool_call`/`tool_result`; o adapter OpenAI traduz esses pares para itens da Responses API. As tools são sequenciais e o `ConversationFence` revalida tenant/conversation/customer, `AI_ACTIVE` e `mode_epoch` antes/depois da inferência, antes de cada tool e antes do texto final. Limites resultam em `handoff_required`. Ver [ADR-059](decisions/ADR-059-bounded-conversation-engine-loop.md).
+
+O engine ainda é uma biblioteca não ligada ao worker. Não persiste turnos, não cria outbound intents e não muda automaticamente o modo para handoff.
+
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 
 ## Ciclo de execução

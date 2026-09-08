@@ -7,6 +7,22 @@ export interface AIMessage {
   content: string;
 }
 
+export interface AIToolCallMessage {
+  role: 'tool_call';
+  callId: string;
+  name: string;
+  arguments: JsonObject;
+}
+
+export interface AIToolResultMessage {
+  role: 'tool_result';
+  callId: string;
+  name: string;
+  result: JsonObject;
+}
+
+export type AIInputItem = AIMessage | AIToolCallMessage | AIToolResultMessage;
+
 export interface AIToolDefinition {
   name: string;
   description: string;
@@ -15,7 +31,7 @@ export interface AIToolDefinition {
 
 export interface AIProviderRequest {
   systemPrompt: string;
-  messages: AIMessage[];
+  messages: AIInputItem[];
   tools: AIToolDefinition[];
   maxOutputTokens: number;
 }

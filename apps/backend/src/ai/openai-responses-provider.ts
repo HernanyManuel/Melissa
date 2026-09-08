@@ -118,10 +118,21 @@ export class OpenAIResponsesProvider implements AIProvider {
       body: JSON.stringify({
         model: this.options.model,
         instructions: request.systemPrompt,
-        input: request.messages.map((message) => ({
-          role: message.role,
-          content: message.content,
-        })),
+        input: request.messages.map((message) => {
+          if ('content' in message) return { role: message.role, content: message.content };
+          if (message.role === 'tool_call')
+            return {
+              type: 'function_call',
+              call_id: message.callId,
+              name: message.name,
+              arguments: JSON.stringify(message.arguments),
+            };
+          return {
+            type: 'function_call_output',
+            call_id: message.callId,
+            output: JSON.stringify(message.result),
+          };
+        }),
         tools: request.tools.map((tool) => ({
           type: 'function',
           name: tool.name,

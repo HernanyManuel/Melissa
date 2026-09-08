@@ -23,7 +23,8 @@ test('AI gateway passes defensive provider input without tenant identifiers', as
   const gateway = new AIGateway(
     new MockAIProvider((input) => {
       captured = input;
-      input.messages[0]!.content = 'mutated by provider';
+      const first = input.messages[0]!;
+      if ('content' in first) first.content = 'mutated by provider';
       return {
         content: null,
         toolCalls: [{ id: 'call_1', name: 'get_business_hours', arguments: {} }],
@@ -33,7 +34,10 @@ test('AI gateway passes defensive provider input without tenant identifiers', as
     }),
   );
   const response = await gateway.complete(request);
-  assert.equal(request.messages[0]!.content, 'What time do you open?');
+  assert.equal(
+    'content' in request.messages[0]! && request.messages[0].content,
+    'What time do you open?',
+  );
   assert(captured);
   assert.equal('tenantId' in captured, false);
   assert.equal('correlationId' in captured, false);

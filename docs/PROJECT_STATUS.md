@@ -116,6 +116,10 @@ Canal mock ativo permite selecionar cliente, enviar texto pela outbox/fila e con
 
 Flutter permite listar/criar canais mock e desligá-los com confirmação, através das APIs existentes. Acesso owner/admin, seis idiomas, estados de UI e proteção contra respostas tardias/duplicação por repetição automática. Canais live apenas de consulta. Ver [ADR-024](decisions/ADR-024-channel-management-ui.md). Testes novos de interface; CI nos checks do PR #5. Simulação de mensagens pela UI e provisioning Meta permanecem pendentes. Sem merge/deploy.
 
+## Atualização Phase 5 — ConversationEngine limitado
+
+Adicionado loop neutral de até quatro rondas/oito tools, resultados tipados, execução sequencial, usage acumulado e `handoff_required` ao atingir limites. `ConversationFence` revalida associação tenant/conversation/customer, `AI_ACTIVE` e `mode_epoch` antes/depois do provider, antes de cada tool e antes do resultado final. O adapter OpenAI suporta pares `function_call`/`function_call_output`. Ver [ADR-059](decisions/ADR-059-bounded-conversation-engine-loop.md). Ainda sem worker, persistência do turno, cost guard, auditoria, outbound ou mudança real para handoff. Validação local/CI pendentes; sem merge/deploy.
+
 ## Atualização Phase 5 — Estado versionado e fencing
 
 Schema 21 adiciona `mode_epoch`, `state_version`, estado V1 e trigger DB que impede alterações não versionadas. `ConversationStateService` valida shape/transições e faz compare-and-swap por tenant/conversation/customer, `AI_ACTIVE`, epoch e versão; workers antigos falham sem commit. Contadores BigInt internos são removidos da API pública. Ver [ADR-058](decisions/ADR-058-conversation-state-fencing.md). Ainda sem endpoints de takeover, auditoria, loop IA ou outbound automático. Validação local/CI pendentes; sem merge/deploy.

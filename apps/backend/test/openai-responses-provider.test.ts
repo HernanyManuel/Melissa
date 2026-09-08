@@ -94,6 +94,41 @@ test('OpenAI adapter parses function calls without executing them', async () => 
   assert.equal(result.finishReason, 'tool_calls');
 });
 
+test('OpenAI adapter maps completed tool protocol items for the next round', async () => {
+  let input: Array<Record<string, unknown>> = [];
+  await provider(
+    {
+      status: 'completed',
+      output: [{ type: 'message', content: [{ type: 'output_text', text: 'Done.' }] }],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    },
+    (_url, init) => {
+      input = (JSON.parse(String(init?.body)) as { input: Array<Record<string, unknown>> }).input;
+    },
+  ).complete({
+    ...providerRequest,
+    messages: [
+      ...providerRequest.messages,
+      { role: 'tool_call', callId: 'call_1', name: 'get_business_hours', arguments: {} },
+      {
+        role: 'tool_result',
+        callId: 'call_1',
+        name: 'get_business_hours',
+        result: { success: true, output: { opensAt: '09:00' } },
+      },
+    ],
+  });
+  assert.deepEqual(input.at(-2), {
+    type: 'function_call',
+    call_id: 'call_1',
+    name: 'get_business_hours',
+    arguments: '{}',
+  });
+  assert.equal(input.at(-1)?.type, 'function_call_output');
+  assert.equal(input.at(-1)?.call_id, 'call_1');
+  assert.equal(String(input.at(-1)?.output).includes('09:00'), true);
+});
+
 test('OpenAI adapter fails closed on transport and malformed outputs', async () => {
   await assert.rejects(
     provider({ error: { message: 'sensitive' } }, undefined, 429).complete(providerRequest),
