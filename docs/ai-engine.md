@@ -51,6 +51,12 @@ O schema 22 introduz `ai_turns` e `ai_usage_events` com RLS forçada, FKs compos
 
 O ledger ainda não está ligado ao worker; portanto este incremento não inicia inferência nem usage real. Catálogo de pricing versionado, custo monetário, reconciliação de turnos abandonados e integração atómica com state/outbound permanecem pendentes.
 
+### Coordenação do turno
+
+`ConversationTurnCoordinator` compõe registry, context builder, engine e ledger numa única fronteira replay-safe. Só devolve texto depois de finalizar o ledger; entrega duplicada em curso ou terminada não repete provider. Falhas recebem códigos sanitizados. Quando o fencing fica obsoleto depois de uma chamada, os tokens já acumulados seguem para o outcome `stale`. Falha de persistência continua a propagar para retry, em vez de ser apresentada como resultado funcional. Ver [ADR-061](decisions/ADR-061-conversation-turn-coordinator.md).
+
+O coordenador ainda não é iniciado pelo worker e não grava outbound. A outbox atual é humana/mock e não será reutilizada com proveniência falsa; o próximo incremento criará envelope automático próprio antes de ligar fila e dispatch.
+
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 
 ## Ciclo de execução

@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 5 — Coordenador de turno
+
+`ConversationTurnCoordinator` liga contexto, tools, engine, fencing e ledger com replay seguro e códigos de falha sanitizados. Uso consumido antes de fencing obsoleto é preservado; texto só é devolvido após finalização durável e erro de DB propaga para retry. Ver [ADR-061](decisions/ADR-061-conversation-turn-coordinator.md). Ainda sem queue/worker, outbox automática, handoff persistido ou deploy.
+
 ## Atualização Phase 5 — Ledger de turnos e usage (schema 22)
 
 `ai_turns` fixa tenant/conversation/customer e versões de fencing; `ai_usage_events` regista uma única medição append-only por turno. Início idempotente, replay com scope exato, transição terminal e usage são protegidos transacionalmente; prompts/respostas não são persistidos. Ver [ADR-060](decisions/ADR-060-exactly-once-ai-turn-ledger.md). Ainda sem wiring ao worker, pricing/custo, reconciliação, outbound ou deploy.

@@ -19,6 +19,7 @@ import './ai-context-builder.test';
 import './conversation-state.test';
 import './conversation-engine.test';
 import './ai-turn-ledger.test';
+import './conversation-turn-coordinator.test';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
