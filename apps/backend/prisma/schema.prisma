@@ -102,6 +102,8 @@ model Tenant {
   customers          Customer[]
   channels           ChannelConnection[]
   conversations      Conversation[]
+  aiTurns            AiTurn[]
+  aiUsageEvents      AiUsageEvent[]
 
   @@map("tenants")
 }
@@ -291,6 +293,7 @@ model Customer {
   marketingConsentStatus String         @default("unknown") @map("marketing_consent_status")
   whatsappOptInStatus    String         @default("unknown") @map("whatsapp_opt_in_status")
   conversations          Conversation[]
+  aiTurns                AiTurn[]
   id                     String         @default(uuid()) @db.Uuid
   tenantId               String         @map("tenant_id") @db.Uuid
   tenant                 Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
@@ -353,11 +356,54 @@ model Conversation {
   createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   messages            Message[]
+  aiTurns             AiTurn[]
 
   @@id([tenantId, id])
   @@unique([tenantId, channelConnectionId, customerId])
   @@index([tenantId, lastMessageAt, id])
   @@map("conversations")
+}
+
+model AiTurn {
+  id             String        @default(uuid()) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  conversationId String        @map("conversation_id") @db.Uuid
+  conversation   Conversation  @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  customerId     String        @map("customer_id") @db.Uuid
+  customer       Customer      @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Restrict)
+  modeEpoch      BigInt        @map("mode_epoch")
+  stateVersion   BigInt        @map("state_version")
+  status         String        @default("running") @db.VarChar(24)
+  rounds         Int           @default(0)
+  toolCalls      Int           @default(0) @map("tool_calls")
+  failureCode    String?       @map("failure_code") @db.VarChar(64)
+  startedAt      DateTime      @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt    DateTime?     @map("completed_at") @db.Timestamptz(6)
+  usageEvent     AiUsageEvent?
+
+  @@id([tenantId, id])
+  @@index([tenantId, conversationId, startedAt, id])
+  @@map("ai_turns")
+}
+
+model AiUsageEvent {
+  id           String   @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  turnId       String   @map("turn_id") @db.Uuid
+  turn         AiTurn   @relation(fields: [tenantId, turnId], references: [tenantId, id], onDelete: Restrict)
+  providerKey  String   @map("provider_key") @db.VarChar(64)
+  modelKey     String   @map("model_key") @db.VarChar(128)
+  inputTokens  Int      @map("input_tokens")
+  outputTokens Int      @map("output_tokens")
+  outcome      String   @db.VarChar(24)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([tenantId, id])
+  @@unique([tenantId, turnId])
+  @@index([tenantId, createdAt, id])
+  @@map("ai_usage_events")
 }
 
 model Message {

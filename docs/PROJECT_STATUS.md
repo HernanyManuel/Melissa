@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 5 — Ledger de turnos e usage (schema 22)
+
+`ai_turns` fixa tenant/conversation/customer e versões de fencing; `ai_usage_events` regista uma única medição append-only por turno. Início idempotente, replay com scope exato, transição terminal e usage são protegidos transacionalmente; prompts/respostas não são persistidos. Ver [ADR-060](decisions/ADR-060-exactly-once-ai-turn-ledger.md). Ainda sem wiring ao worker, pricing/custo, reconciliação, outbound ou deploy.
+
 ## Atualização Phase 5 — AIProvider e AIGateway
 
 Contrato vendor-neutral sem DB/rede, gateway com limites de contexto/output, tools allowlisted, JSON defensivo e erros sanitizados. Tenant/correlation não chegam ao provider; MockAIProvider determinístico permite testes. Ver [ADR-053](decisions/ADR-053-ai-provider-gateway-boundary.md) e [motor de IA](ai-engine.md). Sem adapter real, tool executor, persistência, integração com conversas, merge ou deploy.

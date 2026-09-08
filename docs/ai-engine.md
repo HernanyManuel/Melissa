@@ -45,6 +45,12 @@ O núcleo executa até quatro rondas e oito tools totais. Cada resposta com tool
 
 O engine ainda é uma biblioteca não ligada ao worker. Não persiste turnos, não cria outbound intents e não muda automaticamente o modo para handoff.
 
+### Ledger de turnos e usage
+
+O schema 22 introduz `ai_turns` e `ai_usage_events` com RLS forçada, FKs compostas e finalização transacional exatamente-once. `AITurnLedger` fixa cada `turn_id` a tenant/conversation/customer/epoch/version, distingue replay em curso ou terminado e grava um único evento append-only com provider/model, tokens, resultado, rondas e número de tools. Não guarda prompts, respostas, mensagens nem argumentos/resultados de tools. Ver [ADR-060](decisions/ADR-060-exactly-once-ai-turn-ledger.md).
+
+O ledger ainda não está ligado ao worker; portanto este incremento não inicia inferência nem usage real. Catálogo de pricing versionado, custo monetário, reconciliação de turnos abandonados e integração atómica com state/outbound permanecem pendentes.
+
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 
 ## Ciclo de execução

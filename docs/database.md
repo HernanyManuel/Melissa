@@ -1,5 +1,11 @@
 # Modelo de dados e ERD
 
+## Ledger de IA (schema 22)
+
+`ai_turns` representa a execução técnica de um turno, vinculada por FKs compostas ao tenant, conversation e customer. Guarda os valores de `mode_epoch`/`state_version` usados no início e admite apenas `running`, `completed`, `handoff_required`, `failed` ou `stale`, com limites de quatro rondas e oito tools.
+
+`ai_usage_events` é append-only para o runtime e tem unicidade `(tenant_id, turn_id)`. Provider/model e tokens permitem metering posterior; não existem colunas para prompt, resposta ou conteúdo. Ambas as tabelas usam RLS forçada. A finalização atualiza o turno e cria usage na mesma transação, evitando estado terminal sem medição ou dupla contabilização.
+
 Modelo lógico v1. Os campos mínimos de cada tabela em `SPECIFICATION.md` continuam obrigatórios; este documento acrescenta relações, invariantes e tabelas de suporte. P1/P2 já incluem schema físico e migrations executáveis para infraestrutura, identidade, sessões, tenants, memberships, convites e auditoria. O restante ERD continua a ser o modelo alvo, implementado incrementalmente. Ver [Phase 2](phase-2.md).
 
 ## Convenções
@@ -95,41 +101,41 @@ Cardinalidades representam relações lógicas; todos os filhos respeitam FKs de
 
 ## Dicionário e invariantes adicionais
 
-| Entidades | Campos/constraints além da especificação |
-|---|---|
-| users, auth_sessions, identity_tokens | email normalizado único; password_hash; email_verified_at; sessions com refresh_hash, family_id, expires_at, revoked_at; tokens verify/reset com finalidade e used_at |
-| tenant_memberships, tenant_invitations | unique tenant/user; invitation token_hash, email, role, expiry; impedir último owner removido; platform roles em tabela separada |
-| tenants, onboarding_progress | `operational_status` separado de subscription/provisioning; version; passos e último passo; revisão de config testada; aceites legais em consent_events |
-| industry_templates | Catálogo das 12 indústrias de §7; key única e versão para não modificar configurações já publicadas |
-| services, staff_services | duration >0, buffers >=0, price >=0; unique tenant/staff/service; duração/preço custom validados |
-| business_hours, staff_hours, schedule_exceptions | weekday 0–6 convencionado (0 domingo), start < end; períodos noturnos divididos por dia; sem sobreposição; exceção pode referir staff/location e tem precedência explícita |
-| staff, locations, booking_resources | resource tem kind default/staff, staff_id opcional, timezone/location; default único por tenant; MVP capacidade 1; location preparada, UI multi-location diferida |
-| customers | unique tenant/phone_e164 quando preenchido; automation_blocked; notas/tags separadas com autoria e permissões |
-| faqs, policies | Pergunta/resposta/categoria/active; policies com tipo, texto, configuração validada e versão |
-| channel_connections | Provider + external_phone_id único ativo; credentials_reference e estado; reassociação exige desligar conexão anterior e auditar |
-| conversations | version/fencing, last_processed_message_id, mode_epoch, resolved_without_human, human_participated; customer/channel; thread ativa controlada por índice parcial |
-| messages | unique provider/connection/external_message_id quando presente; sequência monotónica por conversa; inbound/outbound status; `execution_mode` live/sandbox se aplicável; sem credenciais no JSON |
-| conversation_reads | Unique tenant/conversation/user e last_read_sequence; contador não lido não global |
-| agent_configs, agent_test_runs | unique tenant/version; uma versão publicada ativa; snapshot hash; testes registam config hash, resultados e provider/model; publish invalida teste anterior |
-| tool_executions | tenant/conversation/turn/action_key única, tool, input_hash, outcome sanitizado, status; idempotência de efeitos, não só de pedidos de modelo |
-| bookings | resource_id obrigatório; start/end, occupied_start/end incluem buffers; price/duration snapshot; version; confirmação/consentimento do cliente; booking_revisions para histórico de remarcações |
-| resource_blocks | tenant/resource, intervalo, motivo; alterações serializadas com bookings para impedir bloqueio a sobrepor reserva existente sem tratamento explícito |
-| calendar_connections, calendar_watches | sync_token, sync_version, last_success, stale status; watch channel/resource IDs, token hash, expiry; unique provider/calendar no âmbito permitido |
-| calendar_busy_intervals, calendar_event_links | Busy range sem expor título externo; links unique connection/booking e connection/external_event_id; ETag e última versão enviada |
-| plans, subscriptions | Valores de §43 são seed de exemplo editável; versões/preços imutáveis para histórico; uma subscrição corrente por tenant; IDs Stripe únicos |
-| usage_events, usage_reservations | Ledger append-only, dedup_key única; amount/currency e price_version para custo; reservas atómicas de quota com expiry e settlement |
-| billing_meter_deliveries | unique provider/subscription/event_key, provider receipt, attempts/status; não recobrar ao repetir jobs |
-| tenant_daily_metrics, tenant_daily_costs | unique tenant/date/timezone_version; currency nos custos; revisões/agregações reconstruíveis do ledger; nunca somar moedas diferentes |
-| external_events | unique provider/external_event_id; tenant resolvido, payload_hash, processing_status, attempts; WhatsApp status pode exigir ID derivado de message/status/timestamp |
-| provider_ingress_events | Âmbito global restrito apenas enquanto não resolvido; hash, provider e payload mínimo cifrado/retido por prazo curto; nunca acessível via tenant APIs |
-| outbox_events, consumer_receipts | event UUID, payload versionado, published_at, attempts; unique consumer/event; recibo na mesma transação dos efeitos locais |
-| idempotency_records | unique tenant/actor/operation/key; request_hash, response, status, expiry; mesma chave com payload diferente = conflito |
-| notifications | tenant/recipient/event/type unique; read_at, delivery status; email delivery separado quando necessário |
-| audit_logs, support_sessions | actor real, effective actor, reason, tenant, expiry; audit append-only, before/after redacted; eventos globais apenas em repositório admin |
-| storage_objects | tenant, owner, object_key, MIME, byte_size, checksum, scan_status, retention; signed URL gerada, não persistida como segredo |
-| data_retention_settings, consent_events, data_export_jobs | Categorias/prazos; purpose/version/granted/revoked; job status, actor, object ref e expiry |
-| feature_flags, feature_flag_overrides | Flag global; override com scope environment/tenant/plan e percentagem determinística; não substitui entitlement |
-| failed_jobs, incidents | IDs da fila e tenant quando resolvido; payload sanitizado; retry/discard auditados; incidents com scope e estado |
+| Entidades                                                 | Campos/constraints além da especificação                                                                                                                                                        |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| users, auth_sessions, identity_tokens                     | email normalizado único; password_hash; email_verified_at; sessions com refresh_hash, family_id, expires_at, revoked_at; tokens verify/reset com finalidade e used_at                           |
+| tenant_memberships, tenant_invitations                    | unique tenant/user; invitation token_hash, email, role, expiry; impedir último owner removido; platform roles em tabela separada                                                                |
+| tenants, onboarding_progress                              | `operational_status` separado de subscription/provisioning; version; passos e último passo; revisão de config testada; aceites legais em consent_events                                         |
+| industry_templates                                        | Catálogo das 12 indústrias de §7; key única e versão para não modificar configurações já publicadas                                                                                             |
+| services, staff_services                                  | duration >0, buffers >=0, price >=0; unique tenant/staff/service; duração/preço custom validados                                                                                                |
+| business_hours, staff_hours, schedule_exceptions          | weekday 0–6 convencionado (0 domingo), start < end; períodos noturnos divididos por dia; sem sobreposição; exceção pode referir staff/location e tem precedência explícita                      |
+| staff, locations, booking_resources                       | resource tem kind default/staff, staff_id opcional, timezone/location; default único por tenant; MVP capacidade 1; location preparada, UI multi-location diferida                               |
+| customers                                                 | unique tenant/phone_e164 quando preenchido; automation_blocked; notas/tags separadas com autoria e permissões                                                                                   |
+| faqs, policies                                            | Pergunta/resposta/categoria/active; policies com tipo, texto, configuração validada e versão                                                                                                    |
+| channel_connections                                       | Provider + external_phone_id único ativo; credentials_reference e estado; reassociação exige desligar conexão anterior e auditar                                                                |
+| conversations                                             | version/fencing, last_processed_message_id, mode_epoch, resolved_without_human, human_participated; customer/channel; thread ativa controlada por índice parcial                                |
+| messages                                                  | unique provider/connection/external_message_id quando presente; sequência monotónica por conversa; inbound/outbound status; `execution_mode` live/sandbox se aplicável; sem credenciais no JSON |
+| conversation_reads                                        | Unique tenant/conversation/user e last_read_sequence; contador não lido não global                                                                                                              |
+| agent_configs, agent_test_runs                            | unique tenant/version; uma versão publicada ativa; snapshot hash; testes registam config hash, resultados e provider/model; publish invalida teste anterior                                     |
+| tool_executions                                           | tenant/conversation/turn/action_key única, tool, input_hash, outcome sanitizado, status; idempotência de efeitos, não só de pedidos de modelo                                                   |
+| bookings                                                  | resource_id obrigatório; start/end, occupied_start/end incluem buffers; price/duration snapshot; version; confirmação/consentimento do cliente; booking_revisions para histórico de remarcações |
+| resource_blocks                                           | tenant/resource, intervalo, motivo; alterações serializadas com bookings para impedir bloqueio a sobrepor reserva existente sem tratamento explícito                                            |
+| calendar_connections, calendar_watches                    | sync_token, sync_version, last_success, stale status; watch channel/resource IDs, token hash, expiry; unique provider/calendar no âmbito permitido                                              |
+| calendar_busy_intervals, calendar_event_links             | Busy range sem expor título externo; links unique connection/booking e connection/external_event_id; ETag e última versão enviada                                                               |
+| plans, subscriptions                                      | Valores de §43 são seed de exemplo editável; versões/preços imutáveis para histórico; uma subscrição corrente por tenant; IDs Stripe únicos                                                     |
+| usage_events, usage_reservations                          | Ledger append-only, dedup_key única; amount/currency e price_version para custo; reservas atómicas de quota com expiry e settlement                                                             |
+| billing_meter_deliveries                                  | unique provider/subscription/event_key, provider receipt, attempts/status; não recobrar ao repetir jobs                                                                                         |
+| tenant_daily_metrics, tenant_daily_costs                  | unique tenant/date/timezone_version; currency nos custos; revisões/agregações reconstruíveis do ledger; nunca somar moedas diferentes                                                           |
+| external_events                                           | unique provider/external_event_id; tenant resolvido, payload_hash, processing_status, attempts; WhatsApp status pode exigir ID derivado de message/status/timestamp                             |
+| provider_ingress_events                                   | Âmbito global restrito apenas enquanto não resolvido; hash, provider e payload mínimo cifrado/retido por prazo curto; nunca acessível via tenant APIs                                           |
+| outbox_events, consumer_receipts                          | event UUID, payload versionado, published_at, attempts; unique consumer/event; recibo na mesma transação dos efeitos locais                                                                     |
+| idempotency_records                                       | unique tenant/actor/operation/key; request_hash, response, status, expiry; mesma chave com payload diferente = conflito                                                                         |
+| notifications                                             | tenant/recipient/event/type unique; read_at, delivery status; email delivery separado quando necessário                                                                                         |
+| audit_logs, support_sessions                              | actor real, effective actor, reason, tenant, expiry; audit append-only, before/after redacted; eventos globais apenas em repositório admin                                                      |
+| storage_objects                                           | tenant, owner, object_key, MIME, byte_size, checksum, scan_status, retention; signed URL gerada, não persistida como segredo                                                                    |
+| data_retention_settings, consent_events, data_export_jobs | Categorias/prazos; purpose/version/granted/revoked; job status, actor, object ref e expiry                                                                                                      |
+| feature_flags, feature_flag_overrides                     | Flag global; override com scope environment/tenant/plan e percentagem determinística; não substitui entitlement                                                                                 |
+| failed_jobs, incidents                                    | IDs da fila e tenant quando resolvido; payload sanitizado; retry/discard auditados; incidents com scope e estado                                                                                |
 
 ## Garantia de reservas
 
