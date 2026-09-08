@@ -55,7 +55,13 @@ O ledger ainda não está ligado ao worker; portanto este incremento não inicia
 
 `ConversationTurnCoordinator` compõe registry, context builder, engine e ledger numa única fronteira replay-safe. Só devolve texto depois de finalizar o ledger; entrega duplicada em curso ou terminada não repete provider. Falhas recebem códigos sanitizados. Quando o fencing fica obsoleto depois de uma chamada, os tokens já acumulados seguem para o outcome `stale`. Falha de persistência continua a propagar para retry, em vez de ser apresentada como resultado funcional. Ver [ADR-061](decisions/ADR-061-conversation-turn-coordinator.md).
 
-O coordenador ainda não é iniciado pelo worker e não grava outbound. A outbox atual é humana/mock e não será reutilizada com proveniência falsa; o próximo incremento criará envelope automático próprio antes de ligar fila e dispatch.
+O coordenador ainda não é iniciado pelo worker. A outbox humana/mock não é reutilizada com proveniência falsa; respostas automáticas usam a fronteira própria descrita abaixo.
+
+### Outbox automática
+
+O schema 23 separa `ai_outbound_intents` da outbox humana e mantém conteúdo apenas na tabela tenant-scoped; `ai_outbound_dispatch` expõe globalmente ao dispatcher só ID, tenant, estado e retry. Para respostas live, finalização do turno, usage, intent e envelope são uma única transação. O commit bloqueia a conversation e revalida modo/epoch; takeover concorrente converte o turno em `stale`, conserva usage e suprime o texto. Ver [ADR-062](decisions/ADR-062-ai-automatic-outbox.md).
+
+Não existe ainda consumidor desta outbox. Portanto nenhum outbound automático é enviado neste incremento.
 
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 

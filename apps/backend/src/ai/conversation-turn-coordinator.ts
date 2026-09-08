@@ -107,7 +107,12 @@ export class ConversationTurnCoordinator {
     }
     if (result.status === 'completed') {
       if (!result.content) return this.invalidResult(request);
-      await this.complete(request, result);
+      const committed = await this.complete(
+        request,
+        result,
+        request.executionMode === 'live' ? result.content : undefined,
+      );
+      if (committed === 'stale') return { status: 'stale' };
       return {
         status: 'completed',
         content: result.content,
@@ -126,13 +131,18 @@ export class ConversationTurnCoordinator {
     };
   }
 
-  private complete(request: ConversationTurnRequest, result: ConversationEngineResult) {
+  private complete(
+    request: ConversationTurnRequest,
+    result: ConversationEngineResult,
+    deliveryText?: string,
+  ) {
     return this.ledger.finish({
       ...this.finishBase(request),
       outcome: result.status,
       rounds: result.rounds,
       toolCalls: result.toolCalls,
       failureCode: null,
+      ...(deliveryText === undefined ? {} : { deliveryText }),
       ...result.usage,
     });
   }

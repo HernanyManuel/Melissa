@@ -72,13 +72,14 @@ function setup(
   provider: AIProvider,
   fence: ConversationFence = { isCurrent: async () => true },
   begin: Awaited<ReturnType<AITurnLedgerRepository['begin']>> = 'started',
+  finishResult: Awaited<ReturnType<AITurnLedgerRepository['finish']>> = 'finished',
 ) {
   const finishes: AITurnFinish[] = [];
   const repository: AITurnLedgerRepository = {
     begin: async () => begin,
     finish: async (input) => {
       finishes.push(input);
-      return true;
+      return finishResult;
     },
   };
   const tools = registry();
@@ -121,6 +122,7 @@ test('turn coordinator records completion usage before returning content', async
       failureCode: null,
       inputTokens: 12,
       outputTokens: 6,
+      deliveryText: 'Olá, como posso ajudar?',
     },
   ]);
 });
@@ -171,6 +173,25 @@ test('turn coordinator preserves consumed usage when fencing becomes stale', asy
   assert.equal(finishes[0]?.failureCode, 'conversation_stale');
   assert.equal(finishes[0]?.inputTokens, 9);
   assert.equal(finishes[0]?.outputTokens, 4);
+});
+
+test('final transactional fence suppresses content after a concurrent takeover', async () => {
+  const { coordinator, finishes } = setup(
+    {
+      providerKey: 'mock',
+      complete: async () => ({
+        content: 'Não pode ser enviada',
+        toolCalls: [],
+        finishReason: 'stop',
+        usage: { inputTokens: 7, outputTokens: 3 },
+      }),
+    },
+    undefined,
+    'started',
+    'stale',
+  );
+  assert.deepEqual(await coordinator.run(request), { status: 'stale' });
+  assert.equal(finishes[0]?.deliveryText, 'Não pode ser enviada');
 });
 
 test('turn coordinator closes provider failures with sanitized zero-known usage', async () => {

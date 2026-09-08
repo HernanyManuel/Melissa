@@ -6,6 +6,10 @@
 
 `ai_usage_events` é append-only para o runtime e tem unicidade `(tenant_id, turn_id)`. Provider/model e tokens permitem metering posterior; não existem colunas para prompt, resposta ou conteúdo. Ambas as tabelas usam RLS forçada. A finalização atualiza o turno e cria usage na mesma transação, evitando estado terminal sem medição ou dupla contabilização.
 
+## Outbox automática (schema 23)
+
+`ai_outbound_intents` guarda uma resposta automática imutável por turno, com FKs compostas para conversation, customer e channel e RLS forçada. `ai_outbound_dispatch` é o envelope de routing global mínimo e nunca contém texto. O ledger cria turno terminal, usage, intent e dispatch atomicamente depois de bloquear a conversation e confirmar `AI_ACTIVE`/`mode_epoch`; conflito com takeover produz `stale` sem outbound.
+
 Modelo lógico v1. Os campos mínimos de cada tabela em `SPECIFICATION.md` continuam obrigatórios; este documento acrescenta relações, invariantes e tabelas de suporte. P1/P2 já incluem schema físico e migrations executáveis para infraestrutura, identidade, sessões, tenants, memberships, convites e auditoria. O restante ERD continua a ser o modelo alvo, implementado incrementalmente. Ver [Phase 2](phase-2.md).
 
 ## Convenções

@@ -1,5 +1,9 @@
 # Estado do projeto
 
+## Atualização Phase 5 — Outbox automática (schema 23)
+
+Resposta live, conclusão do turno, usage e envelope de dispatch são persistidos atomicamente após fence final sob lock. Takeover concorrente produz `stale` sem outbound; conteúdo fica numa tabela tenant-scoped imutável e o índice global não o expõe. Ver [ADR-062](decisions/ADR-062-ai-automatic-outbox.md). Ainda sem consumer, adapter live, retries/recibos ou deploy.
+
 ## Atualização Phase 5 — Coordenador de turno
 
 `ConversationTurnCoordinator` liga contexto, tools, engine, fencing e ledger com replay seguro e códigos de falha sanitizados. Uso consumido antes de fencing obsoleto é preservado; texto só é devolvido após finalização durável e erro de DB propaga para retry. Ver [ADR-061](decisions/ADR-061-conversation-turn-coordinator.md). Ainda sem queue/worker, outbox automática, handoff persistido ou deploy.

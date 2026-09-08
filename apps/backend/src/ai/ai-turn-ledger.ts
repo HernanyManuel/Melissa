@@ -26,6 +26,7 @@ export interface AITurnFinish {
   modelKey: string;
   inputTokens: number;
   outputTokens: number;
+  deliveryText?: string;
 }
 
 export interface AITurnRecord {
@@ -38,7 +39,7 @@ export interface AITurnRecord {
 
 export interface AITurnLedgerRepository {
   begin(input: AITurnStart): Promise<'started' | AITurnRecord>;
-  finish(input: AITurnFinish): Promise<boolean>;
+  finish(input: AITurnFinish): Promise<'finished' | 'already_finished' | 'stale'>;
 }
 
 export class InvalidAITurn extends Error {
@@ -88,23 +89,60 @@ export class PrismaAITurnLedgerRepository implements AITurnLedgerRepository {
     });
   }
 
-  finish(input: AITurnFinish): Promise<boolean> {
+  finish(input: AITurnFinish): Promise<'finished' | 'already_finished' | 'stale'> {
     return this.scoped(input.tenantId, async (tx) => {
-      const updated = await tx.$queryRaw<{ id: string }[]>`
-        UPDATE ai_turns SET status=${input.outcome}, rounds=${input.rounds},
-          tool_calls=${input.toolCalls}, failure_code=${input.failureCode}, completed_at=now()
-        WHERE tenant_id=${input.tenantId}::uuid AND id=${input.turnId}::uuid
-          AND status='running' RETURNING id`;
-      if (updated.length !== 1) return false;
+      const [turn] = await tx.$queryRaw<
+        {
+          status: AITurnRecord['status'];
+          conversationId: string;
+          customerId: string;
+          modeEpoch: bigint;
+          channelConnectionId: string;
+          currentMode: string;
+          currentModeEpoch: bigint;
+        }[]
+      >`SELECT t.status, t.conversation_id AS "conversationId",
+          t.customer_id AS "customerId", t.mode_epoch AS "modeEpoch",
+          c.channel_connection_id AS "channelConnectionId", c.mode AS "currentMode",
+          c.mode_epoch AS "currentModeEpoch"
+        FROM ai_turns t JOIN conversations c
+          ON c.tenant_id=t.tenant_id AND c.id=t.conversation_id
+        WHERE t.tenant_id=${input.tenantId}::uuid AND t.id=${input.turnId}::uuid
+        FOR UPDATE OF t, c`;
+      if (!turn || turn.status !== 'running') return 'already_finished';
+      const deliveryStale =
+        input.deliveryText !== undefined &&
+        (turn.currentMode !== 'AI_ACTIVE' || turn.currentModeEpoch !== turn.modeEpoch);
+      const outcome = deliveryStale ? 'stale' : input.outcome;
+      const failureCode = deliveryStale ? 'conversation_stale' : input.failureCode;
+      await tx.$executeRaw`
+        UPDATE ai_turns SET status=${outcome}, rounds=${input.rounds},
+          tool_calls=${input.toolCalls}, failure_code=${failureCode}, completed_at=now()
+        WHERE tenant_id=${input.tenantId}::uuid AND id=${input.turnId}::uuid`;
       await tx.$executeRaw`
         INSERT INTO ai_usage_events (
           tenant_id, id, turn_id, provider_key, model_key, input_tokens, output_tokens, outcome
         ) VALUES (
           ${input.tenantId}::uuid, ${randomUUID()}::uuid, ${input.turnId}::uuid,
           ${input.providerKey}, ${input.modelKey}, ${input.inputTokens}, ${input.outputTokens},
-          ${input.outcome}
+          ${outcome}
         )`;
-      return true;
+      if (!deliveryStale && input.deliveryText !== undefined) {
+        const intentId = randomUUID();
+        await tx.$executeRaw`
+          INSERT INTO ai_outbound_intents (
+            tenant_id, id, turn_id, conversation_id, customer_id,
+            channel_connection_id, mode_epoch, content_text
+          ) VALUES (
+            ${input.tenantId}::uuid, ${intentId}::uuid, ${input.turnId}::uuid,
+            ${turn.conversationId}::uuid, ${turn.customerId}::uuid,
+            ${turn.channelConnectionId}::uuid, ${turn.modeEpoch}, ${input.deliveryText}
+          )`;
+        await tx.$executeRaw`
+          INSERT INTO ai_outbound_dispatch (tenant_id, id)
+          VALUES (${input.tenantId}::uuid, ${intentId}::uuid)`;
+      }
+      return deliveryStale ? 'stale' : 'finished';
     });
   }
 }
@@ -126,9 +164,9 @@ export class AITurnLedger {
     return result.status === 'running' ? 'running' : 'finished';
   }
 
-  async finish(input: AITurnFinish): Promise<'finished' | 'already_finished'> {
+  async finish(input: AITurnFinish): Promise<'finished' | 'already_finished' | 'stale'> {
     this.validateFinish(input);
-    return (await this.repository.finish(input)) ? 'finished' : 'already_finished';
+    return this.repository.finish(input);
   }
 
   private validateStart(input: AITurnStart): void {
@@ -161,7 +199,12 @@ export class AITurnLedger {
       failureExpected !== (input.failureCode !== null) ||
       ((input.outcome === 'completed' || input.outcome === 'handoff_required') &&
         input.rounds === 0) ||
-      (input.failureCode !== null && !/^[a-z0-9][a-z0-9_.-]{0,63}$/.test(input.failureCode))
+      (input.failureCode !== null && !/^[a-z0-9][a-z0-9_.-]{0,63}$/.test(input.failureCode)) ||
+      (input.deliveryText !== undefined &&
+        (input.outcome !== 'completed' ||
+          Array.from(input.deliveryText.trim()).length < 1 ||
+          Array.from(input.deliveryText).length > 4096 ||
+          /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\p{Surrogate}]/u.test(input.deliveryText)))
     )
       throw new InvalidAITurn();
   }

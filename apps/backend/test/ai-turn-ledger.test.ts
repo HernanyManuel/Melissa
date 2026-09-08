@@ -28,7 +28,7 @@ const finish = {
 };
 
 function repository(begin: 'started' | AITurnRecord = 'started'): AITurnLedgerRepository {
-  return { begin: async () => begin, finish: async () => true };
+  return { begin: async () => begin, finish: async () => 'finished' };
 }
 
 test('AI turn begin is replay-safe only for the exact immutable scope', async () => {
@@ -64,7 +64,7 @@ test('AI turn finish propagates bounded metadata and reports duplicate completio
   const repo = repository();
   repo.finish = async (input) => {
     captured = input;
-    return false;
+    return 'already_finished';
   };
   assert.equal(await new AITurnLedger(repo).finish(finish), 'already_finished');
   assert.deepEqual(captured, finish);
