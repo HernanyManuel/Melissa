@@ -344,10 +344,12 @@ model Conversation {
   channelConnection   ChannelConnection @relation(fields: [tenantId, channelConnectionId], references: [tenantId, id], onDelete: Restrict)
   status              String            @default("open")
   mode                String            @default("AI_PAUSED")
+  modeEpoch           BigInt            @default(0) @map("mode_epoch")
+  stateVersion        BigInt            @default(0) @map("state_version")
   language            String            @default("pt")
   lastMessageAt       DateTime          @map("last_message_at") @db.Timestamptz(6)
   openedAt            DateTime          @default(now()) @map("opened_at") @db.Timestamptz(6)
-  state               Json              @default("{}") @db.JsonB
+  state               Json              @default("{\"version\":1,\"intent\":null,\"stage\":\"idle\",\"serviceId\":null,\"date\":null,\"staffId\":null}") @db.JsonB
   createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   messages            Message[]

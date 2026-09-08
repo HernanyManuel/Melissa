@@ -33,6 +33,12 @@ Os handlers não foram ligados ao worker de conversações. A existência deste 
 
 O modo live exige `AI_ACTIVE`; sandbox pode preparar contexto pausado sem ativar a conversa. Delimitação de dados não substitui a autorização server-side das tools nem torna o sistema imune a prompt injection.
 
+### Estado e fencing
+
+O schema 21 adiciona `mode_epoch` e `state_version` monotónicos às conversas e normaliza o estado para V1. O trigger PostgreSQL incrementa o epoch quando o modo muda e exige incremento exato da versão quando o estado muda. `ConversationStateService` usa compare-and-swap por tenant/conversation/customer, modo ativo, epoch e versão; workers obsoletos falham fechados. Ver [ADR-058](decisions/ADR-058-conversation-state-fencing.md).
+
+O fencing protege commits futuros, mas ainda não existe loop de inferência/outbound. Uma operação externa já aceite não pode ser desfeita apenas pelo epoch; o envio deverá revalidar o modo imediatamente antes do efeito.
+
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 
 ## Ciclo de execução

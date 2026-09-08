@@ -116,6 +116,10 @@ Canal mock ativo permite selecionar cliente, enviar texto pela outbox/fila e con
 
 Flutter permite listar/criar canais mock e desligá-los com confirmação, através das APIs existentes. Acesso owner/admin, seis idiomas, estados de UI e proteção contra respostas tardias/duplicação por repetição automática. Canais live apenas de consulta. Ver [ADR-024](decisions/ADR-024-channel-management-ui.md). Testes novos de interface; CI nos checks do PR #5. Simulação de mensagens pela UI e provisioning Meta permanecem pendentes. Sem merge/deploy.
 
+## Atualização Phase 5 — Estado versionado e fencing
+
+Schema 21 adiciona `mode_epoch`, `state_version`, estado V1 e trigger DB que impede alterações não versionadas. `ConversationStateService` valida shape/transições e faz compare-and-swap por tenant/conversation/customer, `AI_ACTIVE`, epoch e versão; workers antigos falham sem commit. Contadores BigInt internos são removidos da API pública. Ver [ADR-058](decisions/ADR-058-conversation-state-fencing.md). Ainda sem endpoints de takeover, auditoria, loop IA ou outbound automático. Validação local/CI pendentes; sem merge/deploy.
+
 ## Atualização Phase 5 — AIContextBuilder mínimo
 
 Adicionados `AIContextBuilder` e `PrismaAIContextSource`: associação tenant/conversation/customer validada sob RLS, política de sistema estática, referência JSON marcada como não confiável, campos públicos mínimos, até 12 mensagens e orçamentos determinísticos. Contactos/notas/consentimentos/credenciais/metadata são excluídos; live exige conversa `AI_ACTIVE`. Ver [ADR-057](decisions/ADR-057-minimal-untrusted-ai-context.md). Ainda não há state version, resumo, metering, loop de tools ou ligação ao worker; sem ativação real. Validação local e CI pendentes; sem merge/deploy.

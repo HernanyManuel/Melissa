@@ -16,6 +16,7 @@ import './openai-responses-provider.test';
 import './tool-executor.test';
 import './business-read-tools.test';
 import './ai-context-builder.test';
+import './conversation-state.test';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
