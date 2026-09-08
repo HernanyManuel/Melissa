@@ -116,6 +116,10 @@ Canal mock ativo permite selecionar cliente, enviar texto pela outbox/fila e con
 
 Flutter permite listar/criar canais mock e desligá-los com confirmação, através das APIs existentes. Acesso owner/admin, seis idiomas, estados de UI e proteção contra respostas tardias/duplicação por repetição automática. Canais live apenas de consulta. Ver [ADR-024](decisions/ADR-024-channel-management-ui.md). Testes novos de interface; CI nos checks do PR #5. Simulação de mensagens pela UI e provisioning Meta permanecem pendentes. Sem merge/deploy.
 
+## Atualização Phase 5 — AIContextBuilder mínimo
+
+Adicionados `AIContextBuilder` e `PrismaAIContextSource`: associação tenant/conversation/customer validada sob RLS, política de sistema estática, referência JSON marcada como não confiável, campos públicos mínimos, até 12 mensagens e orçamentos determinísticos. Contactos/notas/consentimentos/credenciais/metadata são excluídos; live exige conversa `AI_ACTIVE`. Ver [ADR-057](decisions/ADR-057-minimal-untrusted-ai-context.md). Ainda não há state version, resumo, metering, loop de tools ou ligação ao worker; sem ativação real. Validação local e CI pendentes; sem merge/deploy.
+
 ## Atualização Phase 5 — Tools read-only de negócio
 
 Implementadas seis tools server-owned (`get_business_info`, `get_services`, `get_service_details`, `get_price`, `get_business_hours`, `get_staff`) com schemas fechados, validators semânticos, capabilities e porta `BusinessToolReader`. O adapter Prisma usa transação curta, `app.tenant_id`, filtros tenant explícitos, campos públicos mínimos e strings decimais. Testes impedem injeção de tenant, UUID/data inválidos e acesso sem capability. Ver [ADR-056](decisions/ADR-056-tenant-scoped-business-read-tools.md). Ainda não ligadas ao worker/loop; sem tráfego, escrita ou ativação real. Validação local e CI pendentes; sem merge/deploy.

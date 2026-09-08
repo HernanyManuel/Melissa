@@ -27,6 +27,12 @@ Foram registados handlers para `get_business_info`, `get_services`, `get_service
 
 Os handlers não foram ligados ao worker de conversações. A existência deste código não ativa IA nem acesso a dados em produção.
 
+### Construção de contexto
+
+`AIContextBuilder` mantém a política de sistema estática e coloca perfil, preferências, políticas, FAQs, serviços e dados mínimos do cliente num bloco JSON marcado como não confiável. `PrismaAIContextSource` exige a associação tenant/conversation/customer sob RLS. Não inclui telefone, email, notas, consentimentos, credenciais ou metadata operacional. O contexto usa até 12 mensagens recentes, trunca campos e reduz listas até respeitar um orçamento de aproximadamente 24 mil caracteres. Ver [ADR-057](decisions/ADR-057-minimal-untrusted-ai-context.md).
+
+O modo live exige `AI_ACTIVE`; sandbox pode preparar contexto pausado sem ativar a conversa. Delimitação de dados não substitui a autorização server-side das tools nem torna o sistema imune a prompt injection.
+
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 
 ## Ciclo de execução
