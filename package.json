@@ -22,11 +22,5 @@
   },
   "devDependencies": {
     "prettier": "3.5.3"
-  },
-  "pnpm": {
-    "overrides": {
-      "js-yaml": "4.3.2",
-      "multer": "2.3.0"
-    }
   }
 }
