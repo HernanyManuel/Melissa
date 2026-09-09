@@ -85,12 +85,7 @@ test('automatic outbound rechecks fencing before provider effect', async () => {
       return { providerMessageId: 'provider-1', acceptedAt: new Date() };
     },
   };
-  const dispatcher = new AIAutomaticOutboundDispatcher(
-    store,
-    registry(provider),
-    undefined,
-    lease,
-  );
+  const dispatcher = new AIAutomaticOutboundDispatcher(store, registry(provider), undefined, lease);
   await dispatcher.process(value.id, 0);
   assert.equal(sends, 0);
   assert.deepEqual(store.rejected, ['stale']);
@@ -109,12 +104,7 @@ test('automatic outbound accepts only after valid receipt', async () => {
       return { providerMessageId: 'provider-2', acceptedAt: new Date() };
     },
   };
-  const dispatcher = new AIAutomaticOutboundDispatcher(
-    store,
-    registry(provider),
-    undefined,
-    lease,
-  );
+  const dispatcher = new AIAutomaticOutboundDispatcher(store, registry(provider), undefined, lease);
   await dispatcher.process(value.id, 0);
   assert.equal(store.accepted, 1);
   assert.equal(store.failures, 0);
@@ -123,12 +113,7 @@ test('automatic outbound accepts only after valid receipt', async () => {
 test('automatic outbound fails closed without live provider', async () => {
   const value = claim();
   const store = new MemoryStore(value);
-  const dispatcher = new AIAutomaticOutboundDispatcher(
-    store,
-    registry(),
-    undefined,
-    lease,
-  );
+  const dispatcher = new AIAutomaticOutboundDispatcher(store, registry(), undefined, lease);
   const run = () => dispatcher.process(value.id, 0);
   await assert.rejects(run, /Automatic outbound processing failed/);
   assert.equal(store.accepted, 0);
