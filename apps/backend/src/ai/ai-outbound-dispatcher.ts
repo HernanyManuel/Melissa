@@ -1,7 +1,10 @@
 import { isUUID } from 'class-validator';
 import { Prisma } from '@prisma/client';
 import { Dependencies } from '../dependencies';
-import { MessagingProviderRegistry, ProviderChannel } from '../channels/messaging-provider-registry';
+import {
+  MessagingProviderRegistry,
+  ProviderChannel,
+} from '../channels/messaging-provider-registry';
 import { ConversationLock } from '../messaging/conversation-lock';
 
 export interface AIAutomaticOutboundClaim {
@@ -19,7 +22,10 @@ export interface AIAutomaticOutboundClaim {
 export interface AIAutomaticOutboundStore {
   claim(id: string, attempt: number): Promise<AIAutomaticOutboundClaim | null>;
   isCurrent(claim: AIAutomaticOutboundClaim): Promise<boolean>;
-  reject(claim: AIAutomaticOutboundClaim, reason: 'stale' | 'unauthorized'): Promise<void>;
+  reject(
+    claim: AIAutomaticOutboundClaim,
+    reason: 'stale' | 'unauthorized',
+  ): Promise<void>;
   accept(claim: AIAutomaticOutboundClaim): Promise<void>;
   recordFailure(claim: AIAutomaticOutboundClaim): Promise<void>;
 }
@@ -39,14 +45,20 @@ export class AIAutomaticOutboundFailed extends Error {
 export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore {
   constructor(private readonly deps: Dependencies) {}
 
-  private scoped<T>(tenantId: string, run: (tx: Prisma.TransactionClient) => Promise<T>) {
+  private scoped<T>(
+    tenantId: string,
+    run: (tx: Prisma.TransactionClient) => Promise<T>,
+  ) {
     return this.deps.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
       return run(tx);
     });
   }
 
-  async claim(id: string, attempt: number): Promise<AIAutomaticOutboundClaim | null> {
+  async claim(
+    id: string,
+    attempt: number,
+  ): Promise<AIAutomaticOutboundClaim | null> {
     const [route] = await this.deps.db.$queryRaw<Array<{ tenantId: string }>>`
       SELECT tenant_id AS "tenantId" FROM ai_outbound_dispatch WHERE id=${id}::uuid`;
     if (!route) return null;
@@ -145,8 +157,13 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
     });
   }
 
-  reject(claim: AIAutomaticOutboundClaim, reason: 'stale' | 'unauthorized'): Promise<void> {
-    return this.scoped(claim.tenantId, (tx) => this.rejectInTransaction(tx, claim, reason));
+  reject(
+    claim: AIAutomaticOutboundClaim,
+    reason: 'stale' | 'unauthorized',
+  ): Promise<void> {
+    return this.scoped(claim.tenantId, (tx) =>
+      this.rejectInTransaction(tx, claim, reason),
+    );
   }
 
   private async rejectInTransaction(
@@ -177,10 +194,13 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
 
   recordFailure(claim: AIAutomaticOutboundClaim): Promise<void> {
     return this.scoped(claim.tenantId, async (tx) => {
-      const [current] = await tx.$queryRaw<Array<{ state: string; attempts: number }>>`
+      const [current] = await tx.$queryRaw<
+        Array<{ state: string; attempts: number }>
+      >`
         SELECT state, attempts FROM ai_outbound_dispatch
         WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid FOR UPDATE`;
-      if (!current || current.state !== 'pending' || current.attempts !== claim.attempt) return;
+      if (!current || current.state !== 'pending' || current.attempts !== claim.attempt)
+        return;
       const attempts = claim.attempt + 1;
       const terminal = attempts >= 5;
       await tx.$executeRaw`
@@ -205,10 +225,10 @@ export class AIAutomaticOutboundDispatcher {
     deps?: Dependencies,
     lease?: AIAutomaticOutboundLease,
   ) {
-    if (!lease && !deps) throw new Error('Automatic outbound dispatcher requires a lease');
+    if (!lease && !deps)
+      throw new Error('Automatic outbound dispatcher requires a lease');
     this.lease =
-      lease ??
-      ((key, work) => new ConversationLock(deps!.redis, 15_000).run(key, work));
+      lease ?? ((key, work) => new ConversationLock(deps!.redis, 15_000).run(key, work));
   }
 
   async process(id: string, attempt: number): Promise<void> {
