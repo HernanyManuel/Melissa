@@ -6,7 +6,10 @@ import {
   AIAutomaticOutboundDispatcher,
   AIAutomaticOutboundStore,
 } from '../src/ai/ai-outbound-dispatcher';
-import { MessagingProvider } from '../src/channels/messaging-provider';
+import {
+  MessagingDeliveryUnknown,
+  MessagingProvider,
+} from '../src/channels/messaging-provider';
 import { MessagingProviderRegistry } from '../src/channels/messaging-provider-registry';
 
 type RejectReason = 'stale' | 'unauthorized';
@@ -36,6 +39,7 @@ class MemoryStore implements AIAutomaticOutboundStore {
   accepted = 0;
   rejected: RejectReason[] = [];
   failures = 0;
+  unknownDeliveries = 0;
 
   constructor(readonly value: AIAutomaticOutboundClaim) {}
 
@@ -61,6 +65,11 @@ class MemoryStore implements AIAutomaticOutboundStore {
 
   recordFailure() {
     this.failures += 1;
+    return Promise.resolve();
+  }
+
+  recordUnknownDelivery() {
+    this.unknownDeliveries += 1;
     return Promise.resolve();
   }
 }
@@ -123,3 +132,22 @@ test('automatic outbound fails closed without live provider', async () => {
   assert.equal(store.accepted, 0);
   assert.equal(store.failures, 1);
 });
+
+test('ambiguous live delivery is terminal instead of automatically retried', async () => {
+  const value = claim();
+  const store = new MemoryStore(value);
+  const provider: MessagingProvider = {
+    key: 'whatsapp:live',
+    sendText: async () => {
+      throw new MessagingDeliveryUnknown();
+    },
+  };
+  const dispatcher = new AIAutomaticOutboundDispatcher(store, registry(provider), undefined, lease);
+  await assert.rejects(
+    () => dispatcher.process(value.id, 0),
+    /Automatic outbound processing failed/,
+  );
+  assert.equal(store.failures, 0);
+  assert.equal(store.unknownDeliveries, 1);
+}
+);
