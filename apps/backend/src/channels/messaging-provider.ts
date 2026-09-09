@@ -3,6 +3,10 @@ export interface OutboundText {
   attemptId: string;
   /** Provider-scoped recipient reference; never log or return it to frontend clients. */
   recipientReference: string;
+  /** Optional server-owned sender/account reference required by some live adapters. */
+  senderReference?: string;
+  /** Optional server-owned secret-manager reference; never a raw credential. */
+  credentialsReference?: string;
   text: string;
 }
 
