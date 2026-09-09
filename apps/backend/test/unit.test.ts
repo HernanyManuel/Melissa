@@ -3,6 +3,7 @@ import './whatsapp-inbound.test';
 import './quarantine-policy.test';
 import './receipt-state.test';
 import './messaging-provider.test';
+import './whatsapp-cloud-messaging-provider.test';
 import './storage-provider.test';
 import './media-ingestor.test';
 import './whatsapp-media-source.test';
