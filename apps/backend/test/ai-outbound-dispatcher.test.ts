@@ -149,5 +149,4 @@ test('ambiguous live delivery is terminal instead of automatically retried', asy
   );
   assert.equal(store.failures, 0);
   assert.equal(store.unknownDeliveries, 1);
-}
-);
+});
