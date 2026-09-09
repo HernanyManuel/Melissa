@@ -20,6 +20,7 @@ import './conversation-state.test';
 import './conversation-engine.test';
 import './ai-turn-ledger.test';
 import './conversation-turn-coordinator.test';
+import './ai-outbound-dispatcher.test';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
