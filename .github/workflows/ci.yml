@@ -45,8 +45,11 @@ jobs:
           version: 11.25.0
       - name: Verify package manager version
         run: test "$(pnpm --version)" = "11.25.0"
-      - name: Install locked dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Print security lockfile update
+        run: |
+          pnpm install --no-frozen-lockfile
+          git diff -- pnpm-lock.yaml
+          exit 1
       - run: pnpm db:generate
       - name: Provision non-owner application role and migrate
         run: |
