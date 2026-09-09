@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
-import { MessagingProvider } from '../src/channels/messaging-provider';
-import { MessagingProviderRegistry } from '../src/channels/messaging-provider-registry';
 import {
   AIAutomaticOutboundClaim,
   AIAutomaticOutboundDispatcher,
   AIAutomaticOutboundStore,
 } from '../src/ai/ai-outbound-dispatcher';
+import { MessagingProvider } from '../src/channels/messaging-provider';
+import { MessagingProviderRegistry } from '../src/channels/messaging-provider-registry';
+
+type RejectReason = 'stale' | 'unauthorized';
+type AssertOwned = () => Promise<void>;
+type LeaseWork = (assertOwned: AssertOwned) => Promise<void>;
 
 const claim = (): AIAutomaticOutboundClaim => ({
   id: randomUUID(),
@@ -18,46 +22,57 @@ const claim = (): AIAutomaticOutboundClaim => ({
   attempt: 0,
   recipientReference: '+351910000000',
   text: 'Olá',
-  channel: { mode: 'live', channelType: 'whatsapp', status: 'active' },
+  channel: {
+    mode: 'live',
+    channelType: 'whatsapp',
+    status: 'active',
+  },
 });
 
 class MemoryStore implements AIAutomaticOutboundStore {
   current = true;
   accepted = 0;
-  rejected: string[] = [];
+  rejected: RejectReason[] = [];
   failures = 0;
+
   constructor(readonly value: AIAutomaticOutboundClaim) {}
+
   claim(id: string, attempt: number) {
-    return Promise.resolve(
-      id === this.value.id && attempt === this.value.attempt ? this.value : null,
-    );
+    if (id !== this.value.id) return Promise.resolve(null);
+    if (attempt !== this.value.attempt) return Promise.resolve(null);
+    return Promise.resolve(this.value);
   }
+
   isCurrent() {
     return Promise.resolve(this.current);
   }
-  reject(_claim: AIAutomaticOutboundClaim, reason: 'stale' | 'unauthorized') {
+
+  reject(_claim: AIAutomaticOutboundClaim, reason: RejectReason) {
     this.rejected.push(reason);
     return Promise.resolve();
   }
+
   accept() {
     this.accepted += 1;
     return Promise.resolve();
   }
+
   recordFailure() {
     this.failures += 1;
     return Promise.resolve();
   }
 }
 
-const lease = async (
-  _key: string,
-  work: (assertOwned: () => Promise<void>) => Promise<void>,
-) => {
+const lease = async (_key: string, work: LeaseWork) => {
   await work(async () => undefined);
   return true;
 };
 
-test('automatic outbound rechecks fencing immediately before provider effect', async () => {
+const registry = (provider?: MessagingProvider) => {
+  return new MessagingProviderRegistry(provider ? [provider] : []);
+};
+
+test('automatic outbound rechecks fencing before provider effect', async () => {
   const value = claim();
   const store = new MemoryStore(value);
   let checks = 0;
@@ -72,7 +87,7 @@ test('automatic outbound rechecks fencing immediately before provider effect', a
   };
   const dispatcher = new AIAutomaticOutboundDispatcher(
     store,
-    new MessagingProviderRegistry([provider]),
+    registry(provider),
     undefined,
     lease,
   );
@@ -82,7 +97,7 @@ test('automatic outbound rechecks fencing immediately before provider effect', a
   assert.equal(store.accepted, 0);
 });
 
-test('automatic outbound accepts only after a valid provider receipt', async () => {
+test('automatic outbound accepts only after valid receipt', async () => {
   const value = claim();
   const store = new MemoryStore(value);
   const provider: MessagingProvider = {
@@ -96,7 +111,7 @@ test('automatic outbound accepts only after a valid provider receipt', async () 
   };
   const dispatcher = new AIAutomaticOutboundDispatcher(
     store,
-    new MessagingProviderRegistry([provider]),
+    registry(provider),
     undefined,
     lease,
   );
@@ -105,19 +120,17 @@ test('automatic outbound accepts only after a valid provider receipt', async () 
   assert.equal(store.failures, 0);
 });
 
-test('automatic outbound fails closed without a live provider', async () => {
+test('automatic outbound fails closed without live provider', async () => {
   const value = claim();
   const store = new MemoryStore(value);
   const dispatcher = new AIAutomaticOutboundDispatcher(
     store,
-    new MessagingProviderRegistry([]),
+    registry(),
     undefined,
     lease,
   );
-  await assert.rejects(
-    () => dispatcher.process(value.id, 0),
-    /Automatic outbound processing failed/,
-  );
+  const run = () => dispatcher.process(value.id, 0);
+  await assert.rejects(run, /Automatic outbound processing failed/);
   assert.equal(store.accepted, 0);
   assert.equal(store.failures, 1);
 });
