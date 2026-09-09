@@ -28,7 +28,9 @@ class MemoryStore implements AIAutomaticOutboundStore {
   failures = 0;
   constructor(readonly value: AIAutomaticOutboundClaim) {}
   claim(id: string, attempt: number) {
-    return Promise.resolve(id === this.value.id && attempt === this.value.attempt ? this.value : null);
+    return Promise.resolve(
+      id === this.value.id && attempt === this.value.attempt ? this.value : null,
+    );
   }
   isCurrent() {
     return Promise.resolve(this.current);
@@ -112,7 +114,10 @@ test('automatic outbound fails closed without a live provider', async () => {
     undefined,
     lease,
   );
-  await assert.rejects(() => dispatcher.process(value.id, 0), /Automatic outbound processing failed/);
+  await assert.rejects(
+    () => dispatcher.process(value.id, 0),
+    /Automatic outbound processing failed/,
+  );
   assert.equal(store.accepted, 0);
   assert.equal(store.failures, 1);
 });
