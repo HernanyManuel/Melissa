@@ -33,3 +33,11 @@ export class MessagingProviderUnavailable extends Error {
     this.name = 'MessagingProviderUnavailable';
   }
 }
+
+/** The external request may have been accepted; automatic retry could duplicate a message. */
+export class MessagingDeliveryUnknown extends Error {
+  constructor() {
+    super('Messaging delivery outcome is unknown');
+    this.name = 'MessagingDeliveryUnknown';
+  }
+}
