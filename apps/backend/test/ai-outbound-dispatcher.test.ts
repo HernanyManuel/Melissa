@@ -21,6 +21,8 @@ const claim = (): AIAutomaticOutboundClaim => ({
   modeEpoch: 3n,
   attempt: 0,
   recipientReference: '+351910000000',
+  senderReference: '123456789012345',
+  credentialsReference: 'secret://tenant/channel/whatsapp',
   text: 'Olá',
   channel: {
     mode: 'live',
@@ -100,6 +102,8 @@ test('automatic outbound accepts only after valid receipt', async () => {
     sendText: async (input) => {
       assert.equal(input.attemptId, value.id);
       assert.equal(input.recipientReference, value.recipientReference);
+      assert.equal(input.senderReference, value.senderReference);
+      assert.equal(input.credentialsReference, value.credentialsReference);
       assert.equal(input.text, value.text);
       return { providerMessageId: 'provider-2', acceptedAt: new Date() };
     },
