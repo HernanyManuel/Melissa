@@ -56,6 +56,11 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
+      - name: Print Prettier diff for AI dispatcher
+        run: |
+          pnpm format
+          git diff -- apps/backend/src/ai/ai-outbound-dispatcher.ts apps/backend/test/ai-outbound-dispatcher.test.ts
+          exit 1
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
