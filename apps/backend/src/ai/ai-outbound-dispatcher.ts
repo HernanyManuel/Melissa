@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { isUUID } from 'class-validator';
+import { MessagingDeliveryUnknown } from '../channels/messaging-provider';
 import { MessagingProviderRegistry } from '../channels/messaging-provider-registry';
 import { ProviderChannel } from '../channels/messaging-provider-registry';
 import { Dependencies } from '../dependencies';
@@ -53,6 +54,7 @@ export interface AIAutomaticOutboundStore {
   reject(claim: AIAutomaticOutboundClaim, reason: RejectReason): Promise<void>;
   accept(claim: AIAutomaticOutboundClaim): Promise<void>;
   recordFailure(claim: AIAutomaticOutboundClaim): Promise<void>;
+  recordUnknownDelivery(claim: AIAutomaticOutboundClaim): Promise<void>;
 }
 
 export type AIAutomaticOutboundLease = (key: string, work: LeaseWork) => Promise<boolean>;
@@ -158,9 +160,7 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
         SELECT state, attempts FROM ai_outbound_dispatch
         WHERE tenant_id=${claim.tenantId}::uuid
           AND id=${claim.id}::uuid FOR UPDATE`;
-      if (!current) return;
-      if (current.state !== 'pending') return;
-      if (current.attempts !== claim.attempt) return;
+      if (!current || current.state !== 'pending' || current.attempts !== claim.attempt) return;
       const attempts = claim.attempt + 1;
       const terminal = attempts >= 5;
       const state = terminal ? 'failed' : 'pending';
@@ -172,6 +172,17 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
         WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid`;
       const action = terminal ? 'ai.outbound_failed' : 'ai.outbound_retry';
       await this.audit(tx, claim, action);
+    });
+  }
+
+  recordUnknownDelivery(claim: AIAutomaticOutboundClaim): Promise<void> {
+    return this.scoped(claim.tenantId, async (tx) => {
+      const updated = await tx.$executeRaw`
+        UPDATE ai_outbound_dispatch
+        SET attempts=${claim.attempt + 1}, state='failed'
+        WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid
+          AND state='pending' AND attempts=${claim.attempt}`;
+      if (updated === 1) await this.audit(tx, claim, 'ai.outbound_delivery_unknown');
     });
   }
 
@@ -284,8 +295,9 @@ export class AIAutomaticOutboundDispatcher {
         });
         if (!this.validReceipt(delivery)) throw new Error('Invalid receipt');
         await this.store.accept(claim);
-      } catch {
-        await this.store.recordFailure(claim);
+      } catch (error) {
+        if (error instanceof MessagingDeliveryUnknown) await this.store.recordUnknownDelivery(claim);
+        else await this.store.recordFailure(claim);
         throw new AIAutomaticOutboundFailed();
       }
     });
