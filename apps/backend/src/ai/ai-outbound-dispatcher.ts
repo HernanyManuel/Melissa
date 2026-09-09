@@ -22,6 +22,8 @@ interface DispatchRow {
   nextAttemptAt: Date;
   text: string;
   recipientReference: string;
+  senderReference: string;
+  credentialsReference: string | null;
   conversationMode: string;
   currentModeEpoch: bigint;
   conversationStatus: string;
@@ -39,6 +41,8 @@ export interface AIAutomaticOutboundClaim {
   modeEpoch: bigint;
   attempt: number;
   recipientReference: string;
+  senderReference: string;
+  credentialsReference: string | null;
   text: string;
   channel: ProviderChannel;
 }
@@ -83,6 +87,8 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
           i.customer_id AS "customerId", i.mode_epoch AS "modeEpoch",
           d.attempts, d.state, d.next_attempt_at AS "nextAttemptAt",
           i.content_text AS text, cu.phone_e164 AS "recipientReference",
+          ch.external_phone_id AS "senderReference",
+          ch.credentials_reference AS "credentialsReference",
           c.mode AS "conversationMode", c.mode_epoch AS "currentModeEpoch",
           c.status AS "conversationStatus", cu.deleted_at AS "customerDeletedAt",
           ch.channel_type AS "channelType", ch.mode AS "channelMode",
@@ -125,6 +131,8 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
             AND c.status NOT IN ('closed','archived')
             AND cu.deleted_at IS NULL
             AND ch.mode='live' AND ch.status='active'
+            AND ch.external_phone_id=${claim.senderReference}
+            AND ch.credentials_reference IS NOT DISTINCT FROM ${claim.credentialsReference}
         ) AS current`;
       return row?.current === true;
     });
@@ -180,7 +188,12 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
     if (['closed', 'archived'].includes(row.conversationStatus)) return false;
     if (row.customerDeletedAt !== null) return false;
     if (row.channelMode !== 'live') return false;
-    return row.channelStatus === 'active';
+    if (row.channelStatus !== 'active') return false;
+    if (row.channelType === 'whatsapp') {
+      if (!row.senderReference.trim()) return false;
+      if (!row.credentialsReference?.trim()) return false;
+    }
+    return true;
   }
 
   private toClaim(row: DispatchRow): AIAutomaticOutboundClaim {
@@ -192,6 +205,8 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
       modeEpoch: row.modeEpoch,
       attempt: row.attempts,
       recipientReference: row.recipientReference,
+      senderReference: row.senderReference,
+      credentialsReference: row.credentialsReference,
       text: row.text,
       channel: {
         mode: row.channelMode,
@@ -261,6 +276,10 @@ export class AIAutomaticOutboundDispatcher {
         const delivery = await provider.sendText({
           attemptId: claim.id,
           recipientReference: claim.recipientReference,
+          senderReference: claim.senderReference,
+          ...(claim.credentialsReference
+            ? { credentialsReference: claim.credentialsReference }
+            : {}),
           text: claim.text,
         });
         if (!this.validReceipt(delivery)) throw new Error('Invalid receipt');
