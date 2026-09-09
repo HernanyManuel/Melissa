@@ -51,10 +51,7 @@ export interface AIAutomaticOutboundStore {
   recordFailure(claim: AIAutomaticOutboundClaim): Promise<void>;
 }
 
-export type AIAutomaticOutboundLease = (
-  key: string,
-  work: LeaseWork,
-) => Promise<boolean>;
+export type AIAutomaticOutboundLease = (key: string, work: LeaseWork) => Promise<boolean>;
 
 export class AIAutomaticOutboundFailed extends Error {
   constructor() {
@@ -134,9 +131,7 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
   }
 
   reject(claim: AIAutomaticOutboundClaim, reason: RejectReason): Promise<void> {
-    return this.scoped(claim.tenantId, (tx) =>
-      this.rejectInTransaction(tx, claim, reason),
-    );
+    return this.scoped(claim.tenantId, (tx) => this.rejectInTransaction(tx, claim, reason));
   }
 
   accept(claim: AIAutomaticOutboundClaim): Promise<void> {
