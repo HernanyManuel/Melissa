@@ -81,6 +81,7 @@ export class PrismaAITurnDispatchStore implements AITurnDispatchStore {
         FROM ai_turn_dispatch d
         JOIN ai_turn_intents i ON i.tenant_id=d.tenant_id AND i.id=d.id
         JOIN conversations c ON c.tenant_id=i.tenant_id AND c.id=i.conversation_id
+          AND c.customer_id=i.customer_id
         JOIN customers cu ON cu.tenant_id=i.tenant_id AND cu.id=i.customer_id
         JOIN channel_connections ch ON ch.tenant_id=c.tenant_id AND ch.id=c.channel_connection_id
         WHERE d.tenant_id=${route.tenantId}::uuid AND d.id=${id}::uuid`;
