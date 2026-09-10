@@ -247,7 +247,7 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
     await tx.$executeRaw`
       INSERT INTO audit_events
         (tenant_id, actor_id, actor_type, action, target_id)
-      VALUES (${claim.tenantId}::uuid, NULL, 'ai', ${action}, ${claim.id}::uuid)`;
+      VALUES (${claim.tenantId}::uuid, NULL, 'system', ${action}, ${claim.id}::uuid)`;
   }
 }
 
