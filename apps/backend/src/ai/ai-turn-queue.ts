@@ -8,10 +8,7 @@ export interface AITurnJobProcessor {
   process(id: string, attempt: number): Promise<void>;
 }
 
-export function isAITurnJob(
-  name: string,
-  data: unknown,
-): data is { id: string; attempt: number } {
+export function isAITurnJob(name: string, data: unknown): data is { id: string; attempt: number } {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
   const value = data as Record<string, unknown>;
   return (
