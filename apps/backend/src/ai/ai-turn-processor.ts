@@ -56,6 +56,7 @@ export class PrismaAITurnDispatchStore implements AITurnDispatchStore {
           tenantId: string;
           conversationId: string;
           customerId: string;
+          conversationCustomerId: string;
           modeEpoch: bigint;
           stateVersion: bigint;
           attempts: number;
@@ -72,8 +73,8 @@ export class PrismaAITurnDispatchStore implements AITurnDispatchStore {
         }>
       >`
         SELECT d.id, d.tenant_id AS "tenantId", i.conversation_id AS "conversationId",
-          i.customer_id AS "customerId", i.mode_epoch AS "modeEpoch",
-          i.state_version AS "stateVersion", d.attempts, d.state,
+          i.customer_id AS "customerId", c.customer_id AS "conversationCustomerId",
+          i.mode_epoch AS "modeEpoch", i.state_version AS "stateVersion", d.attempts, d.state,
           d.next_attempt_at AS "nextAttemptAt", c.mode AS "conversationMode",
           c.mode_epoch AS "currentModeEpoch", c.state_version AS "currentStateVersion",
           c.status AS "conversationStatus", cu.deleted_at AS "customerDeletedAt",
@@ -81,7 +82,6 @@ export class PrismaAITurnDispatchStore implements AITurnDispatchStore {
         FROM ai_turn_dispatch d
         JOIN ai_turn_intents i ON i.tenant_id=d.tenant_id AND i.id=d.id
         JOIN conversations c ON c.tenant_id=i.tenant_id AND c.id=i.conversation_id
-          AND c.customer_id=i.customer_id
         JOIN customers cu ON cu.tenant_id=i.tenant_id AND cu.id=i.customer_id
         JOIN channel_connections ch ON ch.tenant_id=c.tenant_id AND ch.id=c.channel_connection_id
         WHERE d.tenant_id=${route.tenantId}::uuid AND d.id=${id}::uuid`;
@@ -97,6 +97,7 @@ export class PrismaAITurnDispatchStore implements AITurnDispatchStore {
         attempt: row.attempts,
       };
       const authorized =
+        row.conversationCustomerId === row.customerId &&
         row.conversationMode === 'AI_ACTIVE' &&
         row.currentModeEpoch === row.modeEpoch &&
         row.currentStateVersion === row.stateVersion &&
