@@ -14,6 +14,8 @@ export interface AIAutomaticOutboundRuntimeOptions {
   secretResolver: SecretResolver;
 }
 
+type QueueStarter = typeof startAIAutomaticOutboundQueue;
+
 /**
  * Composes the live automatic outbound runtime only when a real secret resolver
  * has already been supplied by the server bootstrap. Construction performs no
@@ -22,6 +24,7 @@ export interface AIAutomaticOutboundRuntimeOptions {
 export async function startAIAutomaticOutboundRuntime(
   deps: Dependencies,
   options: AIAutomaticOutboundRuntimeOptions,
+  startQueue: QueueStarter = startAIAutomaticOutboundQueue,
 ): Promise<() => Promise<void>> {
   const provider = new WhatsAppCloudMessagingProvider(
     options.secretResolver,
@@ -33,5 +36,5 @@ export async function startAIAutomaticOutboundRuntime(
     registry,
     deps,
   );
-  return startAIAutomaticOutboundQueue(deps, options.redisUrl, dispatcher);
+  return startQueue(deps, options.redisUrl, dispatcher);
 }
