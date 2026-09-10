@@ -1,5 +1,5 @@
 import { readFile, realpath, stat } from 'node:fs/promises';
-import { isAbsolute, join, sep } from 'node:path';
+import { dirname, isAbsolute, join, sep } from 'node:path';
 import { SecretResolver, SecretUnavailable, validateSecretReference } from './secret-resolver';
 
 const REFERENCE = /^secret:\/\/([a-zA-Z0-9_-]{1,128}(?:\/[a-zA-Z0-9_-]{1,128}){0,7})$/;
@@ -17,6 +17,7 @@ export class MountedFileSecretResolver implements SecretResolver {
     if (!isAbsolute(root) || root !== root.trim()) throw new SecretUnavailable();
     try {
       const canonical = await realpath(root);
+      if (dirname(canonical) === canonical) throw new SecretUnavailable();
       const metadata = await stat(canonical);
       if (!metadata.isDirectory()) throw new SecretUnavailable();
       return new MountedFileSecretResolver(canonical);
@@ -27,10 +28,10 @@ export class MountedFileSecretResolver implements SecretResolver {
 
   async resolve(reference: string): Promise<string> {
     const validated = validateSecretReference(reference);
-    const match = REFERENCE.exec(validated);
-    if (!match) throw new SecretUnavailable();
+    const relativePath = REFERENCE.exec(validated)?.[1];
+    if (!relativePath) throw new SecretUnavailable();
     try {
-      const target = join(this.root, ...match[1].split('/'));
+      const target = join(this.root, ...relativePath.split('/'));
       const canonical = await realpath(target);
       if (!canonical.startsWith(`${this.root}${sep}`)) throw new SecretUnavailable();
       const metadata = await stat(canonical);
