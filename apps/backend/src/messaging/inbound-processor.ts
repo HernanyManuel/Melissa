@@ -159,7 +159,7 @@ export class InboundProcessor {
               data: {
                 tenantId,
                 actorId: null,
-                actorType: 'ai',
+                actorType: 'system',
                 action: 'ai.turn_queued',
                 targetId: queued[0]!.id,
               },
