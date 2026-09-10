@@ -296,7 +296,8 @@ export class AIAutomaticOutboundDispatcher {
         if (!this.validReceipt(delivery)) throw new Error('Invalid receipt');
         await this.store.accept(claim);
       } catch (error) {
-        if (error instanceof MessagingDeliveryUnknown) await this.store.recordUnknownDelivery(claim);
+        if (error instanceof MessagingDeliveryUnknown)
+          await this.store.recordUnknownDelivery(claim);
         else await this.store.recordFailure(claim);
         throw new AIAutomaticOutboundFailed();
       }
