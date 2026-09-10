@@ -140,7 +140,8 @@ export class PrismaAITurnDispatchStore implements AITurnDispatchStore {
       const [turn] = await tx.$queryRaw<Array<{ status: string }>>`
         SELECT status FROM ai_turns
         WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid`;
-      if (!turn || turn.status === 'running') {
+      if (!turn) throw new AITurnProcessingFailed();
+      if (turn.status === 'running') {
         await tx.$executeRaw`
           UPDATE ai_turn_dispatch SET next_attempt_at=${new Date(Date.now() + 1000)}
           WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid
