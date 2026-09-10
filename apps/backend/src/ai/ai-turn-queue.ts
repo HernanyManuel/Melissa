@@ -67,7 +67,12 @@ export async function startAITurnQueue(
         LIMIT 50`;
       for (const item of pending) {
         if (stopping) break;
-        if (!isUUID(item.id) || !Number.isInteger(item.attempts) || item.attempts < 0 || item.attempts >= 5)
+        if (
+          !isUUID(item.id) ||
+          !Number.isInteger(item.attempts) ||
+          item.attempts < 0 ||
+          item.attempts >= 5
+        )
           continue;
         await queue.add(
           'ai-conversation-turn',
