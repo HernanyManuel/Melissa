@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, parse } from 'node:path';
 import { test } from 'node:test';
 import { MountedFileSecretResolver } from '../src/secrets/mounted-file-secret-resolver';
 import { SecretUnavailable } from '../src/secrets/secret-resolver';
@@ -39,4 +39,9 @@ test('mounted secret resolver rejects missing, oversized or control-bearing mate
   await assert.rejects(() => resolver.resolve('secret://missing'), SecretUnavailable);
   await assert.rejects(() => resolver.resolve('secret://newline'), SecretUnavailable);
   await assert.rejects(() => resolver.resolve('secret://large'), SecretUnavailable);
+});
+
+test('mounted secret resolver rejects a filesystem root as its secret mount', async () => {
+  const filesystemRoot = parse(tmpdir()).root;
+  await assert.rejects(() => MountedFileSecretResolver.create(filesystemRoot), SecretUnavailable);
 });
