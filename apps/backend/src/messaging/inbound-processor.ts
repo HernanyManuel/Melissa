@@ -127,6 +127,44 @@ export class InboundProcessor {
             batchId: input.batchId,
           },
         });
+        if (
+          input.origin === 'whatsapp' &&
+          input.batchId &&
+          channel.channelType === 'whatsapp' &&
+          channel.mode === 'live' &&
+          conversation.mode === 'AI_ACTIVE'
+        ) {
+          const queued = await tx.$queryRaw<{ id: string }[]>`
+            WITH intent AS (
+              INSERT INTO ai_turn_intents
+                (tenant_id, batch_id, conversation_id, customer_id, mode_epoch, state_version)
+              VALUES (
+                ${tenantId}::uuid,
+                ${input.batchId}::uuid,
+                ${conversation.id}::uuid,
+                ${customer.id}::uuid,
+                ${conversation.modeEpoch},
+                ${conversation.stateVersion}
+              )
+              ON CONFLICT (tenant_id, batch_id) DO NOTHING
+              RETURNING id
+            ), dispatch AS (
+              INSERT INTO ai_turn_dispatch (id, tenant_id)
+              SELECT id, ${tenantId}::uuid FROM intent
+              RETURNING id
+            )
+            SELECT id FROM dispatch`;
+          if (queued.length === 1)
+            await tx.auditEvent.create({
+              data: {
+                tenantId,
+                actorId: null,
+                actorType: 'ai',
+                action: 'ai.turn_queued',
+                targetId: queued[0]!.id,
+              },
+            });
+        }
         await tx.externalEvent.update({
           where: { tenantId_id: { tenantId, id } },
           data: { processedAt: new Date() },
