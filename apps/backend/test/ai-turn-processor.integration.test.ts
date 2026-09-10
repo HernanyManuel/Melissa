@@ -166,6 +166,62 @@ test(
       const [staleVersion] = await admin.$queryRaw<Array<{ state: string }>>`
         SELECT state FROM ai_turn_dispatch WHERE id=${staleVersionId}::uuid`;
       assert.equal(staleVersion?.state, 'rejected');
+
+      const replayCases = [
+        { status: 'completed', dispatch: 'processed', action: 'ai.turn_processed' },
+        { status: 'handoff_required', dispatch: 'processed', action: 'ai.turn_processed' },
+        { status: 'stale', dispatch: 'rejected', action: 'ai.turn_rejected' },
+        { status: 'failed', dispatch: 'failed', action: 'ai.turn_failed' },
+      ] as const;
+      for (const replay of replayCases) {
+        const id = await createIntent(customerId);
+        await admin.$executeRaw`
+          INSERT INTO ai_turns
+            (tenant_id, id, conversation_id, customer_id, mode_epoch, state_version,
+             status, failure_code, completed_at)
+          VALUES (
+            ${tenantId}::uuid, ${id}::uuid, ${conversationId}::uuid, ${customerId}::uuid,
+            4, 2, ${replay.status},
+            ${replay.status === 'failed' || replay.status === 'stale' ? 'replay_terminal' : null},
+            CURRENT_TIMESTAMP
+          )`;
+        const claim = await store.claim(id, 0);
+        assert(claim);
+        await store.settleFinished(claim);
+        const [dispatch] = await admin.$queryRaw<Array<{ state: string; attempts: number }>>`
+          SELECT state, attempts FROM ai_turn_dispatch WHERE id=${id}::uuid`;
+        assert.deepEqual(dispatch, { state: replay.dispatch, attempts: 0 });
+        assert.equal(
+          await admin.auditEvent.count({
+            where: { tenantId, targetId: id, action: replay.action },
+          }),
+          1,
+        );
+      }
+
+      const runningId = await createIntent(customerId);
+      await admin.$executeRaw`
+        INSERT INTO ai_turns
+          (tenant_id, id, conversation_id, customer_id, mode_epoch, state_version)
+        VALUES (
+          ${tenantId}::uuid, ${runningId}::uuid, ${conversationId}::uuid,
+          ${customerId}::uuid, 4, 2
+        )`;
+      const runningClaim = await store.claim(runningId, 0);
+      assert(runningClaim);
+      await store.settleFinished(runningClaim);
+      const [running] = await admin.$queryRaw<
+        Array<{ state: string; attempts: number; nextAttemptAt: Date }>
+      >`
+        SELECT state, attempts, next_attempt_at AS "nextAttemptAt"
+        FROM ai_turn_dispatch WHERE id=${runningId}::uuid`;
+      assert.equal(running?.state, 'pending');
+      assert.equal(running?.attempts, 0);
+      assert(running && running.nextAttemptAt > new Date(Date.now() - 500));
+      assert.equal(
+        await admin.auditEvent.count({ where: { tenantId, targetId: runningId } }),
+        0,
+      );
     } finally {
       await deps.onModuleDestroy();
       await admin.$disconnect();
