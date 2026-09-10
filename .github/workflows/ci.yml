@@ -56,7 +56,11 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
-      - run: pnpm format:check
+      - name: Diagnose Prettier output
+        run: |
+          pnpm exec prettier --write apps/backend/src/ai/ai-outbound-dispatcher.ts apps/backend/test/ai-outbound-dispatcher.test.ts apps/backend/test/whatsapp-cloud-messaging-provider.test.ts
+          git diff -- apps/backend/src/ai/ai-outbound-dispatcher.ts apps/backend/test/ai-outbound-dispatcher.test.ts apps/backend/test/whatsapp-cloud-messaging-provider.test.ts
+          exit 1
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
