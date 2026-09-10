@@ -182,7 +182,11 @@ test(
           VALUES (
             ${tenantId}::uuid, ${id}::uuid, ${conversationId}::uuid, ${customerId}::uuid,
             4, 2, ${replay.status},
-            ${replay.status === 'failed' || replay.status === 'stale' ? 'replay_terminal' : null},
+            ${
+              replay.status === 'failed' || replay.status === 'stale'
+                ? 'replay_terminal'
+                : null
+            },
             CURRENT_TIMESTAMP
           )`;
         const claim = await store.claim(id, 0);
