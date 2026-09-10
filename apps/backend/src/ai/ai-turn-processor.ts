@@ -85,7 +85,12 @@ export class PrismaAITurnDispatchStore implements AITurnDispatchStore {
         JOIN customers cu ON cu.tenant_id=i.tenant_id AND cu.id=i.customer_id
         JOIN channel_connections ch ON ch.tenant_id=c.tenant_id AND ch.id=c.channel_connection_id
         WHERE d.tenant_id=${route.tenantId}::uuid AND d.id=${id}::uuid`;
-      if (!row || row.state !== 'pending' || row.attempts !== attempt || row.nextAttemptAt > new Date())
+      if (
+        !row ||
+        row.state !== 'pending' ||
+        row.attempts !== attempt ||
+        row.nextAttemptAt > new Date()
+      )
         return null;
       const claim: AITurnClaim = {
         id: row.id,
@@ -152,8 +157,7 @@ export class PrismaAITurnDispatchStore implements AITurnDispatchStore {
         await this.setState(tx, claim, 'processed', 'ai.turn_processed');
       else if (turn.status === 'stale')
         await this.setState(tx, claim, 'rejected', 'ai.turn_rejected');
-      else if (turn.status === 'failed')
-        await this.setState(tx, claim, 'failed', 'ai.turn_failed');
+      else if (turn.status === 'failed') await this.setState(tx, claim, 'failed', 'ai.turn_failed');
       else throw new AITurnProcessingFailed();
     });
   }
@@ -184,7 +188,11 @@ export class PrismaAITurnDispatchStore implements AITurnDispatchStore {
     });
   }
 
-  private transition(claim: AITurnClaim, state: 'processed' | 'rejected' | 'failed', action: string) {
+  private transition(
+    claim: AITurnClaim,
+    state: 'processed' | 'rejected' | 'failed',
+    action: string,
+  ) {
     return this.scoped(claim.tenantId, (tx) => this.setState(tx, claim, state, action));
   }
 
