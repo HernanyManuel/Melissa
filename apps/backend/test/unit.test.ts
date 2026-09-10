@@ -12,6 +12,7 @@ import './quarantine-keyring.test';
 import './s3-storage-provider.test';
 import './media-ingestion-queue.test';
 import './malware-scanner.test';
+import './mounted-file-secret-resolver.test';
 import './ai-gateway.test';
 import './openai-responses-provider.test';
 import './tool-executor.test';
@@ -101,6 +102,31 @@ test('WhatsApp HTTP is opt-in and requires complete server configuration', () =>
     'true',
   );
 });
+
+test('automatic AI outbound is disabled by default and requires complete secret routing', () => {
+  const config = parseConfig(base);
+  assert.equal(config.AI_OUTBOUND_WORKER_ENABLED, 'false');
+  assert.equal(config.SECRET_PROVIDER, 'disabled');
+  assert.throws(() => parseConfig({ ...base, AI_OUTBOUND_WORKER_ENABLED: 'true' }));
+  assert.throws(() =>
+    parseConfig({
+      ...base,
+      SECRET_PROVIDER: 'mounted-file',
+      SECRET_MOUNT_DIRECTORY: '/run/secrets/melissa',
+      WHATSAPP_MESSAGING_API_VERSION: 'v23.0',
+    }),
+  );
+  const enabled = parseConfig({
+    ...base,
+    SECRET_PROVIDER: 'mounted-file',
+    SECRET_MOUNT_DIRECTORY: '/run/secrets/melissa',
+    AI_OUTBOUND_WORKER_ENABLED: 'true',
+    WHATSAPP_MESSAGING_API_VERSION: 'v23.0',
+  });
+  assert.equal(enabled.AI_OUTBOUND_WORKER_ENABLED, 'true');
+  assert.equal(enabled.SECRET_PROVIDER, 'mounted-file');
+});
+
 test('accepts development settings with explicit defaults', () => {
   const config = parseConfig(base);
   assert.equal(config.PORT, 3000);
