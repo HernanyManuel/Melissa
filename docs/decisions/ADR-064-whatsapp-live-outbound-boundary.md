@@ -27,6 +27,8 @@ A ausência de routing, secret ou provider continua a falhar fechada; nunca exis
 
 Se a falha ocorrer depois de a chamada live poder ter sido iniciada, o adapter lança `MessagingDeliveryUnknown`. O dispatcher trata esse outcome como terminal: `ai_outbound_dispatch` passa para `failed`, incrementa a tentativa e regista `ai.outbound_delivery_unknown`. Não há retry automático desse envelope. Falhas anteriores ao efeito externo continuam sujeitas à política normal de retry.
 
+`startAIAutomaticOutboundRuntime` compõe provider, registry, dispatcher e queue numa única fronteira. A função exige um `SecretResolver` explícito antes de iniciar consumo e recebe a versão Graph e Redis server-side. O queue starter é injetável apenas para teste; no runtime normal usa `startAIAutomaticOutboundQueue`.
+
 ## Consequências
 
 - A identidade de remetente e a referência de credencial são resolvidas da fonte de verdade e voltam a ser verificadas imediatamente antes do envio.
@@ -34,5 +36,6 @@ Se a falha ocorrer depois de a chamada live poder ter sido iniciada, o adapter l
 - Segredos brutos não são persistidos no intent/dispatch e não fazem parte do contrato de queue.
 - Um timeout ou resposta externa ambígua privilegia prevenção de duplicados sobre retry automático.
 - O adapter live é testável com `SecretResolver` e `fetch` injetáveis, sem credenciais reais nem chamadas reais nos testes.
-- Este ADR não ativa envio live: não existe ainda implementação production-grade de `SecretResolver` no bootstrap, e `worker.ts` não inicia `startAIAutomaticOutboundQueue`.
+- A composição falha antes de iniciar queue se a versão do provider for inválida e não inventa um secret backend.
+- Este ADR não ativa envio live: não existe ainda implementação production-grade de `SecretResolver` no bootstrap, e `worker.ts` não chama `startAIAutomaticOutboundRuntime`.
 - A ativação futura deve validar todas as dependências antes de iniciar consumo; configuração incompleta não pode consumir retries de intents pendentes.
