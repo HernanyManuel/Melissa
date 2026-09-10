@@ -39,10 +39,7 @@ test('WhatsApp live transport resolves secret reference and sends fixed Graph re
   const provider = new WhatsAppCloudMessagingProvider(secrets, 'v23.0', 1000, fetcher);
   const delivery = await provider.sendText(input);
   assert.deepEqual(secrets.references, [input.credentialsReference]);
-  assert.equal(
-    seenUrl,
-    'https://graph.facebook.com/v23.0/123456789012345/messages',
-  );
+  assert.equal(seenUrl, 'https://graph.facebook.com/v23.0/123456789012345/messages');
   assert.equal(seenInit?.method, 'POST');
   assert.equal(seenInit?.redirect, 'error');
   assert.equal(
@@ -63,15 +60,10 @@ test('WhatsApp live transport resolves secret reference and sends fixed Graph re
 test('WhatsApp live transport rejects incomplete routing before network', async () => {
   const secrets = new MemorySecrets();
   let calls = 0;
-  const provider = new WhatsAppCloudMessagingProvider(
-    secrets,
-    'v23.0',
-    1000,
-    async () => {
-      calls += 1;
-      return new Response('{}', { status: 200 });
-    },
-  );
+  const provider = new WhatsAppCloudMessagingProvider(secrets, 'v23.0', 1000, async () => {
+    calls += 1;
+    return new Response('{}', { status: 200 });
+  });
   await assert.rejects(
     () => provider.sendText({ ...input, senderReference: '' }),
     MessagingProviderUnavailable,
