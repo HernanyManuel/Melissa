@@ -7,7 +7,10 @@ import {
   AITurnDispatchStore,
   AITurnProcessor,
 } from '../src/ai/ai-turn-processor';
-import { ConversationTurnResult } from '../src/ai/conversation-turn-coordinator';
+import {
+  ConversationTurnRequest,
+  ConversationTurnResult,
+} from '../src/ai/conversation-turn-coordinator';
 
 const claim = (): AITurnClaim => ({
   id: randomUUID(),
@@ -74,7 +77,7 @@ const processor = (store: MemoryStore, result: ConversationTurnResult) =>
 test('turn processor builds trusted live request from server-owned claim and policy', async () => {
   const value = claim();
   const store = new MemoryStore(value);
-  let request;
+  let request: ConversationTurnRequest | undefined;
   const coordinator: AITurnCoordinatorRunner = {
     run: async (input) => {
       request = input;
