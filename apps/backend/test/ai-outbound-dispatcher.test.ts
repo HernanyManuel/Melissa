@@ -6,10 +6,7 @@ import {
   AIAutomaticOutboundDispatcher,
   AIAutomaticOutboundStore,
 } from '../src/ai/ai-outbound-dispatcher';
-import {
-  MessagingDeliveryUnknown,
-  MessagingProvider,
-} from '../src/channels/messaging-provider';
+import { MessagingDeliveryUnknown, MessagingProvider } from '../src/channels/messaging-provider';
 import { MessagingProviderRegistry } from '../src/channels/messaging-provider-registry';
 
 type RejectReason = 'stale' | 'unauthorized';
