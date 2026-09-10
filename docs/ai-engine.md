@@ -4,7 +4,9 @@ Pipeline partilhado por todos os tenants; configuração versionada, contexto m�
 
 ## Estado atual
 
-`AIProvider` define o contrato vendor-neutral de completion. `AIGateway` valida contexto e respostas, limita tool calls e rejeita tools não autorizadas. `MockAIProvider` permite testes sem rede. O adapter opt-in `OpenAIResponsesProvider` traduz o contrato para a Responses API, com timeout, resposta limitada, `store: false`, tools estritas e erros fechados. Ver [ADR-053](decisions/ADR-053-ai-provider-gateway-boundary.md) e [ADR-054](decisions/ADR-054-openai-responses-adapter.md). Ainda não existem execução de tools, persistência de estado, integração com conversas ou UI; nenhuma chamada OpenAI real foi efetuada.
+`AIProvider` define o contrato vendor-neutral de completion. `AIGateway` valida contexto e respostas, limita tool calls e rejeita tools não autorizadas. `MockAIProvider` permite testes sem rede. O adapter opt-in `OpenAIResponsesProvider` traduz o contrato para a Responses API, com timeout, resposta limitada, `store: false`, tools estritas e erros fechados. O provider permanece desligado por omissão e nenhuma credencial real é incluída no repositório. Ver [ADR-053](decisions/ADR-053-ai-provider-gateway-boundary.md) e [ADR-054](decisions/ADR-054-openai-responses-adapter.md).
+
+A Phase 5 já inclui registry/executor de tools, contexto tenant-scoped, state fencing, loop limitado do `ConversationEngine`, ledger exatamente-once, coordenação replay-safe, outbox automática, dispatcher com fence final, fila de dispatch e fronteira de transporte WhatsApp live. Estas peças continuam sem ativação no bootstrap do worker; portanto o código presente não implica inferência ou envio live em execução normal.
 
 ### Configuração do provider
 
@@ -19,7 +21,7 @@ Não existe fallback automático para mock. O endpoint OpenAI é fixo para imped
 
 `ToolRegistry` mantém o catálogo server-side com schema, efeito, capabilities, validator e handler. `ToolExecutor` revalida a resposta do provider, injeta tenant/customer/conversation e modo de execução confiáveis, gera idempotency key por turno/call e devolve somente resultados ou códigos de erro sanitizados. Escritas e handoff exigem suporte declarado a idempotência; execução é sequencial, limitada a oito calls e sujeita a timeout. Ver [ADR-055](decisions/ADR-055-server-owned-tool-registry.md).
 
-O registry/executor ainda não contém os 14 handlers de domínio e não está ligado ao worker de conversações. Portanto, este incremento não permite à IA consultar ou alterar dados reais.
+O registry/executor ainda não contém todos os 14 handlers de domínio e não está ligado ao worker de conversações. Portanto a existência da fronteira não autoriza o modelo a executar operações não registadas.
 
 ### Primeiras tools de leitura
 
@@ -37,19 +39,19 @@ O modo live exige `AI_ACTIVE`; sandbox pode preparar contexto pausado sem ativar
 
 O schema 21 adiciona `mode_epoch` e `state_version` monotónicos às conversas e normaliza o estado para V1. O trigger PostgreSQL incrementa o epoch quando o modo muda e exige incremento exato da versão quando o estado muda. `ConversationStateService` usa compare-and-swap por tenant/conversation/customer, modo ativo, epoch e versão; workers obsoletos falham fechados. Ver [ADR-058](decisions/ADR-058-conversation-state-fencing.md).
 
-O fencing protege commits futuros, mas ainda não existe loop de inferência/outbound. Uma operação externa já aceite não pode ser desfeita apenas pelo epoch; o envio deverá revalidar o modo imediatamente antes do efeito.
+O mesmo princípio é aplicado até ao limite de outbound: o intent guarda o epoch e o dispatcher revalida modo/epoch imediatamente antes do efeito externo. Uma operação já aceite pelo provider não pode ser desfeita apenas pelo epoch; por isso o sistema não promete retirar mensagens que já estejam em trânsito.
 
 ### ConversationEngine
 
 O núcleo executa até quatro rondas e oito tools totais. Cada resposta com tools é reintroduzida no protocolo neutral como pares `tool_call`/`tool_result`; o adapter OpenAI traduz esses pares para itens da Responses API. As tools são sequenciais e o `ConversationFence` revalida tenant/conversation/customer, `AI_ACTIVE` e `mode_epoch` antes/depois da inferência, antes de cada tool e antes do texto final. Limites resultam em `handoff_required`. Ver [ADR-059](decisions/ADR-059-bounded-conversation-engine-loop.md).
 
-O engine ainda é uma biblioteca não ligada ao worker. Não persiste turnos, não cria outbound intents e não muda automaticamente o modo para handoff.
+O engine permanece uma biblioteca sem bootstrap próprio. Persistência/replay são responsabilidade do ledger/coordenador e outbound é responsabilidade da outbox/dispatcher, evitando que o provider ou o loop escrevam diretamente efeitos duráveis.
 
 ### Ledger de turnos e usage
 
 O schema 22 introduz `ai_turns` e `ai_usage_events` com RLS forçada, FKs compostas e finalização transacional exatamente-once. `AITurnLedger` fixa cada `turn_id` a tenant/conversation/customer/epoch/version, distingue replay em curso ou terminado e grava um único evento append-only com provider/model, tokens, resultado, rondas e número de tools. Não guarda prompts, respostas, mensagens nem argumentos/resultados de tools. Ver [ADR-060](decisions/ADR-060-exactly-once-ai-turn-ledger.md).
 
-O ledger ainda não está ligado ao worker; portanto este incremento não inicia inferência nem usage real. Catálogo de pricing versionado, custo monetário, reconciliação de turnos abandonados e integração atómica com state/outbound permanecem pendentes.
+O ledger ainda não é iniciado pelo worker; portanto a configuração normal não inicia inferência nem usage real. Catálogo de pricing versionado, custo monetário e reconciliação de turnos abandonados permanecem pendentes.
 
 ### Coordenação do turno
 
@@ -61,13 +63,23 @@ O coordenador ainda não é iniciado pelo worker. A outbox humana/mock não é r
 
 O schema 23 separa `ai_outbound_intents` da outbox humana e mantém conteúdo apenas na tabela tenant-scoped; `ai_outbound_dispatch` expõe globalmente ao dispatcher só ID, tenant, estado e retry. Para respostas live, finalização do turno, usage, intent e envelope são uma única transação. O commit bloqueia a conversation e revalida modo/epoch; takeover concorrente converte o turno em `stale`, conserva usage e suprime o texto. Ver [ADR-062](decisions/ADR-062-ai-automatic-outbox.md).
 
-Não existe ainda consumidor desta outbox. Portanto nenhum outbound automático é enviado neste incremento.
+`startAIAutomaticOutboundQueue` implementa descoberta PostgreSQL → BullMQ e publica apenas `{id, attempt}`. O job rejeita tenant, conteúdo, destinatário ou campos extra; o dispatcher volta a resolver a verdade no servidor. A fila existe como biblioteca, mas `worker.ts` ainda não a inicia.
+
+### Dispatcher automático e transporte WhatsApp live
+
+`AIAutomaticOutboundDispatcher` usa lease por intent, resolve o tenant pelo envelope persistido e revalida `AI_ACTIVE`, `mode_epoch`, conversation/customer/channel e routing imediatamente antes do efeito externo. `external_phone_id` e `credentials_reference` vêm da `ChannelConnection`; para WhatsApp live são obrigatórios e são novamente comparados no segundo fence. Não existe fallback live → mock. Ver [ADR-063](decisions/ADR-063-fenced-ai-outbound-dispatcher.md) e [ADR-064](decisions/ADR-064-whatsapp-live-outbound-boundary.md).
+
+`WhatsAppCloudMessagingProvider` usa endpoint Graph fixo, versão validada, HTTPS, redirect bloqueado, timeout e resposta limitada. O token não vem da fila nem da BD: `credentials_reference` é opaca e só pode ser resolvida pela interface `SecretResolver` dentro do adapter. A construção do provider não faz rede nem resolve secrets.
+
+Depois de uma chamada live ter potencialmente começado, timeout, non-2xx ou receipt malformado são tratados como `MessagingDeliveryUnknown`. Esse estado é terminal e auditado como `ai.outbound_delivery_unknown`, sem retry automático, porque o sistema não assume idempotência externa e prefere evitar duplicados. Falhas anteriores ao efeito seguem a política de retry normal.
+
+`startAIAutomaticOutboundRuntime` compõe provider, registry, dispatcher e queue apenas quando recebe um `SecretResolver` explícito. Ainda não existe implementação production-grade desse resolver no bootstrap e `worker.ts` não chama esta composição. Logo nenhuma mensagem automática real é enviada pela configuração normal.
 
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 
 ## Ciclo de execução
 
-Carregar tenant/entitlement → adquirir lease da conversa → ler epoch/version e mensagens pendentes → verificar modo → contexto selecionado (regras, resumo, estado e últimas mensagens) → reservar orçamento → provider → validar chamadas → executar tools → produzir resposta → persistir estado, usage e outbound intent → envio assíncrono com nova verificação de modo.
+Carregar tenant/entitlement → adquirir lease da conversa → ler epoch/version e mensagens pendentes → verificar modo → contexto selecionado (regras, resumo, estado e últimas mensagens) → reservar orçamento → provider → validar chamadas → executar tools → produzir resposta → persistir estado, usage e outbound intent → envio assíncrono com nova verificação de modo/routing.
 
 Valores iniciais propostos/configuráveis: debounce 1,5s com janela máxima 5s; até 4 rondas de tool calling, 8 tools totais/turno, timeout total 45s. Enforce server-side, não confiar na configuração do modelo. Exceder limite encaminha para humano e regista motivo. Não manter transação DB aberta durante inferência. Lease renovável com token/fencing; worker que perde lease não pode commitar nova versão.
 
