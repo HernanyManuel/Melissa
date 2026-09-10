@@ -218,10 +218,7 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     result.data.S3_SESSION_TOKEN
   )
     throw new Error('S3 fields require STORAGE_PROVIDER=s3');
-  if (
-    result.data.SECRET_PROVIDER === 'mounted-file' &&
-    !result.data.SECRET_MOUNT_DIRECTORY
-  )
+  if (result.data.SECRET_PROVIDER === 'mounted-file' && !result.data.SECRET_MOUNT_DIRECTORY)
     throw new Error('Mounted secret provider requires a server-side mount directory');
   if (result.data.SECRET_PROVIDER === 'disabled' && result.data.SECRET_MOUNT_DIRECTORY)
     throw new Error('Secret mount directory requires SECRET_PROVIDER=mounted-file');
