@@ -33,7 +33,9 @@ class MemoryStore implements AITurnDispatchStore {
   constructor(readonly value: AITurnClaim) {}
 
   claim(id: string, attempt: number) {
-    return Promise.resolve(id === this.value.id && attempt === this.value.attempt ? this.value : null);
+    return Promise.resolve(
+      id === this.value.id && attempt === this.value.attempt ? this.value : null,
+    );
   }
 
   complete() {
