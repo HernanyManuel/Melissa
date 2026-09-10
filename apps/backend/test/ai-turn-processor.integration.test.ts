@@ -72,6 +72,7 @@ test(
           externalPhoneId: phoneId,
           displayName: 'AI processor channel',
           credentialsReference: 'secret://test/ai-processor',
+          webhookSecretReference: 'secret://test/ai-processor-webhook',
         },
       });
       await admin.customer.createMany({
