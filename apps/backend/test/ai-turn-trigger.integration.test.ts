@@ -150,8 +150,12 @@ test(
 
       await admin.conversation.update({
         where: { tenantId_id: { tenantId, id: conversationId } },
-        data: { mode: 'AI_PAUSED', modeEpoch: 8n },
+        data: { mode: 'AI_PAUSED' },
       });
+      const pausedConversation = await admin.conversation.findUniqueOrThrow({
+        where: { tenantId_id: { tenantId, id: conversationId } },
+      });
+      assert.equal(pausedConversation.modeEpoch, 8n);
       const pausedBatch = await admin.inboundBatch.create({
         data: {
           tenantId,
