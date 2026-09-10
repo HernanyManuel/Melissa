@@ -25,6 +25,11 @@ const schema = z.object({
     .optional()
     .or(z.literal('')),
   WHATSAPP_MEDIA_DOWNLOAD_HOSTS: z.string().max(2048).optional(),
+  WHATSAPP_MESSAGING_API_VERSION: z
+    .string()
+    .regex(/^v[1-9][0-9]*\.[0-9]+$/)
+    .optional()
+    .or(z.literal('')),
   WHATSAPP_QUARANTINE_KEY_ID: z
     .string()
     .regex(/^[a-zA-Z0-9_-]{1,64}$/)
@@ -55,7 +60,10 @@ const schema = z.object({
   S3_ACCESS_KEY_ID: z.string().min(8).max(256).optional().or(z.literal('')),
   S3_SECRET_ACCESS_KEY: z.string().min(16).max(4096).optional().or(z.literal('')),
   S3_SESSION_TOKEN: z.string().min(16).max(8192).optional().or(z.literal('')),
+  SECRET_PROVIDER: z.enum(['disabled', 'mounted-file']).default('disabled'),
+  SECRET_MOUNT_DIRECTORY: z.string().max(1024).optional().or(z.literal('')),
   MEDIA_INGESTION_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
+  AI_OUTBOUND_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   MALWARE_SCANNER: z.enum(['disabled', 'clamav']).default('disabled'),
   CLAMAV_HOST: z
     .string()
@@ -211,6 +219,13 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
   )
     throw new Error('S3 fields require STORAGE_PROVIDER=s3');
   if (
+    result.data.SECRET_PROVIDER === 'mounted-file' &&
+    !result.data.SECRET_MOUNT_DIRECTORY
+  )
+    throw new Error('Mounted secret provider requires a server-side mount directory');
+  if (result.data.SECRET_PROVIDER === 'disabled' && result.data.SECRET_MOUNT_DIRECTORY)
+    throw new Error('Secret mount directory requires SECRET_PROVIDER=mounted-file');
+  if (
     result.data.MEDIA_INGESTION_WORKER_ENABLED === 'true' &&
     (result.data.WHATSAPP_MEDIA_ENABLED !== 'true' ||
       result.data.STORAGE_PROVIDER !== 's3' ||
@@ -223,6 +238,20 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     throw new Error(
       'Media ingestion worker requires transport, storage, quarantine keyring and malware scanner',
     );
+  if (
+    result.data.AI_OUTBOUND_WORKER_ENABLED === 'true' &&
+    (result.data.SECRET_PROVIDER !== 'mounted-file' ||
+      !result.data.SECRET_MOUNT_DIRECTORY ||
+      !result.data.WHATSAPP_MESSAGING_API_VERSION)
+  )
+    throw new Error(
+      'AI outbound worker requires mounted secrets and explicit WhatsApp messaging API version',
+    );
+  if (
+    result.data.AI_OUTBOUND_WORKER_ENABLED === 'false' &&
+    result.data.WHATSAPP_MESSAGING_API_VERSION
+  )
+    throw new Error('WhatsApp messaging API version requires AI_OUTBOUND_WORKER_ENABLED=true');
   if (
     result.data.MALWARE_SCANNER === 'clamav' &&
     (!result.data.CLAMAV_HOST || !result.data.CLAMAV_PORT)
