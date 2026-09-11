@@ -56,11 +56,7 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
-      - name: Diagnose update_customer formatting
-        run: |
-          pnpm exec prettier --write apps/backend/src/ai/update-customer-tool.ts apps/backend/test/update-customer-tool.test.ts
-          git diff -- apps/backend/src/ai/update-customer-tool.ts apps/backend/test/update-customer-tool.test.ts
-          exit 1
+      - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
