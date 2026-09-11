@@ -17,6 +17,7 @@ import './ai-gateway.test';
 import './openai-responses-provider.test';
 import './tool-executor.test';
 import './business-read-tools.test';
+import './available-slots-tool.test';
 import './ai-context-builder.test';
 import './conversation-state.test';
 import './conversation-engine.test';
