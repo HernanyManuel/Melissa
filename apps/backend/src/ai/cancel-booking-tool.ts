@@ -220,7 +220,10 @@ export class PrismaBookingCanceller implements BookingCanceller {
   }
 }
 
-export function registerCancelBookingTool(registry: ToolRegistry, canceller: BookingCanceller): void {
+export function registerCancelBookingTool(
+  registry: ToolRegistry,
+  canceller: BookingCanceller,
+): void {
   registry.register({
     definition: {
       name: 'cancel_booking',
@@ -253,9 +256,7 @@ export function registerCancelBookingTool(registry: ToolRegistry, canceller: Boo
             idempotencyKey: context.idempotencyKey,
             executionMode: context.executionMode,
             bookingId: arguments_.bookingId as string,
-            ...(arguments_.reason === undefined
-              ? {}
-              : { reason: arguments_.reason as string }),
+            ...(arguments_.reason === undefined ? {} : { reason: arguments_.reason as string }),
             confirmed: true,
           },
           signal,
