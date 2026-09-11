@@ -85,7 +85,7 @@ export class BookingEngine {
             staffId: input.staffId,
             serviceId: input.serviceId,
             active: true,
-            staff: { active: true },
+            staff: { is: { active: true } },
           },
           select: { customDurationMinutes: true, staff: { select: { name: true } } },
         });
