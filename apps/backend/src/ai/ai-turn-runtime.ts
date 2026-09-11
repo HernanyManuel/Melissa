@@ -15,6 +15,7 @@ import { PrismaHumanHandoff, registerHumanHandoffTool } from './human-handoff-to
 import { PrismaConversationFence } from './prisma-conversation-fence';
 import { ToolExecutor } from './tool-executor';
 import { ToolRegistry } from './tool-registry';
+import { PrismaCustomerUpdater, registerUpdateCustomerTool } from './update-customer-tool';
 
 const TOOL_CAPABILITIES = [
   'business.info.read',
@@ -22,6 +23,7 @@ const TOOL_CAPABILITIES = [
   'business.hours.read',
   'business.staff.read',
   'conversation.handoff',
+  'customer.profile.write',
 ] as const;
 
 const TOOLS = [
@@ -32,6 +34,7 @@ const TOOLS = [
   'get_business_hours',
   'get_staff',
   'human_handoff',
+  'update_customer',
 ] as const;
 
 type QueueStarter = typeof startAITurnQueue;
@@ -52,6 +55,7 @@ export async function startAITurnRuntime(
   const registry = new ToolRegistry();
   registerBusinessReadTools(registry, new PrismaBusinessToolReader(deps));
   registerHumanHandoffTool(registry, new PrismaHumanHandoff(deps));
+  registerUpdateCustomerTool(registry, new PrismaCustomerUpdater(deps));
   const executor = new ToolExecutor(registry);
   const engine = new ConversationEngine(
     new AIGateway(provider),
