@@ -20,3 +20,4 @@ Propostas documentadas para revisão; aceitação é registada no PR, substitui�
 - [ADR-071 — Disponibilidade de reservas server-owned e timezone-aware](ADR-071-booking-availability-tool.md)
 - [ADR-072 — Criação de booking confirmada, fenced e idempotente pela IA](ADR-072-fenced-ai-booking-creation.md)
 - [ADR-073 — Leitura de booking customer-scoped pela IA](ADR-073-customer-scoped-booking-read.md)
+- [ADR-074 — Cancelamento de booking confirmado, fenced e idempotente pela IA](ADR-074-fenced-ai-booking-cancellation.md)
