@@ -13,6 +13,21 @@ type CustomerPatch = {
   language?: Language;
 };
 
+export interface CustomerUpdateRequest {
+  tenantId: string;
+  conversationId: string;
+  customerId: string;
+  turnId: string;
+  expectedModeEpoch: bigint;
+  idempotencyKey: string;
+  executionMode: 'live' | 'sandbox';
+  patch: CustomerPatch;
+}
+
+export interface CustomerUpdater {
+  update(input: CustomerUpdateRequest, signal: AbortSignal): Promise<JsonValue>;
+}
+
 interface ExistingUpdate {
   conversation_id: string;
   customer_id: string;
@@ -63,22 +78,10 @@ function patchHash(patch: Readonly<CustomerPatch>): string {
   return createHash('sha256').update(JSON.stringify(patch)).digest('hex');
 }
 
-export class PrismaCustomerUpdater {
+export class PrismaCustomerUpdater implements CustomerUpdater {
   constructor(private readonly deps: Dependencies) {}
 
-  async update(
-    input: {
-      tenantId: string;
-      conversationId: string;
-      customerId: string;
-      turnId: string;
-      expectedModeEpoch: bigint;
-      idempotencyKey: string;
-      executionMode: 'live' | 'sandbox';
-      patch: CustomerPatch;
-    },
-    signal: AbortSignal,
-  ): Promise<JsonValue> {
+  async update(input: CustomerUpdateRequest, signal: AbortSignal): Promise<JsonValue> {
     if (input.executionMode !== 'live') throw new Error('Customer update is live-only');
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
     const argumentsHash = patchHash(input.patch);
@@ -151,7 +154,7 @@ export class PrismaCustomerUpdater {
   }
 }
 
-export function registerUpdateCustomerTool(registry: ToolRegistry, updater: PrismaCustomerUpdater): void {
+export function registerUpdateCustomerTool(registry: ToolRegistry, updater: CustomerUpdater): void {
   registry.register({
     definition: {
       name: 'update_customer',
