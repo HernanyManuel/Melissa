@@ -24,6 +24,7 @@ import './ai-turn-ledger.test';
 import './conversation-turn-coordinator.test';
 import './ai-turn-queue.test';
 import './ai-turn-processor.test';
+import './ai-turn-runtime.test';
 import './ai-outbound-dispatcher.test';
 import './ai-outbound-queue.test';
 import './ai-outbound-runtime.test';
