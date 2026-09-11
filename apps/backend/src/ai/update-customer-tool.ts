@@ -5,6 +5,7 @@ import { ToolRegistry } from './tool-registry';
 
 const LANGUAGES = ['pt', 'en', 'es', 'fr', 'de', 'it'] as const;
 type Language = (typeof LANGUAGES)[number];
+type CustomerField = 'display_name' | 'email' | 'language';
 
 type CustomerPatch = {
   displayName?: string;
@@ -20,45 +21,46 @@ interface ExistingUpdate {
 }
 
 function validateArguments(value: JsonObject): JsonObject {
-  const keys = Object.keys(value);
-  if (!keys.length || keys.some((key) => !['displayName', 'email', 'language'].includes(key)))
+  if (
+    Object.keys(value).length !== 2 ||
+    !['display_name', 'email', 'language'].includes(String(value.field)) ||
+    !('value' in value)
+  )
     throw new Error('Invalid customer update');
 
-  const normalized: JsonObject = {};
-  if ('displayName' in value) {
-    if (typeof value.displayName !== 'string') throw new Error('Invalid display name');
-    const displayName = value.displayName.trim();
+  const field = value.field as CustomerField;
+  if (field === 'display_name') {
+    if (typeof value.value !== 'string') throw new Error('Invalid display name');
+    const displayName = value.value.trim();
     if (!displayName.length || displayName.length > 160) throw new Error('Invalid display name');
-    normalized.displayName = displayName;
+    return { field, value: displayName };
   }
-  if ('email' in value) {
-    if (value.email !== null && typeof value.email !== 'string') throw new Error('Invalid email');
-    if (typeof value.email === 'string') {
-      const email = value.email.trim().toLowerCase();
-      if (
-        !email.length ||
-        email.length > 254 ||
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-      )
-        throw new Error('Invalid email');
-      normalized.email = email;
-    } else normalized.email = null;
+  if (field === 'email') {
+    if (value.value === null) return { field, value: null };
+    if (typeof value.value !== 'string') throw new Error('Invalid email');
+    const email = value.value.trim().toLowerCase();
+    if (!email.length || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      throw new Error('Invalid email');
+    return { field, value: email };
   }
-  if ('language' in value) {
-    if (typeof value.language !== 'string' || !LANGUAGES.includes(value.language as Language))
-      throw new Error('Invalid language');
-    normalized.language = value.language;
+  if (typeof value.value !== 'string' || !LANGUAGES.includes(value.value as Language))
+    throw new Error('Invalid language');
+  return { field, value: value.value };
+}
+
+function toPatch(arguments_: Readonly<JsonObject>): CustomerPatch {
+  switch (arguments_.field as CustomerField) {
+    case 'display_name':
+      return { displayName: arguments_.value as string };
+    case 'email':
+      return { email: arguments_.value as string | null };
+    case 'language':
+      return { language: arguments_.value as Language };
   }
-  return normalized;
 }
 
 function patchHash(patch: Readonly<CustomerPatch>): string {
-  const canonical = JSON.stringify({
-    ...(patch.displayName !== undefined ? { displayName: patch.displayName } : {}),
-    ...(patch.email !== undefined ? { email: patch.email } : {}),
-    ...(patch.language !== undefined ? { language: patch.language } : {}),
-  });
-  return createHash('sha256').update(canonical).digest('hex');
+  return createHash('sha256').update(JSON.stringify(patch)).digest('hex');
 }
 
 export class PrismaCustomerUpdater {
@@ -154,16 +156,15 @@ export function registerUpdateCustomerTool(registry: ToolRegistry, updater: Pris
     definition: {
       name: 'update_customer',
       description:
-        'Update allowed profile fields for the customer in the current live conversation. Phone number, consent flags and internal notes cannot be changed.',
+        'Update one allowed profile field for the customer in the current live conversation. Phone number, consent flags and internal notes cannot be changed.',
       inputSchema: {
         type: 'object',
         properties: {
-          displayName: { type: 'string', minLength: 1, maxLength: 160 },
-          email: { type: ['string', 'null'], maxLength: 254 },
-          language: { type: 'string', enum: [...LANGUAGES] },
+          field: { type: 'string', enum: ['display_name', 'email', 'language'] },
+          value: { type: ['string', 'null'], maxLength: 254 },
         },
+        required: ['field', 'value'],
         additionalProperties: false,
-        minProperties: 1,
       },
     },
     effect: 'write',
@@ -180,7 +181,7 @@ export function registerUpdateCustomerTool(registry: ToolRegistry, updater: Pris
           expectedModeEpoch: context.expectedModeEpoch,
           idempotencyKey: context.idempotencyKey,
           executionMode: context.executionMode,
-          patch: arguments_ as CustomerPatch,
+          patch: toPatch(arguments_),
         },
         signal,
       ),
