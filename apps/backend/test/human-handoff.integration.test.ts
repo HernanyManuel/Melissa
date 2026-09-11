@@ -71,12 +71,38 @@ test('human handoff advances epoch once and replays idempotently', { timeout: 15
         ${customerId}::uuid, 7, 3
       )`;
 
+    await assert.rejects(
+      handoff.request(
+        {
+          tenantId,
+          conversationId,
+          customerId,
+          turnId,
+          expectedModeEpoch: 6n,
+          idempotencyKey: `${turnId}:stale`,
+          executionMode: 'live',
+          reason: 'other',
+        },
+        new AbortController().signal,
+      ),
+      /stale/,
+    );
+    assert.equal(
+      (
+        await admin.conversation.findUniqueOrThrow({
+          where: { tenantId_id: { tenantId, id: conversationId } },
+        })
+      ).mode,
+      'AI_ACTIVE',
+    );
+
     const first = await handoff.request(
       {
         tenantId,
         conversationId,
         customerId,
         turnId,
+        expectedModeEpoch: 7n,
         idempotencyKey,
         executionMode: 'live',
         reason: 'customer_requested',
@@ -107,6 +133,7 @@ test('human handoff advances epoch once and replays idempotently', { timeout: 15
         conversationId,
         customerId,
         turnId,
+        expectedModeEpoch: 7n,
         idempotencyKey,
         executionMode: 'live',
         reason: 'customer_requested',
@@ -132,6 +159,7 @@ test('human handoff advances epoch once and replays idempotently', { timeout: 15
           conversationId,
           customerId,
           turnId,
+          expectedModeEpoch: 7n,
           idempotencyKey,
           executionMode: 'live',
           reason: 'complaint',
@@ -147,6 +175,7 @@ test('human handoff advances epoch once and replays idempotently', { timeout: 15
           conversationId,
           customerId,
           turnId,
+          expectedModeEpoch: 7n,
           idempotencyKey: `${turnId}:sandbox`,
           executionMode: 'sandbox',
           reason: 'other',
