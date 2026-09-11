@@ -92,10 +92,7 @@ function toJson(result: CancelBookingResult): JsonObject {
 export class PrismaBookingCanceller implements BookingCanceller {
   constructor(private readonly deps: Dependencies) {}
 
-  async cancel(
-    input: CancelBookingRequest,
-    signal: AbortSignal,
-  ): Promise<CancelBookingResult> {
+  async cancel(input: CancelBookingRequest, signal: AbortSignal): Promise<CancelBookingResult> {
     if (input.executionMode !== 'live') throw new Error('Booking cancellation is live-only');
     if (input.confirmed !== true) throw new Error('Cancellation requires explicit confirmation');
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
