@@ -32,6 +32,7 @@ export class PrismaHumanHandoff {
       conversationId: string;
       customerId: string;
       turnId: string;
+      expectedModeEpoch: bigint;
       idempotencyKey: string;
       executionMode: 'live' | 'sandbox';
       reason: HandoffReason;
@@ -75,15 +76,20 @@ export class PrismaHumanHandoff {
 
       if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
-      const conversations = await tx.$queryRaw<{ mode: string }[]>`
-        SELECT mode
+      const conversations = await tx.$queryRaw<Array<{ mode: string; mode_epoch: bigint }>>`
+        SELECT mode, mode_epoch
         FROM conversations
         WHERE tenant_id=${input.tenantId}::uuid
           AND id=${input.conversationId}::uuid
           AND customer_id=${input.customerId}::uuid
         FOR UPDATE
       `;
-      if (conversations[0]?.mode !== 'AI_ACTIVE') throw new Error('Conversation is not AI active');
+      const conversation = conversations[0];
+      if (
+        conversation?.mode !== 'AI_ACTIVE' ||
+        conversation.mode_epoch !== input.expectedModeEpoch
+      )
+        throw new Error('Conversation handoff is stale');
 
       const changed = await tx.$executeRaw`
         UPDATE conversations
@@ -92,6 +98,7 @@ export class PrismaHumanHandoff {
           AND id=${input.conversationId}::uuid
           AND customer_id=${input.customerId}::uuid
           AND mode='AI_ACTIVE'
+          AND mode_epoch=${input.expectedModeEpoch}
       `;
       if (changed !== 1) throw new Error('Conversation handoff is stale');
 
@@ -138,6 +145,7 @@ export function registerHumanHandoffTool(
           conversationId: context.conversationId,
           customerId: context.customerId,
           turnId: context.turnId,
+          expectedModeEpoch: context.expectedModeEpoch,
           idempotencyKey: context.idempotencyKey,
           executionMode: context.executionMode,
           reason: arguments_.reason as HandoffReason,
