@@ -161,8 +161,10 @@ test(
       assert.equal(defaultAvailability.timezone, 'Europe/Lisbon');
       assert.equal(defaultAvailability.resourceId, resourceId);
       assert.equal(defaultAvailability.staffId, null);
-      assert(defaultAvailability.slots.length > 0);
-      assert.equal(defaultAvailability.slots[0]?.startsAt, '2026-09-15T09:15:00.000Z');
+      assert.deepEqual(
+        defaultAvailability.slots.map((slot) => slot.startsAt),
+        ['2026-09-15T08:00:00.000Z', '2026-09-15T08:15:00.000Z'],
+      );
 
       const staffAvailability = await engine.availableSlots(
         { tenantId, serviceId, date: '2026-09-15', staffId },
