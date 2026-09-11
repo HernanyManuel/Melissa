@@ -45,10 +45,8 @@ CREATE TABLE bookings (
   ends_at TIMESTAMPTZ(6) NOT NULL,
   buffer_before_minutes INTEGER NOT NULL DEFAULT 0,
   buffer_after_minutes INTEGER NOT NULL DEFAULT 0,
-  occupied_start_at TIMESTAMPTZ(6) GENERATED ALWAYS AS
-    (starts_at - make_interval(mins => buffer_before_minutes)) STORED,
-  occupied_end_at TIMESTAMPTZ(6) GENERATED ALWAYS AS
-    (ends_at + make_interval(mins => buffer_after_minutes)) STORED,
+  occupied_start_at TIMESTAMPTZ(6) NOT NULL,
+  occupied_end_at TIMESTAMPTZ(6) NOT NULL,
   version INTEGER NOT NULL DEFAULT 1,
   created_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -69,8 +67,24 @@ CREATE TABLE bookings (
   CONSTRAINT bookings_interval_check CHECK (ends_at > starts_at),
   CONSTRAINT bookings_buffer_before_check CHECK (buffer_before_minutes BETWEEN 0 AND 1440),
   CONSTRAINT bookings_buffer_after_check CHECK (buffer_after_minutes BETWEEN 0 AND 1440),
+  CONSTRAINT bookings_occupied_interval_check CHECK (occupied_end_at > occupied_start_at),
   CONSTRAINT bookings_version_check CHECK (version > 0)
 );
+
+CREATE FUNCTION set_booking_occupied_interval() RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.occupied_start_at := NEW.starts_at - make_interval(mins => NEW.buffer_before_minutes);
+  NEW.occupied_end_at := NEW.ends_at + make_interval(mins => NEW.buffer_after_minutes);
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER bookings_set_occupied_interval
+BEFORE INSERT OR UPDATE OF starts_at, ends_at, buffer_before_minutes, buffer_after_minutes
+ON bookings
+FOR EACH ROW EXECUTE FUNCTION set_booking_occupied_interval();
 
 ALTER TABLE bookings ADD CONSTRAINT bookings_no_resource_overlap
   EXCLUDE USING gist (
