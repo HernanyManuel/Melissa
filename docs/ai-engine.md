@@ -77,7 +77,7 @@ O schema 23 separa `ai_outbound_intents` da outbox humana e mantém conteúdo ap
 
 Depois de uma chamada live ter potencialmente começado, timeout, non-2xx ou receipt malformado são tratados como `MessagingDeliveryUnknown`. Esse estado é terminal e auditado como `ai.outbound_delivery_unknown`, sem retry automático, porque o sistema não assume idempotência externa e prefere evitar duplicados. Falhas anteriores ao efeito seguem a política de retry normal.
 
-`startAIAutomaticOutboundRuntime` compõe provider, registry, dispatcher e queue somente quando recebe um `SecretResolver` explícito. O bootstrap opt-in usa `MountedFileSecretResolver`, que restringe referências opacas a uma root read-only, verifica containment com `realpath`, bloqueia traversal/symlink escape e limita material. A flag de outbound exige secrets montados e versão explícita da API WhatsApp; Compose não monta secrets automaticamente. Ver [ADR-065](decisions/ADR-065-mounted-secrets-ai-outbound-worker.md).
+`startAIAutomaticOutboundRuntime` compõe provider, registry, dispatcher e queue somente quando recebe um `SecretResolver` explícito. O bootstrap opt-in usa `MountedFileSecretResolver`, que restringe referências opacas a uma root read-only, verifica containment com `realpath`, bloqueia traversal/symlink escape e limita material. A flag de outbound exige secrets montados e versão explícita da API WhatsApp; Compose não monta secrets automaticamente. Ver [ADR-065](decisions/ADR-065-opt-in-ai-outbound-worker.md).
 
 O contrato alvo também prevê operações especializadas para resposta, extração estruturada, classificação de intenção e resumo. A seleção de modelo será feita por tarefa via configuração, sem nomes ou preços hardcoded no domínio.
 
