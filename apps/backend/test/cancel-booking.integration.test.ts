@@ -117,18 +117,16 @@ test('cancel_booking is fenced, customer-scoped, atomic and replay-safe', async 
     await admin.$executeRaw`
       INSERT INTO bookings (
         tenant_id, id, customer_id, service_id, resource_id, source, status,
-        starts_at, ends_at, buffer_before_minutes, buffer_after_minutes
+        starts_at, ends_at, buffer_before_minutes, buffer_after_minutes, cancelled_at
       ) VALUES
         (${tenantId}::uuid, ${bookingId}::uuid, ${customerId}::uuid, ${serviceId}::uuid,
           ${resourceId}::uuid, 'manual', 'confirmed',
-          '2026-09-18T08:00:00Z'::timestamptz, '2026-09-18T08:30:00Z'::timestamptz, 0, 0),
+          '2026-09-18T08:00:00Z'::timestamptz, '2026-09-18T08:30:00Z'::timestamptz,
+          0, 0, NULL),
         (${tenantId}::uuid, ${alreadyCancelledId}::uuid, ${customerId}::uuid,
           ${serviceId}::uuid, ${resourceId}::uuid, 'manual', 'cancelled',
-          '2026-09-18T09:00:00Z'::timestamptz, '2026-09-18T09:30:00Z'::timestamptz, 0, 0)
-    `;
-    await admin.$executeRaw`
-      UPDATE bookings SET cancelled_at='2026-09-11T12:00:00Z'::timestamptz
-      WHERE tenant_id=${tenantId}::uuid AND id=${alreadyCancelledId}::uuid
+          '2026-09-18T09:00:00Z'::timestamptz, '2026-09-18T09:30:00Z'::timestamptz,
+          0, 0, '2026-09-11T12:00:00Z'::timestamptz)
     `;
 
     const first = await canceller.cancel(
