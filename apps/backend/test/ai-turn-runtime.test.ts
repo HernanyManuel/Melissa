@@ -22,7 +22,7 @@ test('AI turn runtime fails before queue start when provider is disabled', async
   assert.equal(starts, 0);
 });
 
-test('AI turn runtime composes read-only processor with explicit mock provider', async () => {
+test('AI turn runtime composes server-owned processor with explicit mock provider', async () => {
   let seenRedis = '';
   let seenProcessor = false;
   const startQueue = async (
