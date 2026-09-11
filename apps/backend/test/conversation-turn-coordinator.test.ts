@@ -127,71 +127,66 @@ test('turn coordinator records completion usage before returning content', async
   ]);
 });
 
-test(
-  'turn coordinator persists explicit handoff without delivery text',
-  async () => {
-    const handoffTools = new ToolRegistry();
-    handoffTools.register({
-      definition: {
-        name: 'human_handoff',
-        description: 'Transfer to a human.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-      },
-      effect: 'handoff',
-      requiredCapabilities: ['conversation.handoff'],
-      supportsIdempotency: true,
-      validateArguments: (value) => value,
-      execute: async () => ({ status: 'waiting_human' }),
-    });
-    const finishes: AITurnFinish[] = [];
-    const repository: AITurnLedgerRepository = {
-      begin: async () => 'started',
-      finish: async (input) => {
-        finishes.push(input);
-        return 'finished';
-      },
-    };
-    const provider: AIProvider = {
-      providerKey: 'mock',
-      complete: async () => ({
-        content: null,
-        toolCalls: [{ id: 'handoff_1', name: 'human_handoff', arguments: {} }],
-        finishReason: 'tool_calls',
-        usage: { inputTokens: 3, outputTokens: 1 },
-      }),
-    };
-    const coordinator = new ConversationTurnCoordinator(
-      context(),
-      new ConversationEngine(
-        new AIGateway(provider),
-        new ToolExecutor(handoffTools),
-        { isCurrent: async () => true },
-      ),
-      new AITurnLedger(repository),
-      handoffTools,
-      provider.providerKey,
-      'configured-model',
-    );
-    assert.deepEqual(
-      await coordinator.run({
-        ...request,
-        capabilities: ['conversation.handoff'],
-        toolNames: ['human_handoff'],
-      }),
-      {
-        status: 'handoff_required',
-        reason: 'tool_handoff',
-        rounds: 1,
-        toolCalls: 1,
-      },
-    );
-    assert.equal(finishes.length, 1);
-    assert.equal(finishes[0]?.outcome, 'handoff_required');
-    assert.equal(finishes[0]?.inputTokens, 3);
-    assert.equal(finishes[0]?.outputTokens, 1);
-    assert.equal(finishes[0]?.deliveryText, undefined);
-  },
-);
+test('turn coordinator persists explicit handoff without delivery text', async () => {
+  const handoffTools = new ToolRegistry();
+  handoffTools.register({
+    definition: {
+      name: 'human_handoff',
+      description: 'Transfer to a human.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    },
+    effect: 'handoff',
+    requiredCapabilities: ['conversation.handoff'],
+    supportsIdempotency: true,
+    validateArguments: (value) => value,
+    execute: async () => ({ status: 'waiting_human' }),
+  });
+  const finishes: AITurnFinish[] = [];
+  const repository: AITurnLedgerRepository = {
+    begin: async () => 'started',
+    finish: async (input) => {
+      finishes.push(input);
+      return 'finished';
+    },
+  };
+  const provider: AIProvider = {
+    providerKey: 'mock',
+    complete: async () => ({
+      content: null,
+      toolCalls: [{ id: 'handoff_1', name: 'human_handoff', arguments: {} }],
+      finishReason: 'tool_calls',
+      usage: { inputTokens: 3, outputTokens: 1 },
+    }),
+  };
+  const coordinator = new ConversationTurnCoordinator(
+    context(),
+    new ConversationEngine(new AIGateway(provider), new ToolExecutor(handoffTools), {
+      isCurrent: async () => true,
+    }),
+    new AITurnLedger(repository),
+    handoffTools,
+    provider.providerKey,
+    'configured-model',
+  );
+  assert.deepEqual(
+    await coordinator.run({
+      ...request,
+      capabilities: ['conversation.handoff'],
+      toolNames: ['human_handoff'],
+    }),
+    {
+      status: 'handoff_required',
+      reason: 'tool_handoff',
+      rounds: 1,
+      toolCalls: 1,
+    },
+  );
+  assert.equal(finishes.length, 1);
+  assert.equal(finishes[0]?.outcome, 'handoff_required');
+  assert.equal(finishes[0]?.inputTokens, 3);
+  assert.equal(finishes[0]?.outputTokens, 1);
+  assert.equal(finishes[0]?.deliveryText, undefined);
+});
 
 test('turn coordinator suppresses duplicate delivery before context or provider access', async () => {
   let calls = 0;
