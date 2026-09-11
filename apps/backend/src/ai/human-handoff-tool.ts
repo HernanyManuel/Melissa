@@ -2,7 +2,13 @@ import { Dependencies } from '../dependencies';
 import { JsonObject, JsonValue } from './ai-provider';
 import { ToolRegistry } from './tool-registry';
 
-const REASONS = ['customer_requested', 'unsupported', 'complaint', 'safety', 'other'] as const;
+const REASONS = [
+  'customer_requested',
+  'unsupported',
+  'complaint',
+  'safety',
+  'other',
+] as const;
 type HandoffReason = (typeof REASONS)[number];
 
 interface ExistingHandoff {
@@ -82,7 +88,8 @@ export class PrismaHumanHandoff {
           AND customer_id=${input.customerId}::uuid
         FOR UPDATE
       `;
-      if (conversations[0]?.mode !== 'AI_ACTIVE') throw new Error('Conversation is not AI active');
+      if (conversations[0]?.mode !== 'AI_ACTIVE')
+        throw new Error('Conversation is not AI active');
 
       const changed = await tx.$executeRaw`
         UPDATE conversations
@@ -104,7 +111,10 @@ export class PrismaHumanHandoff {
   }
 }
 
-export function registerHumanHandoffTool(registry: ToolRegistry, handoff: PrismaHumanHandoff): void {
+export function registerHumanHandoffTool(
+  registry: ToolRegistry,
+  handoff: PrismaHumanHandoff,
+): void {
   registry.register({
     definition: {
       name: 'human_handoff',
