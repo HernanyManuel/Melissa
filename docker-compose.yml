@@ -92,7 +92,13 @@ services:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
-    environment: *backend_environment
+    environment:
+      <<: *backend_environment
+      AI_TURN_WORKER_ENABLED: ${AI_TURN_WORKER_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-disabled}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_TIMEOUT_MS: ${OPENAI_TIMEOUT_MS:-45000}
     command: ['node', 'apps/backend/dist/src/worker.js']
     depends_on:
       migrate:
