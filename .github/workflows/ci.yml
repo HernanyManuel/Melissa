@@ -56,11 +56,7 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
-      - name: Diagnose coordinator test formatting
-        run: |
-          pnpm exec prettier --write apps/backend/test/conversation-turn-coordinator.test.ts
-          git diff -- apps/backend/test/conversation-turn-coordinator.test.ts
-          exit 1
+      - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
