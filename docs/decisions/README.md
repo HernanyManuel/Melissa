@@ -17,3 +17,4 @@ Propostas documentadas para revisão; aceitação é registada no PR, substitui�
 - [ADR-068 — Handoff humano durável](ADR-068-durable-human-handoff.md)
 - [ADR-069 — Atualização fenced do perfil do customer pela IA](ADR-069-fenced-customer-profile-update.md)
 - [ADR-070 — Criação de lead durável e fenced pela IA](ADR-070-durable-fenced-lead-creation.md)
+- [ADR-071 — Disponibilidade de reservas server-owned e timezone-aware](ADR-071-booking-availability-tool.md)
