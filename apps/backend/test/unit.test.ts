@@ -20,6 +20,7 @@ import './business-read-tools.test';
 import './available-slots-tool.test';
 import './get-booking-tool.test';
 import './create-booking-tool.test';
+import './cancel-booking-tool.test';
 import './ai-context-builder.test';
 import './conversation-state.test';
 import './conversation-engine.test';
