@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  PrismaCustomerUpdater,
-  registerUpdateCustomerTool,
-} from '../src/ai/update-customer-tool';
+import { CustomerUpdater, registerUpdateCustomerTool } from '../src/ai/update-customer-tool';
 import { ToolExecutor } from '../src/ai/tool-executor';
 import { ToolRegistry } from '../src/ai/tool-registry';
 
@@ -20,12 +17,12 @@ const context = {
 
 test('update_customer exposes strict single-field schema and trusted scope', async () => {
   const calls: unknown[] = [];
-  const updater = {
-    async update(input: unknown) {
+  const updater: CustomerUpdater = {
+    async update(input) {
       calls.push(input);
       return { status: 'updated', duplicate: false };
     },
-  } as PrismaCustomerUpdater;
+  };
   const registry = new ToolRegistry();
   registerUpdateCustomerTool(registry, updater);
   const definition = registry.definitions(['update_customer'])[0]!;
@@ -59,12 +56,12 @@ test('update_customer exposes strict single-field schema and trusted scope', asy
 
 test('update_customer rejects forbidden fields, invalid values and missing capability', async () => {
   let executions = 0;
-  const updater = {
+  const updater: CustomerUpdater = {
     async update() {
       executions += 1;
       return { status: 'updated' };
     },
-  } as PrismaCustomerUpdater;
+  };
   const registry = new ToolRegistry();
   registerUpdateCustomerTool(registry, updater);
   const executor = new ToolExecutor(registry);
