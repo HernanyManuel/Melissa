@@ -15,6 +15,7 @@ import { ConversationEngine } from './conversation-engine';
 import { ConversationTurnCoordinator } from './conversation-turn-coordinator';
 import { registerCreateBookingTool } from './create-booking-tool';
 import { PrismaLeadCreator, registerCreateLeadTool } from './create-lead-tool';
+import { PrismaBookingReader, registerGetBookingTool } from './get-booking-tool';
 import { PrismaHumanHandoff, registerHumanHandoffTool } from './human-handoff-tool';
 import { PrismaConversationFence } from './prisma-conversation-fence';
 import { ToolExecutor } from './tool-executor';
@@ -27,6 +28,7 @@ const TOOL_CAPABILITIES = [
   'business.hours.read',
   'business.staff.read',
   'booking.availability.read',
+  'booking.read',
   'booking.create',
   'conversation.handoff',
   'customer.profile.write',
@@ -41,6 +43,7 @@ const TOOLS = [
   'get_business_hours',
   'get_staff',
   'get_available_slots',
+  'get_booking',
   'create_booking',
   'human_handoff',
   'update_customer',
@@ -66,6 +69,7 @@ export async function startAITurnRuntime(
   const bookingEngine = new BookingEngine(deps);
   registerBusinessReadTools(registry, new PrismaBusinessToolReader(deps));
   registerAvailableSlotsTool(registry, bookingEngine);
+  registerGetBookingTool(registry, new PrismaBookingReader(deps));
   registerCreateBookingTool(registry, bookingEngine);
   registerHumanHandoffTool(registry, new PrismaHumanHandoff(deps));
   registerUpdateCustomerTool(registry, new PrismaCustomerUpdater(deps));
