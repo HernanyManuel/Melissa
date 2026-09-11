@@ -86,7 +86,10 @@ test('get_booking rejects injected scope, invalid IDs and missing capability', a
     ],
     context,
   );
-  assert.deepEqual(result.map((item) => item.error), ['invalid_arguments', 'invalid_arguments']);
+  assert.deepEqual(
+    result.map((item) => item.error),
+    ['invalid_arguments', 'invalid_arguments'],
+  );
 
   const forbidden = await executor.execute(
     [
