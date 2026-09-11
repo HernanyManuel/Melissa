@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BookingAvailabilityReader, registerAvailableSlotsTool } from '../src/ai/available-slots-tool';
+import {
+  BookingAvailabilityReader,
+  registerAvailableSlotsTool,
+} from '../src/ai/available-slots-tool';
 import { ToolExecutor } from '../src/ai/tool-executor';
 import { ToolRegistry } from '../src/ai/tool-registry';
 
