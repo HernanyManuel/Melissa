@@ -60,6 +60,7 @@ test('human handoff advances epoch once and replays idempotently', { timeout: 15
         mode: 'AI_ACTIVE',
         modeEpoch: 7n,
         stateVersion: 3n,
+        lastMessageAt: new Date(),
       },
     });
     await admin.$executeRaw`
