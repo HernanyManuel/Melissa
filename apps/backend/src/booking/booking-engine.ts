@@ -187,7 +187,10 @@ export class BookingEngine {
     });
   }
 
-  async createBooking(input: CreateBookingRequest, signal: AbortSignal): Promise<CreateBookingResult> {
+  async createBooking(
+    input: CreateBookingRequest,
+    signal: AbortSignal,
+  ): Promise<CreateBookingResult> {
     if (input.executionMode !== 'live') throw new Error('Booking creation is live-only');
     if (input.confirmed !== true) throw new Error('Booking requires explicit confirmation');
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
