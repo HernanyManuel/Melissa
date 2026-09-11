@@ -145,11 +145,12 @@ test(
         await tx.$executeRaw`
           INSERT INTO bookings (
             tenant_id, customer_id, service_id, resource_id, source, status,
-            starts_at, ends_at, buffer_before_minutes, buffer_after_minutes
+            starts_at, ends_at, buffer_before_minutes, buffer_after_minutes, cancelled_at
           ) VALUES (
             ${tenantId}::uuid, ${customerId}::uuid, ${serviceId}::uuid,
             ${resourceId}::uuid, 'manual', 'cancelled',
-            ${new Date('2026-09-15T09:10:00Z')}, ${new Date('2026-09-15T09:20:00Z')}, 0, 0
+            ${new Date('2026-09-15T09:10:00Z')}, ${new Date('2026-09-15T09:20:00Z')}, 0, 0,
+            ${new Date('2026-09-15T08:00:00Z')}
           )
         `;
       });
