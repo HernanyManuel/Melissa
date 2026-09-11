@@ -15,3 +15,4 @@ Propostas documentadas para revisão; aceitação é registada no PR, substitui�
 
 - [ADR-009 — Sessões e contexto transacional](ADR-009-identity-runtime.md)
 - [ADR-068 — Handoff humano durável](ADR-068-durable-human-handoff.md)
+- [ADR-069 — Atualização fenced do perfil do customer pela IA](ADR-069-fenced-customer-profile-update.md)
