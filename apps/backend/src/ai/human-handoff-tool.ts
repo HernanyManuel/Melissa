@@ -85,10 +85,7 @@ export class PrismaHumanHandoff {
         FOR UPDATE
       `;
       const conversation = conversations[0];
-      if (
-        conversation?.mode !== 'AI_ACTIVE' ||
-        conversation.mode_epoch !== input.expectedModeEpoch
-      )
+      if (conversation?.mode !== 'AI_ACTIVE' || conversation.mode_epoch !== input.expectedModeEpoch)
         throw new Error('Conversation handoff is stale');
 
       const changed = await tx.$executeRaw`
