@@ -8,7 +8,7 @@ import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 
 test(
-  'booking foundation enforces resource isolation and buffered overlap exclusion',
+  'booking foundation enforces resources, buffered exclusion and timezone-aware availability',
   { timeout: 15000 },
   async () => {
     const migrationUrl = process.env.MIGRATION_DATABASE_URL;
@@ -20,6 +20,7 @@ test(
     const otherTenantId = randomUUID();
     const customerId = randomUUID();
     const serviceId = randomUUID();
+    const staffId = randomUUID();
     const engine = new BookingEngine(deps);
 
     try {
@@ -58,6 +59,37 @@ test(
           durationMinutes: 30,
           bufferBeforeMinutes: 0,
           bufferAfterMinutes: 15,
+        },
+      });
+      await admin.staff.create({
+        data: {
+          id: staffId,
+          tenantId,
+          name: 'Booking staff',
+          timezone: 'Europe/Lisbon',
+        },
+      });
+      await admin.staffService.create({
+        data: {
+          tenantId,
+          staffId,
+          serviceId,
+          active: true,
+          customDurationMinutes: 45,
+        },
+      });
+      await admin.businessHour.createMany({
+        data: [
+          { tenantId, weekday: 2, startTime: '09:00', endTime: '11:00', enabled: true },
+          { tenantId, weekday: 3, startTime: '09:00', endTime: '11:00', enabled: true },
+        ],
+      });
+      await admin.scheduleException.create({
+        data: {
+          tenantId,
+          date: new Date('2026-09-16T00:00:00Z'),
+          closed: true,
+          reason: 'Closed fixture',
         },
       });
 
@@ -122,6 +154,38 @@ test(
         `;
       });
 
+      const defaultAvailability = await engine.availableSlots(
+        { tenantId, serviceId, date: '2026-09-15' },
+        new AbortController().signal,
+      );
+      assert.equal(defaultAvailability.timezone, 'Europe/Lisbon');
+      assert.equal(defaultAvailability.resourceId, resourceId);
+      assert.equal(defaultAvailability.staffId, null);
+      assert(defaultAvailability.slots.length > 0);
+      assert.equal(defaultAvailability.slots[0]?.startsAt, '2026-09-15T09:15:00.000Z');
+
+      const staffAvailability = await engine.availableSlots(
+        { tenantId, serviceId, date: '2026-09-15', staffId },
+        new AbortController().signal,
+      );
+      assert.equal(staffAvailability.staffId, staffId);
+      assert.notEqual(staffAvailability.resourceId, resourceId);
+      assert.equal(staffAvailability.slots[0]?.startsAt, '2026-09-15T08:00:00.000Z');
+      assert.equal(staffAvailability.slots[0]?.endsAt, '2026-09-15T08:45:00.000Z');
+
+      const closedAvailability = await engine.availableSlots(
+        { tenantId, serviceId, date: '2026-09-16' },
+        new AbortController().signal,
+      );
+      assert.deepEqual(closedAvailability.slots, []);
+      await assert.rejects(
+        engine.availableSlots(
+          { tenantId, serviceId, date: '2026-02-31' },
+          new AbortController().signal,
+        ),
+        /Invalid booking date/,
+      );
+
       const [counts] = await deps.db.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
         return tx.$queryRaw<Array<{ resources: bigint; bookings: bigint }>>`
@@ -130,7 +194,7 @@ test(
             (SELECT count(*) FROM bookings WHERE tenant_id=${tenantId}::uuid) AS bookings
         `;
       });
-      assert.equal(counts?.resources, 1n);
+      assert.equal(counts?.resources, 2n);
       assert.equal(counts?.bookings, 3n);
 
       const [hidden] = await deps.db.$transaction(async (tx) => {
