@@ -43,7 +43,8 @@ export class PrismaHumanHandoff {
     },
     signal: AbortSignal,
   ): Promise<JsonValue> {
-    if (input.executionMode !== 'live') throw new Error('Human handoff is live-only');
+    if (input.executionMode !== 'live')
+      throw new Error('Human handoff is live-only');
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
     return this.deps.db.$transaction(async (tx) => {
