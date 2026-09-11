@@ -72,7 +72,7 @@ test('cancel_booking rejects unsafe arguments and missing capability before exec
   const canceller: BookingCanceller = {
     async cancel() {
       executions += 1;
-      return { status: 'cancelled' };
+      return { status: 'not_found' };
     },
   };
   const registry = new ToolRegistry();
