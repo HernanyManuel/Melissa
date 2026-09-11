@@ -12,6 +12,7 @@ export interface ToolExecutionContext {
   conversationId: string;
   correlationId: string;
   turnId: string;
+  expectedModeEpoch: bigint;
   executionMode: 'live' | 'sandbox';
   idempotencyKey: string;
 }
