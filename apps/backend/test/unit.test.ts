@@ -143,6 +143,19 @@ test('AI turn worker is disabled by default and requires an explicit provider', 
   });
   assert.equal(enabled.AI_TURN_WORKER_ENABLED, 'true');
   assert.equal(enabled.AI_PROVIDER, 'mock');
+  assert.throws(
+    () =>
+      parseConfig({
+        ...base,
+        AI_TURN_WORKER_ENABLED: 'true',
+        AI_PROVIDER: 'mock',
+        AI_OUTBOUND_WORKER_ENABLED: 'true',
+        SECRET_PROVIDER: 'mounted-file',
+        SECRET_MOUNT_DIRECTORY: '/run/secrets/melissa',
+        WHATSAPP_MESSAGING_API_VERSION: 'v23.0',
+      }),
+    /cannot use the mock AI provider/,
+  );
 });
 
 test('accepts development settings with explicit defaults', () => {
