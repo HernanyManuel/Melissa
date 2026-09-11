@@ -56,7 +56,11 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
-      - run: pnpm format:check
+      - name: Diagnose handoff formatting
+        run: |
+          pnpm exec prettier --write apps/backend/src/ai/human-handoff-tool.ts
+          git diff -- apps/backend/src/ai/human-handoff-tool.ts
+          exit 1
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
