@@ -10,6 +10,7 @@ const context = {
   conversationId: '00000000-0000-4000-8000-000000000003',
   correlationId: '00000000-0000-4000-8000-000000000004',
   turnId: '00000000-0000-4000-8000-000000000005',
+  expectedModeEpoch: 2n,
   executionMode: 'sandbox' as const,
   capabilities: ['business.hours.read'],
 };
@@ -93,6 +94,7 @@ test('executor injects trusted scope and deterministic idempotency without expos
   ]);
   assert.equal(capturedContext?.tenantId, context.tenantId);
   assert.equal(capturedContext?.customerId, context.customerId);
+  assert.equal(capturedContext?.expectedModeEpoch, context.expectedModeEpoch);
   assert.equal(capturedContext?.idempotencyKey, `${context.turnId}:call_1`);
   assert.deepEqual(capturedArguments, { day: 'monday' });
 });
@@ -126,6 +128,18 @@ test('executor denies capabilities and bad arguments before invoking handlers', 
     'invalid_arguments',
   );
   assert.equal(executions, 0);
+});
+
+test('executor rejects an invalid trusted mode epoch before invoking handlers', async () => {
+  const registry = new ToolRegistry();
+  registry.register(registration());
+  await assert.rejects(
+    new ToolExecutor(registry).execute(
+      [{ id: 'call_1', name: 'get_business_hours', arguments: { day: 'monday' } }],
+      { ...context, expectedModeEpoch: -1n },
+    ),
+    ToolExecutionRejected,
+  );
 });
 
 test('executor bounds calls, time and unsafe handler output with sanitized errors', async () => {
