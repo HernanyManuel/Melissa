@@ -139,13 +139,13 @@ export class BookingEngine {
             FROM bounds,
               LATERAL generate_series(
                 bounds.starts_at,
-                bounds.ends_at - make_interval(mins => ${durationMinutes}),
+                bounds.ends_at - make_interval(mins => ${durationMinutes}::int),
                 interval '15 minutes'
               ) AS candidate
           )
           SELECT
             candidates.starts_at,
-            candidates.starts_at + make_interval(mins => ${durationMinutes}) AS ends_at
+            candidates.starts_at + make_interval(mins => ${durationMinutes}::int) AS ends_at
           FROM candidates
           WHERE NOT EXISTS (
             SELECT 1
@@ -155,8 +155,8 @@ export class BookingEngine {
               AND booking.status IN ('pending', 'confirmed')
               AND tstzrange(booking.occupied_start_at, booking.occupied_end_at, '[)') &&
                 tstzrange(
-                  candidates.starts_at - make_interval(mins => ${service.bufferBeforeMinutes}),
-                  candidates.starts_at + make_interval(mins => ${durationMinutes + service.bufferAfterMinutes}),
+                  candidates.starts_at - make_interval(mins => ${service.bufferBeforeMinutes}::int),
+                  candidates.starts_at + make_interval(mins => ${durationMinutes + service.bufferAfterMinutes}::int),
                   '[)'
                 )
           )
