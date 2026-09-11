@@ -61,10 +61,7 @@ test(
         },
       });
 
-      const resourceId = await engine.ensureDefaultResource(
-        tenantId,
-        new AbortController().signal,
-      );
+      const resourceId = await engine.ensureDefaultResource(tenantId, new AbortController().signal);
       assert.equal(
         await engine.ensureDefaultResource(tenantId, new AbortController().signal),
         resourceId,
