@@ -83,6 +83,7 @@ export class ToolExecutor {
             conversationId: context.conversationId,
             correlationId: context.correlationId,
             turnId: context.turnId,
+            expectedModeEpoch: context.expectedModeEpoch,
             executionMode: context.executionMode,
             idempotencyKey: `${context.turnId}:${call.id}`,
           }),
@@ -123,6 +124,8 @@ export class ToolExecutor {
     if (
       !Array.isArray(calls) ||
       calls.length > 8 ||
+      typeof context.expectedModeEpoch !== 'bigint' ||
+      context.expectedModeEpoch < 0n ||
       !['live', 'sandbox'].includes(context.executionMode) ||
       !Array.isArray(context.capabilities) ||
       context.capabilities.some((item) => typeof item !== 'string' || !CAPABILITY.test(item)) ||
