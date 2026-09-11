@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Dependencies } from '../dependencies';
 import { JsonObject, JsonValue } from './ai-provider';
 import { ToolRegistry } from './tool-registry';
@@ -94,9 +95,10 @@ export class PrismaHumanHandoff {
       `;
       if (changed !== 1) throw new Error('Conversation handoff is stale');
 
+      const auditId = randomUUID();
       await tx.$executeRaw`
-        INSERT INTO audit_events (tenant_id, actor_id, actor_type, action, target_id)
-        VALUES (${input.tenantId}::uuid, NULL, 'system', 'ai.handoff_requested', ${input.conversationId}::uuid)
+        INSERT INTO audit_events (id, tenant_id, actor_id, actor_type, action, target_id)
+        VALUES (${auditId}::uuid, ${input.tenantId}::uuid, NULL, 'system', 'ai.handoff_requested', ${input.conversationId}::uuid)
       `;
 
       return { status: 'waiting_human', duplicate: false };
