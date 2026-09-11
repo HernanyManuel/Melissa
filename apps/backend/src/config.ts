@@ -64,6 +64,7 @@ const schema = z.object({
   SECRET_MOUNT_DIRECTORY: z.string().max(1024).optional().or(z.literal('')),
   MEDIA_INGESTION_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   AI_OUTBOUND_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
+  AI_TURN_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   MALWARE_SCANNER: z.enum(['disabled', 'clamav']).default('disabled'),
   CLAMAV_HOST: z
     .string()
@@ -271,6 +272,8 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     (result.data.OPENAI_API_KEY || result.data.OPENAI_MODEL)
   )
     throw new Error('OpenAI fields require AI_PROVIDER=openai');
+  if (result.data.AI_TURN_WORKER_ENABLED === 'true' && result.data.AI_PROVIDER === 'disabled')
+    throw new Error('AI turn worker requires an explicit AI provider');
   if (result.data.NODE_ENV === 'production') {
     // P1 deliberately has no authenticated product API or deployment profile.
     throw new Error(
