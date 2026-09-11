@@ -11,24 +11,27 @@ import { PrismaBusinessToolReader } from './business-tool-reader';
 import { registerBusinessReadTools } from './business-read-tools';
 import { ConversationEngine } from './conversation-engine';
 import { ConversationTurnCoordinator } from './conversation-turn-coordinator';
+import { PrismaHumanHandoff, registerHumanHandoffTool } from './human-handoff-tool';
 import { PrismaConversationFence } from './prisma-conversation-fence';
 import { ToolExecutor } from './tool-executor';
 import { ToolRegistry } from './tool-registry';
 
-const READ_CAPABILITIES = [
+const TOOL_CAPABILITIES = [
   'business.info.read',
   'business.services.read',
   'business.hours.read',
   'business.staff.read',
+  'conversation.handoff',
 ] as const;
 
-const READ_TOOLS = [
+const TOOLS = [
   'get_business_info',
   'get_services',
   'get_service_details',
   'get_price',
   'get_business_hours',
   'get_staff',
+  'human_handoff',
 ] as const;
 
 type QueueStarter = typeof startAITurnQueue;
@@ -36,7 +39,7 @@ type QueueStarter = typeof startAITurnQueue;
 /**
  * Composes the live conversation-turn runtime from server-owned dependencies.
  * This function is inert until called by a bootstrap and performs no provider
- * I/O during construction. Only the read-only Phase 5 tools are authorized.
+ * I/O during construction. Only implemented, server-owned Phase 5 tools are authorized.
  */
 export async function startAITurnRuntime(
   deps: Dependencies,
@@ -48,6 +51,7 @@ export async function startAITurnRuntime(
 
   const registry = new ToolRegistry();
   registerBusinessReadTools(registry, new PrismaBusinessToolReader(deps));
+  registerHumanHandoffTool(registry, new PrismaHumanHandoff(deps));
   const executor = new ToolExecutor(registry);
   const engine = new ConversationEngine(
     new AIGateway(provider),
@@ -65,8 +69,8 @@ export async function startAITurnRuntime(
   const processor = new AITurnProcessor(
     new PrismaAITurnDispatchStore(deps),
     coordinator,
-    READ_CAPABILITIES,
-    READ_TOOLS,
+    TOOL_CAPABILITIES,
+    TOOLS,
   );
   return startQueue(deps, config.REDIS_URL, processor);
 }
