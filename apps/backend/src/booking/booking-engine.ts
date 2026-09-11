@@ -46,7 +46,10 @@ export class BookingEngine {
     });
   }
 
-  async availableSlots(input: AvailabilityRequest, signal: AbortSignal): Promise<AvailabilityResult> {
+  async availableSlots(
+    input: AvailabilityRequest,
+    signal: AbortSignal,
+  ): Promise<AvailabilityResult> {
     validateDate(input.date);
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
