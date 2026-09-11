@@ -13,6 +13,7 @@ import { PrismaBusinessToolReader } from './business-tool-reader';
 import { registerBusinessReadTools } from './business-read-tools';
 import { ConversationEngine } from './conversation-engine';
 import { ConversationTurnCoordinator } from './conversation-turn-coordinator';
+import { registerCreateBookingTool } from './create-booking-tool';
 import { PrismaLeadCreator, registerCreateLeadTool } from './create-lead-tool';
 import { PrismaHumanHandoff, registerHumanHandoffTool } from './human-handoff-tool';
 import { PrismaConversationFence } from './prisma-conversation-fence';
@@ -26,6 +27,7 @@ const TOOL_CAPABILITIES = [
   'business.hours.read',
   'business.staff.read',
   'booking.availability.read',
+  'booking.create',
   'conversation.handoff',
   'customer.profile.write',
   'customer.lead.create',
@@ -39,6 +41,7 @@ const TOOLS = [
   'get_business_hours',
   'get_staff',
   'get_available_slots',
+  'create_booking',
   'human_handoff',
   'update_customer',
   'create_lead',
@@ -60,8 +63,10 @@ export async function startAITurnRuntime(
   if (!provider) throw new Error('AI turn runtime requires an explicit provider');
 
   const registry = new ToolRegistry();
+  const bookingEngine = new BookingEngine(deps);
   registerBusinessReadTools(registry, new PrismaBusinessToolReader(deps));
-  registerAvailableSlotsTool(registry, new BookingEngine(deps));
+  registerAvailableSlotsTool(registry, bookingEngine);
+  registerCreateBookingTool(registry, bookingEngine);
   registerHumanHandoffTool(registry, new PrismaHumanHandoff(deps));
   registerUpdateCustomerTool(registry, new PrismaCustomerUpdater(deps));
   registerCreateLeadTool(registry, new PrismaLeadCreator(deps));
