@@ -32,6 +32,18 @@ function validateArguments(value: JsonObject): JsonObject {
     : { serviceId: value.serviceId, date: value.date, staffId: value.staffId };
 }
 
+function toJson(result: AvailabilityResult): JsonObject {
+  return {
+    timezone: result.timezone,
+    resourceId: result.resourceId,
+    staffId: result.staffId,
+    slots: result.slots.map((slot) => ({
+      startsAt: slot.startsAt,
+      endsAt: slot.endsAt,
+    })),
+  };
+}
+
 export function registerAvailableSlotsTool(
   registry: ToolRegistry,
   reader: BookingAvailabilityReader,
@@ -56,15 +68,19 @@ export function registerAvailableSlotsTool(
     requiredCapabilities: ['booking.availability.read'],
     supportsIdempotency: false,
     validateArguments,
-    execute: (context, arguments_, signal): Promise<JsonValue> =>
-      reader.availableSlots(
-        {
-          tenantId: context.tenantId,
-          serviceId: arguments_.serviceId as string,
-          date: arguments_.date as string,
-          ...(arguments_.staffId === undefined ? {} : { staffId: arguments_.staffId as string }),
-        },
-        signal,
+    execute: async (context, arguments_, signal): Promise<JsonValue> =>
+      toJson(
+        await reader.availableSlots(
+          {
+            tenantId: context.tenantId,
+            serviceId: arguments_.serviceId as string,
+            date: arguments_.date as string,
+            ...(arguments_.staffId === undefined
+              ? {}
+              : { staffId: arguments_.staffId as string }),
+          },
+          signal,
+        ),
       ),
   });
 }
