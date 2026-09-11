@@ -20,7 +20,7 @@ export interface ConversationEngineRequest extends ToolTurnContext {
 export interface ConversationEngineResult {
   status: 'completed' | 'handoff_required';
   content: string | null;
-  reason: 'completed' | 'round_limit' | 'tool_limit';
+  reason: 'completed' | 'round_limit' | 'tool_limit' | 'tool_handoff';
   rounds: number;
   toolCalls: number;
   usage: { inputTokens: number; outputTokens: number };
@@ -91,6 +91,8 @@ export class ConversationEngine {
         const [result] = await this.tools.execute([call], request);
         if (!result) throw new ConversationExecutionStale();
         totalToolCalls += 1;
+        if (result.success && this.tools.effect(call.name) === 'handoff')
+          return this.handoff('tool_handoff', round, totalToolCalls, usage);
         messages.push({
           role: 'tool_call',
           callId: call.id,
@@ -129,7 +131,7 @@ export class ConversationEngine {
   }
 
   private handoff(
-    reason: 'round_limit' | 'tool_limit',
+    reason: 'round_limit' | 'tool_limit' | 'tool_handoff',
     rounds: number,
     toolCalls: number,
     usage: { inputTokens: number; outputTokens: number },
