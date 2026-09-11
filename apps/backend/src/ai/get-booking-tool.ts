@@ -50,10 +50,7 @@ interface BookingRow {
 export class PrismaBookingReader implements BookingReader {
   constructor(private readonly deps: Dependencies) {}
 
-  async getBooking(
-    input: GetBookingRequest,
-    signal: AbortSignal,
-  ): Promise<BookingDetails> {
+  async getBooking(input: GetBookingRequest, signal: AbortSignal): Promise<BookingDetails> {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
     return this.deps.db.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
