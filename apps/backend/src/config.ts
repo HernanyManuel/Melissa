@@ -274,6 +274,12 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     throw new Error('OpenAI fields require AI_PROVIDER=openai');
   if (result.data.AI_TURN_WORKER_ENABLED === 'true' && result.data.AI_PROVIDER === 'disabled')
     throw new Error('AI turn worker requires an explicit AI provider');
+  if (
+    result.data.AI_TURN_WORKER_ENABLED === 'true' &&
+    result.data.AI_OUTBOUND_WORKER_ENABLED === 'true' &&
+    result.data.AI_PROVIDER === 'mock'
+  )
+    throw new Error('Live AI outbound cannot use the mock AI provider');
   if (result.data.NODE_ENV === 'production') {
     // P1 deliberately has no authenticated product API or deployment profile.
     throw new Error(
