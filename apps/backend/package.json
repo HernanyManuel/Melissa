@@ -11,7 +11,7 @@
     "lint": "eslint src test scripts",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && node --test dist/test/unit.test.js",
-    "test:integration": "pnpm build && node --test dist/test/integration.test.js dist/test/identity.integration.test.js dist/test/business.integration.test.js dist/test/ai-turn-trigger.integration.test.js dist/test/ai-turn-processor.integration.test.js dist/test/human-handoff.integration.test.js dist/test/update-customer.integration.test.js dist/test/create-lead.integration.test.js dist/test/booking-foundation.integration.test.js",
+    "test:integration": "pnpm build && node --test dist/test/integration.test.js dist/test/identity.integration.test.js dist/test/business.integration.test.js dist/test/ai-turn-trigger.integration.test.js dist/test/ai-turn-processor.integration.test.js dist/test/human-handoff.integration.test.js dist/test/update-customer.integration.test.js dist/test/create-lead.integration.test.js dist/test/booking-foundation.integration.test.js dist/test/create-booking.integration.test.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
