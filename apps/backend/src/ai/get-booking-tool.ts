@@ -1,5 +1,5 @@
-import { isUUID } from 'class-validator';
 import { Prisma } from '@prisma/client';
+import { isUUID } from 'class-validator';
 import { Dependencies } from '../dependencies';
 import { JsonObject, JsonValue } from './ai-provider';
 import { ToolRegistry } from './tool-registry';
@@ -50,7 +50,10 @@ interface BookingRow {
 export class PrismaBookingReader implements BookingReader {
   constructor(private readonly deps: Dependencies) {}
 
-  async getBooking(input: GetBookingRequest, signal: AbortSignal): Promise<BookingDetails> {
+  async getBooking(
+    input: GetBookingRequest,
+    signal: AbortSignal,
+  ): Promise<BookingDetails> {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
     return this.deps.db.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
@@ -106,7 +109,11 @@ export class PrismaBookingReader implements BookingReader {
 }
 
 function validateArguments(value: JsonObject): JsonObject {
-  if (Object.keys(value).length !== 1 || typeof value.bookingId !== 'string' || !isUUID(value.bookingId))
+  if (
+    Object.keys(value).length !== 1 ||
+    typeof value.bookingId !== 'string' ||
+    !isUUID(value.bookingId)
+  )
     throw new Error('Invalid booking request');
   return { bookingId: value.bookingId };
 }
