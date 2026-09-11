@@ -249,7 +249,7 @@ export class BookingEngine {
           ${selection.resourceId}::uuid, ${input.conversationId}::uuid, 'ai', 'confirmed',
           ${startsAt}, ${endsAt}, ${selection.bufferBeforeMinutes}, ${selection.bufferAfterMinutes},
           ${input.idempotencyKey}, ${input.turnId}::uuid, ${hash}, ${selection.timezone},
-          ${selection.durationMinutes}, ${selection.price}, ${selection.currency}
+          ${selection.durationMinutes}, ${selection.price}::numeric(20,6), ${selection.currency}
         )
         ON CONFLICT DO NOTHING
         RETURNING id::text
