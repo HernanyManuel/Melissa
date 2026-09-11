@@ -26,7 +26,7 @@ export type ConversationTurnResult =
   | { status: 'completed'; content: string; rounds: number; toolCalls: number }
   | {
       status: 'handoff_required';
-      reason: 'round_limit' | 'tool_limit';
+      reason: 'round_limit' | 'tool_limit' | 'tool_handoff';
       rounds: number;
       toolCalls: number;
     }
@@ -120,12 +120,12 @@ export class ConversationTurnCoordinator {
         toolCalls: result.toolCalls,
       };
     }
-    if (result.reason !== 'round_limit' && result.reason !== 'tool_limit')
+    if (!['round_limit', 'tool_limit', 'tool_handoff'].includes(result.reason))
       return this.invalidResult(request);
     await this.complete(request, result);
     return {
       status: 'handoff_required',
-      reason: result.reason,
+      reason: result.reason as 'round_limit' | 'tool_limit' | 'tool_handoff',
       rounds: result.rounds,
       toolCalls: result.toolCalls,
     };
