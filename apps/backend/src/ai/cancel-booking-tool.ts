@@ -17,8 +17,18 @@ export interface CancelBookingRequest {
   confirmed: true;
 }
 
+export type CancelBookingResult =
+  | {
+      status: 'cancelled';
+      bookingId: string;
+      cancelledAt: string;
+      duplicate: boolean;
+      alreadyCancelled: boolean;
+    }
+  | { status: 'not_found' };
+
 export interface BookingCanceller {
-  cancel(input: CancelBookingRequest, signal: AbortSignal): Promise<JsonValue>;
+  cancel(input: CancelBookingRequest, signal: AbortSignal): Promise<CancelBookingResult>;
 }
 
 interface ExistingOperation {
@@ -68,10 +78,24 @@ function argumentsHash(input: CancelBookingRequest): string {
     .digest('hex');
 }
 
+function toJson(result: CancelBookingResult): JsonObject {
+  if (result.status === 'not_found') return { status: 'not_found' };
+  return {
+    status: result.status,
+    bookingId: result.bookingId,
+    cancelledAt: result.cancelledAt,
+    duplicate: result.duplicate,
+    alreadyCancelled: result.alreadyCancelled,
+  };
+}
+
 export class PrismaBookingCanceller implements BookingCanceller {
   constructor(private readonly deps: Dependencies) {}
 
-  async cancel(input: CancelBookingRequest, signal: AbortSignal): Promise<JsonValue> {
+  async cancel(
+    input: CancelBookingRequest,
+    signal: AbortSignal,
+  ): Promise<CancelBookingResult> {
     if (input.executionMode !== 'live') throw new Error('Booking cancellation is live-only');
     if (input.confirmed !== true) throw new Error('Cancellation requires explicit confirmation');
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -220,21 +244,25 @@ export function registerCancelBookingTool(registry: ToolRegistry, canceller: Boo
     requiredCapabilities: ['booking.cancel'],
     supportsIdempotency: true,
     validateArguments,
-    execute: (context, arguments_, signal) =>
-      canceller.cancel(
-        {
-          tenantId: context.tenantId,
-          conversationId: context.conversationId,
-          customerId: context.customerId,
-          turnId: context.turnId,
-          expectedModeEpoch: context.expectedModeEpoch,
-          idempotencyKey: context.idempotencyKey,
-          executionMode: context.executionMode,
-          bookingId: arguments_.bookingId as string,
-          ...(arguments_.reason === undefined ? {} : { reason: arguments_.reason as string }),
-          confirmed: true,
-        },
-        signal,
+    execute: async (context, arguments_, signal): Promise<JsonValue> =>
+      toJson(
+        await canceller.cancel(
+          {
+            tenantId: context.tenantId,
+            conversationId: context.conversationId,
+            customerId: context.customerId,
+            turnId: context.turnId,
+            expectedModeEpoch: context.expectedModeEpoch,
+            idempotencyKey: context.idempotencyKey,
+            executionMode: context.executionMode,
+            bookingId: arguments_.bookingId as string,
+            ...(arguments_.reason === undefined
+              ? {}
+              : { reason: arguments_.reason as string }),
+            confirmed: true,
+          },
+          signal,
+        ),
       ),
   });
 }
