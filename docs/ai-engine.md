@@ -125,3 +125,7 @@ Motor e validators reais, repositories de sandbox separados dos live e providers
 Test suite a partir de config snapshot: preço, fechado, horário, tools, idioma, injection e handoff. Asserções determinísticas em outputs estruturados e efeitos; avaliação semântica como complemento. Teste “18 EUR” não depende de frase exata. Config mudou → resultados anteriores inválidos. Falha → needs_review, com diagnóstico e repetição. Ativação verifica versão testada, channel, calendar, billing e estado tenant numa operação coordenada.
 
 Guardar usage mesmo em timeout/falha quando provider consumiu; reconciliar estimativas. Não guardar prompts completos em logs de rotina. Integração real exige validação em staging; mocks não provam comportamento do provider. O runtime opt-in e CI verde não equivalem a autorização de produção.
+
+## Validação do HEAD
+
+A CI #198 validou o HEAD documentado com install frozen, migrations e seed idempotente, format/lint/TypeScript strict, unitários, integração com worker real, recovery Redis, OpenAPI, audit de dependências, Compose e Flutter completos. Esta validação não substitui staging com providers e credenciais reais.
