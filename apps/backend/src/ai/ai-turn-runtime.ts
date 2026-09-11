@@ -11,6 +11,7 @@ import { startAITurnQueue } from './ai-turn-queue';
 import { registerAvailableSlotsTool } from './available-slots-tool';
 import { PrismaBusinessToolReader } from './business-tool-reader';
 import { registerBusinessReadTools } from './business-read-tools';
+import { PrismaBookingCanceller, registerCancelBookingTool } from './cancel-booking-tool';
 import { ConversationEngine } from './conversation-engine';
 import { ConversationTurnCoordinator } from './conversation-turn-coordinator';
 import { registerCreateBookingTool } from './create-booking-tool';
@@ -30,6 +31,7 @@ const TOOL_CAPABILITIES = [
   'booking.availability.read',
   'booking.read',
   'booking.create',
+  'booking.cancel',
   'conversation.handoff',
   'customer.profile.write',
   'customer.lead.create',
@@ -45,6 +47,7 @@ const TOOLS = [
   'get_available_slots',
   'get_booking',
   'create_booking',
+  'cancel_booking',
   'human_handoff',
   'update_customer',
   'create_lead',
@@ -71,6 +74,7 @@ export async function startAITurnRuntime(
   registerAvailableSlotsTool(registry, bookingEngine);
   registerGetBookingTool(registry, new PrismaBookingReader(deps));
   registerCreateBookingTool(registry, bookingEngine);
+  registerCancelBookingTool(registry, new PrismaBookingCanceller(deps));
   registerHumanHandoffTool(registry, new PrismaHumanHandoff(deps));
   registerUpdateCustomerTool(registry, new PrismaCustomerUpdater(deps));
   registerCreateLeadTool(registry, new PrismaLeadCreator(deps));
