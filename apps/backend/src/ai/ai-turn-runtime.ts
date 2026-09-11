@@ -1,3 +1,4 @@
+import { BookingEngine } from '../booking/booking-engine';
 import { Configuration } from '../config';
 import { Dependencies } from '../dependencies';
 import { AIContextBuilder } from './ai-context-builder';
@@ -7,6 +8,7 @@ import { createAIProvider } from './ai-provider-factory';
 import { AITurnLedger, PrismaAITurnLedgerRepository } from './ai-turn-ledger';
 import { AITurnProcessor, PrismaAITurnDispatchStore } from './ai-turn-processor';
 import { startAITurnQueue } from './ai-turn-queue';
+import { registerAvailableSlotsTool } from './available-slots-tool';
 import { PrismaBusinessToolReader } from './business-tool-reader';
 import { registerBusinessReadTools } from './business-read-tools';
 import { ConversationEngine } from './conversation-engine';
@@ -23,6 +25,7 @@ const TOOL_CAPABILITIES = [
   'business.services.read',
   'business.hours.read',
   'business.staff.read',
+  'booking.availability.read',
   'conversation.handoff',
   'customer.profile.write',
   'customer.lead.create',
@@ -35,6 +38,7 @@ const TOOLS = [
   'get_price',
   'get_business_hours',
   'get_staff',
+  'get_available_slots',
   'human_handoff',
   'update_customer',
   'create_lead',
@@ -57,6 +61,7 @@ export async function startAITurnRuntime(
 
   const registry = new ToolRegistry();
   registerBusinessReadTools(registry, new PrismaBusinessToolReader(deps));
+  registerAvailableSlotsTool(registry, new BookingEngine(deps));
   registerHumanHandoffTool(registry, new PrismaHumanHandoff(deps));
   registerUpdateCustomerTool(registry, new PrismaCustomerUpdater(deps));
   registerCreateLeadTool(registry, new PrismaLeadCreator(deps));
