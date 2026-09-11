@@ -1,7 +1,7 @@
 import { isUUID } from 'class-validator';
 import { AIToolCall, JsonObject, JsonValue } from './ai-provider';
 import { assertSafeJson } from './json-safety';
-import { ToolExecutionContext, ToolRegistry } from './tool-registry';
+import { ToolEffect, ToolExecutionContext, ToolRegistry } from './tool-registry';
 
 const TOOL_NAME = /^[a-z][a-z0-9_]{0,63}$/;
 const CALL_ID = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -40,6 +40,10 @@ export class ToolExecutor {
   ) {
     if (!Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 30_000)
       throw new Error('Invalid tool timeout');
+  }
+
+  effect(name: string): ToolEffect | undefined {
+    return this.registry.get(name)?.effect;
   }
 
   async execute(
