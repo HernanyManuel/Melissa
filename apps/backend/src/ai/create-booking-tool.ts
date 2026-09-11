@@ -1,8 +1,5 @@
 import { isUUID } from 'class-validator';
-import {
-  CreateBookingRequest,
-  CreateBookingResult,
-} from '../booking/booking-engine';
+import { CreateBookingRequest, CreateBookingResult } from '../booking/booking-engine';
 import { JsonObject, JsonValue } from './ai-provider';
 import { ToolRegistry } from './tool-registry';
 
@@ -84,9 +81,7 @@ export function registerCreateBookingTool(registry: ToolRegistry, creator: Booki
             executionMode: context.executionMode,
             serviceId: arguments_.serviceId as string,
             startsAt: arguments_.startsAt as string,
-            ...(arguments_.staffId === undefined
-              ? {}
-              : { staffId: arguments_.staffId as string }),
+            ...(arguments_.staffId === undefined ? {} : { staffId: arguments_.staffId as string }),
             confirmed: true,
           },
           signal,
