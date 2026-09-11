@@ -134,6 +134,57 @@ test('conversation engine checks fencing before tools and suppresses stale execu
   assert.equal(executions.length, 0);
 });
 
+test('conversation engine treats a successful handoff tool as terminal', async () => {
+  let providerCalls = 0;
+  const handoffRegistry = new ToolRegistry();
+  handoffRegistry.register({
+    definition: {
+      name: 'human_handoff',
+      description: 'Transfer to a human.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    },
+    effect: 'handoff',
+    requiredCapabilities: ['conversation.handoff'],
+    supportsIdempotency: true,
+    validateArguments: (value) => value,
+    execute: async () => ({ status: 'waiting_human' }),
+  });
+  const provider = scripted([
+    {
+      content: null,
+      toolCalls: [{ id: 'handoff_1', name: 'human_handoff', arguments: {} }],
+      finishReason: 'tool_calls',
+      usage: { inputTokens: 3, outputTokens: 1 },
+    },
+  ]);
+  const gateway = new AIGateway({
+    ...provider,
+    async complete(input) {
+      providerCalls += 1;
+      return provider.complete(input);
+    },
+  });
+  const result = await new ConversationEngine(
+    gateway,
+    new ToolExecutor(handoffRegistry),
+    activeFence,
+  ).run({
+    ...request,
+    executionMode: 'live',
+    capabilities: ['conversation.handoff'],
+    providerRequest: { ...providerRequest, tools: handoffRegistry.definitions(['human_handoff']) },
+  });
+  assert.deepEqual(result, {
+    status: 'handoff_required',
+    content: null,
+    reason: 'tool_handoff',
+    rounds: 1,
+    toolCalls: 1,
+    usage: { inputTokens: 3, outputTokens: 1 },
+  });
+  assert.equal(providerCalls, 1);
+});
+
 test('conversation engine requests handoff after round or tool budgets', async () => {
   const executions: string[] = [];
   const rounds = Array.from(
