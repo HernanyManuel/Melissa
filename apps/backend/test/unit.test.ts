@@ -28,6 +28,8 @@ import './ai-turn-runtime.test';
 import './ai-outbound-dispatcher.test';
 import './ai-outbound-queue.test';
 import './ai-outbound-runtime.test';
+import './create-lead-tool.test';
+import './update-customer-tool.test';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
