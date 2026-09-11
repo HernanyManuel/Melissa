@@ -4,7 +4,13 @@ SET LOCAL statement_timeout = '60s';
 
 ALTER TABLE bookings
   ADD COLUMN cancelled_at TIMESTAMPTZ(6),
-  ADD COLUMN cancellation_reason VARCHAR(500),
+  ADD COLUMN cancellation_reason VARCHAR(500);
+
+UPDATE bookings
+SET cancelled_at=COALESCE(updated_at, created_at)
+WHERE status='cancelled' AND cancelled_at IS NULL;
+
+ALTER TABLE bookings
   ADD CONSTRAINT bookings_cancellation_state_check CHECK (
     (status='cancelled' AND cancelled_at IS NOT NULL) OR
     (status<>'cancelled' AND cancelled_at IS NULL AND cancellation_reason IS NULL)
