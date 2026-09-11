@@ -182,11 +182,7 @@ test(
           VALUES (
             ${tenantId}::uuid, ${id}::uuid, ${conversationId}::uuid, ${customerId}::uuid,
             4, 2, ${replay.status},
-            ${
-              replay.status === 'failed' || replay.status === 'stale'
-                ? 'replay_terminal'
-                : null
-            },
+            ${replay.status === 'failed' || replay.status === 'stale' ? 'replay_terminal' : null},
             CURRENT_TIMESTAMP
           )`;
         const claim = await store.claim(id, 0);
@@ -222,10 +218,7 @@ test(
       assert.equal(running?.state, 'pending');
       assert.equal(running?.attempts, 0);
       assert(running && running.nextAttemptAt > new Date(Date.now() - 500));
-      assert.equal(
-        await admin.auditEvent.count({ where: { tenantId, targetId: runningId } }),
-        0,
-      );
+      assert.equal(await admin.auditEvent.count({ where: { tenantId, targetId: runningId } }), 0);
     } finally {
       await deps.onModuleDestroy();
       await admin.$disconnect();
