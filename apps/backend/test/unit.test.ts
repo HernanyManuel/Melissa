@@ -130,6 +130,18 @@ test('automatic AI outbound is disabled by default and requires complete secret 
   assert.equal(enabled.SECRET_PROVIDER, 'mounted-file');
 });
 
+test('AI turn worker is disabled by default and requires an explicit provider', () => {
+  assert.equal(parseConfig(base).AI_TURN_WORKER_ENABLED, 'false');
+  assert.throws(() => parseConfig({ ...base, AI_TURN_WORKER_ENABLED: 'true' }), /explicit AI provider/);
+  const enabled = parseConfig({
+    ...base,
+    AI_TURN_WORKER_ENABLED: 'true',
+    AI_PROVIDER: 'mock',
+  });
+  assert.equal(enabled.AI_TURN_WORKER_ENABLED, 'true');
+  assert.equal(enabled.AI_PROVIDER, 'mock');
+});
+
 test('accepts development settings with explicit defaults', () => {
   const config = parseConfig(base);
   assert.equal(config.PORT, 3000);
