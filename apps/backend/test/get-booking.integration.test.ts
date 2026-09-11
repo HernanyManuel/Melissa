@@ -35,14 +35,18 @@ test('get_booking reads only bookings owned by the trusted customer scope', asyn
           id: customerId,
           tenantId,
           displayName: 'Booking owner',
-          phoneE164: `+35191${Math.floor(Math.random() * 10_000_000).toString().padStart(7, '0')}`,
+          phoneE164: `+35191${Math.floor(Math.random() * 10_000_000)
+            .toString()
+            .padStart(7, '0')}`,
           language: 'pt',
         },
         {
           id: otherCustomerId,
           tenantId,
           displayName: 'Other customer',
-          phoneE164: `+35192${Math.floor(Math.random() * 10_000_000).toString().padStart(7, '0')}`,
+          phoneE164: `+35192${Math.floor(Math.random() * 10_000_000)
+            .toString()
+            .padStart(7, '0')}`,
           language: 'pt',
         },
       ],
