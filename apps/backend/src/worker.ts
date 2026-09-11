@@ -19,6 +19,7 @@ import { createWhatsAppMediaSource } from './storage/whatsapp-media-factory';
 import { createMalwareScanner } from './storage/malware-scanner-factory';
 import { createSecretResolver } from './secrets/secret-resolver-factory';
 import { startAIAutomaticOutboundRuntime } from './ai/ai-outbound-runtime';
+import { startAITurnRuntime } from './ai/ai-turn-runtime';
 
 // Isolated probe and durable consumers; no public product API on this process.
 async function bootstrap(): Promise<void> {
@@ -70,6 +71,9 @@ async function bootstrap(): Promise<void> {
       secretResolver,
     });
   }
+  let stopAITurns: () => Promise<void> = async () => undefined;
+  if (config.AI_TURN_WORKER_ENABLED === 'true')
+    stopAITurns = await startAITurnRuntime(deps, config);
   const stopRetention = startQuarantineRetention(app.get(Dependencies).db);
   await app.listen(config.WORKER_PORT, '0.0.0.0');
   let stopping = false;
@@ -77,6 +81,7 @@ async function bootstrap(): Promise<void> {
     if (stopping) return;
     stopping = true;
     await stopRetention();
+    await stopAITurns();
     await stopAIOutbound();
     await stopMedia();
     await stopOutbound();
@@ -84,7 +89,7 @@ async function bootstrap(): Promise<void> {
     await worker.close();
     await app.close();
   };
-  // Own shutdown order: stop consumption before closing shared dependencies.
+  // Own shutdown order: stop producers before consumers, then shared dependencies.
   process.once('SIGTERM', () => void stop());
   process.once('SIGINT', () => void stop());
   log.info({ event: 'worker_started' });
