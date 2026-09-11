@@ -2,13 +2,7 @@ import { Dependencies } from '../dependencies';
 import { JsonObject, JsonValue } from './ai-provider';
 import { ToolRegistry } from './tool-registry';
 
-const REASONS = [
-  'customer_requested',
-  'unsupported',
-  'complaint',
-  'safety',
-  'other',
-] as const;
+const REASONS = ['customer_requested', 'unsupported', 'complaint', 'safety', 'other'] as const;
 type HandoffReason = (typeof REASONS)[number];
 
 interface ExistingHandoff {
@@ -43,8 +37,7 @@ export class PrismaHumanHandoff {
     },
     signal: AbortSignal,
   ): Promise<JsonValue> {
-    if (input.executionMode !== 'live')
-      throw new Error('Human handoff is live-only');
+    if (input.executionMode !== 'live') throw new Error('Human handoff is live-only');
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
     return this.deps.db.$transaction(async (tx) => {
@@ -89,8 +82,7 @@ export class PrismaHumanHandoff {
           AND customer_id=${input.customerId}::uuid
         FOR UPDATE
       `;
-      if (conversations[0]?.mode !== 'AI_ACTIVE')
-        throw new Error('Conversation is not AI active');
+      if (conversations[0]?.mode !== 'AI_ACTIVE') throw new Error('Conversation is not AI active');
 
       const changed = await tx.$executeRaw`
         UPDATE conversations
