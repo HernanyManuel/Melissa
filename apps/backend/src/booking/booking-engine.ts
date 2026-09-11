@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { Dependencies } from '../dependencies';
 
 export interface AvailabilityRequest {
@@ -25,7 +26,10 @@ interface Period {
 }
 
 function validateDate(date: string): void {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`)))
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) throw new Error('Invalid booking date');
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date)
     throw new Error('Invalid booking date');
 }
 
@@ -175,7 +179,7 @@ export class BookingEngine {
   }
 
   private async ensureDefaultResourceInTransaction(
-    tx: Parameters<Parameters<typeof this.deps.db.$transaction>[0]>[0],
+    tx: Prisma.TransactionClient,
     tenantId: string,
   ): Promise<string> {
     await tx.$executeRaw`
@@ -195,7 +199,7 @@ export class BookingEngine {
   }
 
   private async ensureStaffResourceInTransaction(
-    tx: Parameters<Parameters<typeof this.deps.db.$transaction>[0]>[0],
+    tx: Prisma.TransactionClient,
     tenantId: string,
     staffId: string,
     name: string,
