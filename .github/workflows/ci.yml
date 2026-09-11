@@ -56,7 +56,11 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
-      - run: pnpm format:check
+      - name: Diagnose AI turn test formatting
+        run: |
+          pnpm exec prettier --write apps/backend/test/ai-turn-processor.integration.test.ts
+          git diff -- apps/backend/test/ai-turn-processor.integration.test.ts
+          exit 1
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
