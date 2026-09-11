@@ -1,16 +1,10 @@
 import { isUUID } from 'class-validator';
-import {
-  AvailabilityRequest,
-  AvailabilityResult,
-} from '../booking/booking-engine';
+import { AvailabilityRequest, AvailabilityResult } from '../booking/booking-engine';
 import { JsonObject, JsonValue } from './ai-provider';
 import { ToolRegistry } from './tool-registry';
 
 export interface BookingAvailabilityReader {
-  availableSlots(
-    input: AvailabilityRequest,
-    signal: AbortSignal,
-  ): Promise<AvailabilityResult>;
+  availableSlots(input: AvailabilityRequest, signal: AbortSignal): Promise<AvailabilityResult>;
 }
 
 function validateDate(date: string): void {
@@ -27,10 +21,7 @@ function validateArguments(value: JsonObject): JsonObject {
     throw new Error('Invalid service ID');
   if (typeof value.date !== 'string') throw new Error('Invalid booking date');
   validateDate(value.date);
-  if (
-    value.staffId !== undefined &&
-    (typeof value.staffId !== 'string' || !isUUID(value.staffId))
-  )
+  if (value.staffId !== undefined && (typeof value.staffId !== 'string' || !isUUID(value.staffId)))
     throw new Error('Invalid staff ID');
   for (const key of keys) {
     if (!['serviceId', 'date', 'staffId'].includes(key))
@@ -84,9 +75,7 @@ export function registerAvailableSlotsTool(
             tenantId: context.tenantId,
             serviceId: arguments_.serviceId as string,
             date: arguments_.date as string,
-            ...(arguments_.staffId === undefined
-              ? {}
-              : { staffId: arguments_.staffId as string }),
+            ...(arguments_.staffId === undefined ? {} : { staffId: arguments_.staffId as string }),
           },
           signal,
         ),
