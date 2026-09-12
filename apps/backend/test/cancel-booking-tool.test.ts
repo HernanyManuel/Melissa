@@ -73,6 +73,37 @@ test('cancel_booking requires confirmation and injects trusted write scope', asy
   ]);
 });
 
+test('cancel_booking exposes structured policy denial without turning it into execution failure', async () => {
+  const canceller: BookingCanceller = {
+    async cancel() {
+      return {
+        status: 'policy_denied',
+        reason: 'minimum_notice',
+        minimumNoticeMinutes: 1440,
+      };
+    },
+  };
+  const registry = new ToolRegistry();
+  registerCancelBookingTool(registry, canceller);
+  const bookingId = '00000000-0000-4000-8000-000000000010';
+  const [result] = await new ToolExecutor(registry).execute(
+    [
+      {
+        id: 'cancel_policy',
+        name: 'cancel_booking',
+        arguments: { bookingId, expectedVersion: 4, confirmed: true },
+      },
+    ],
+    context,
+  );
+  assert.equal(result?.success, true);
+  assert.deepEqual(result?.output, {
+    status: 'policy_denied',
+    reason: 'minimum_notice',
+    minimumNoticeMinutes: 1440,
+  });
+});
+
 test('cancel_booking rejects unsafe arguments and missing capability before execution', async () => {
   let executions = 0;
   const canceller: BookingCanceller = {
