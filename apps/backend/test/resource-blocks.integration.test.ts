@@ -132,20 +132,23 @@ test(
         await releasePromise;
       });
       await lockedPromise;
-      await assert.rejects(
-        admin.$transaction(async (tx) => {
-          await tx.$executeRaw`SET LOCAL lock_timeout = '200ms'`;
-          await tx.$executeRaw`
-            INSERT INTO resource_blocks (tenant_id, resource_id, starts_at, ends_at, reason)
-            VALUES (
-              ${tenantId}::uuid, ${resourceId}::uuid,
-              ${new Date('2026-09-15T09:30:00Z')}, ${new Date('2026-09-15T10:00:00Z')},
-              'Lock serialization probe'
-            )
-          `;
-        }),
-      );
-      releaseResourceLock();
+      try {
+        await assert.rejects(
+          admin.$transaction(async (tx) => {
+            await tx.$executeRaw`SET LOCAL lock_timeout = '200ms'`;
+            await tx.$executeRaw`
+              INSERT INTO resource_blocks (tenant_id, resource_id, starts_at, ends_at, reason)
+              VALUES (
+                ${tenantId}::uuid, ${resourceId}::uuid,
+                ${new Date('2026-09-15T09:30:00Z')}, ${new Date('2026-09-15T10:00:00Z')},
+                'Lock serialization probe'
+              )
+            `;
+          }),
+        );
+      } finally {
+        releaseResourceLock();
+      }
       await holding;
 
       await admin.$executeRaw`
@@ -220,9 +223,7 @@ test(
       );
       assert.deepEqual(blockedReschedule, { status: 'unavailable' });
 
-      const [unchanged] = await admin.$queryRaw<
-        Array<{ starts_at: Date; version: number }>
-      >`
+      const [unchanged] = await admin.$queryRaw<Array<{ starts_at: Date; version: number }>>`
         SELECT starts_at, version
         FROM bookings
         WHERE tenant_id=${tenantId}::uuid AND id=${created.bookingId}::uuid
