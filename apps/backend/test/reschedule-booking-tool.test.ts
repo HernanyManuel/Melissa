@@ -19,7 +19,7 @@ const context = {
   capabilities: ['booking.reschedule'],
 };
 
-test('reschedule_booking exposes only booking, time and confirmation with trusted scope', async () => {
+test('reschedule_booking exposes booking, version, time and confirmation with trusted scope', async () => {
   const calls: RescheduleBookingRequest[] = [];
   const rescheduler: BookingRescheduler = {
     async reschedule(input) {
@@ -37,7 +37,12 @@ test('reschedule_booking exposes only booking, time and confirmation with truste
   const registry = new ToolRegistry();
   registerRescheduleBookingTool(registry, rescheduler);
   const definition = registry.definitions(['reschedule_booking'])[0]!;
-  assert.deepEqual(definition.inputSchema.required, ['bookingId', 'startsAt', 'confirmed']);
+  assert.deepEqual(definition.inputSchema.required, [
+    'bookingId',
+    'expectedVersion',
+    'startsAt',
+    'confirmed',
+  ]);
   assert.equal(definition.inputSchema.additionalProperties, false);
 
   const bookingId = '00000000-0000-4000-8000-000000000010';
@@ -46,7 +51,12 @@ test('reschedule_booking exposes only booking, time and confirmation with truste
       {
         id: 'reschedule_1',
         name: 'reschedule_booking',
-        arguments: { bookingId, startsAt: '2026-09-18T11:00:00+01:00', confirmed: true },
+        arguments: {
+          bookingId,
+          expectedVersion: 3,
+          startsAt: '2026-09-18T11:00:00+01:00',
+          confirmed: true,
+        },
       },
     ],
     context,
@@ -62,13 +72,14 @@ test('reschedule_booking exposes only booking, time and confirmation with truste
       idempotencyKey: `${context.turnId}:reschedule_1`,
       executionMode: 'live',
       bookingId,
+      expectedVersion: 3,
       startsAt: '2026-09-18T10:00:00.000Z',
       confirmed: true,
     },
   ]);
 });
 
-test('reschedule_booking rejects unsafe arguments, naive time and missing capability', async () => {
+test('reschedule_booking rejects unsafe arguments, stale preconditions, naive time and missing capability', async () => {
   let executions = 0;
   const rescheduler: BookingRescheduler = {
     async reschedule() {
@@ -86,23 +97,49 @@ test('reschedule_booking rejects unsafe arguments, naive time and missing capabi
       {
         id: 'r1',
         name: 'reschedule_booking',
-        arguments: { bookingId, startsAt: '2026-09-18T10:00:00Z', confirmed: false },
+        arguments: {
+          bookingId,
+          expectedVersion: 1,
+          startsAt: '2026-09-18T10:00:00Z',
+          confirmed: false,
+        },
       },
       {
         id: 'r2',
         name: 'reschedule_booking',
-        arguments: { bookingId: 'bad', startsAt: '2026-09-18T10:00:00Z', confirmed: true },
+        arguments: {
+          bookingId: 'bad',
+          expectedVersion: 1,
+          startsAt: '2026-09-18T10:00:00Z',
+          confirmed: true,
+        },
       },
       {
         id: 'r3',
         name: 'reschedule_booking',
-        arguments: { bookingId, startsAt: '2026-09-18T10:00:00', confirmed: true },
+        arguments: {
+          bookingId,
+          expectedVersion: 1,
+          startsAt: '2026-09-18T10:00:00',
+          confirmed: true,
+        },
       },
       {
         id: 'r4',
         name: 'reschedule_booking',
         arguments: {
           bookingId,
+          expectedVersion: 0,
+          startsAt: '2026-09-18T10:00:00Z',
+          confirmed: true,
+        },
+      },
+      {
+        id: 'r5',
+        name: 'reschedule_booking',
+        arguments: {
+          bookingId,
+          expectedVersion: 1,
           startsAt: '2026-09-18T10:00:00Z',
           confirmed: true,
           tenantId: context.tenantId,
@@ -113,15 +150,26 @@ test('reschedule_booking rejects unsafe arguments, naive time and missing capabi
   );
   assert.deepEqual(
     invalid.map((item) => item.error),
-    ['invalid_arguments', 'invalid_arguments', 'invalid_arguments', 'invalid_arguments'],
+    [
+      'invalid_arguments',
+      'invalid_arguments',
+      'invalid_arguments',
+      'invalid_arguments',
+      'invalid_arguments',
+    ],
   );
 
   const forbidden = await executor.execute(
     [
       {
-        id: 'r5',
+        id: 'r6',
         name: 'reschedule_booking',
-        arguments: { bookingId, startsAt: '2026-09-18T10:00:00Z', confirmed: true },
+        arguments: {
+          bookingId,
+          expectedVersion: 1,
+          startsAt: '2026-09-18T10:00:00Z',
+          confirmed: true,
+        },
       },
     ],
     { ...context, capabilities: [] },
