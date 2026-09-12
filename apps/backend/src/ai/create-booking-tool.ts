@@ -35,6 +35,14 @@ function validateArguments(value: JsonObject): JsonObject {
 
 function toJson(result: CreateBookingResult): JsonObject {
   if (result.status === 'unavailable') return { status: 'unavailable' };
+  if (result.status === 'policy_denied') {
+    return {
+      status: result.status,
+      reason: result.reason,
+      minimumNoticeMinutes: result.minimumNoticeMinutes,
+      maximumHorizonDays: result.maximumHorizonDays,
+    };
+  }
   return {
     status: result.status,
     bookingId: result.bookingId,
@@ -51,7 +59,7 @@ export function registerCreateBookingTool(registry: ToolRegistry, creator: Booki
     definition: {
       name: 'create_booking',
       description:
-        'Create a booking only after the customer explicitly confirms the exact service and slot. Use an exact startsAt returned by availability; never substitute another time or staff member.',
+        'Create a booking only after the customer explicitly confirms the exact service and slot. Use an exact startsAt returned by availability; never substitute another time or staff member. If policy_denied, explain the configured booking window and do not claim success.',
       inputSchema: {
         type: 'object',
         properties: {
