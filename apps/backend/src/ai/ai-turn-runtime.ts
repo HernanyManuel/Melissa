@@ -19,6 +19,10 @@ import { PrismaLeadCreator, registerCreateLeadTool } from './create-lead-tool';
 import { PrismaBookingReader, registerGetBookingTool } from './get-booking-tool';
 import { PrismaHumanHandoff, registerHumanHandoffTool } from './human-handoff-tool';
 import { PrismaConversationFence } from './prisma-conversation-fence';
+import {
+  PrismaBookingRescheduler,
+  registerRescheduleBookingTool,
+} from './reschedule-booking-tool';
 import { ToolExecutor } from './tool-executor';
 import { ToolRegistry } from './tool-registry';
 import { PrismaCustomerUpdater, registerUpdateCustomerTool } from './update-customer-tool';
@@ -32,6 +36,7 @@ const TOOL_CAPABILITIES = [
   'booking.read',
   'booking.create',
   'booking.cancel',
+  'booking.reschedule',
   'conversation.handoff',
   'customer.profile.write',
   'customer.lead.create',
@@ -48,6 +53,7 @@ const TOOLS = [
   'get_booking',
   'create_booking',
   'cancel_booking',
+  'reschedule_booking',
   'human_handoff',
   'update_customer',
   'create_lead',
@@ -75,6 +81,7 @@ export async function startAITurnRuntime(
   registerGetBookingTool(registry, new PrismaBookingReader(deps));
   registerCreateBookingTool(registry, bookingEngine);
   registerCancelBookingTool(registry, new PrismaBookingCanceller(deps));
+  registerRescheduleBookingTool(registry, new PrismaBookingRescheduler(deps));
   registerHumanHandoffTool(registry, new PrismaHumanHandoff(deps));
   registerUpdateCustomerTool(registry, new PrismaCustomerUpdater(deps));
   registerCreateLeadTool(registry, new PrismaLeadCreator(deps));
