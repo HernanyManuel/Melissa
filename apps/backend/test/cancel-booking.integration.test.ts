@@ -7,7 +7,7 @@ import { PrismaBookingCanceller } from '../src/ai/cancel-booking-tool';
 import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 
-test('cancel_booking is fenced, customer-scoped, atomic and replay-safe', async () => {
+test('cancel_booking is fenced, versioned, customer-scoped, atomic and replay-safe', async () => {
   const migrationUrl = process.env.MIGRATION_DATABASE_URL;
   assert(migrationUrl, 'cancel booking integration requires MIGRATION_DATABASE_URL');
   const deps = new Dependencies(parseConfig(process.env));
@@ -139,6 +139,7 @@ test('cancel_booking is fenced, customer-scoped, atomic and replay-safe', async 
         idempotencyKey: firstKey,
         executionMode: 'live',
         bookingId,
+        expectedVersion: 1,
         reason: 'Cliente pediu cancelamento',
         confirmed: true,
       },
@@ -195,6 +196,7 @@ test('cancel_booking is fenced, customer-scoped, atomic and replay-safe', async 
         idempotencyKey: firstKey,
         executionMode: 'live',
         bookingId,
+        expectedVersion: 1,
         reason: 'Cliente pediu cancelamento',
         confirmed: true,
       },
@@ -220,6 +222,7 @@ test('cancel_booking is fenced, customer-scoped, atomic and replay-safe', async 
           idempotencyKey: firstKey,
           executionMode: 'live',
           bookingId,
+          expectedVersion: 1,
           reason: 'Razão diferente',
           confirmed: true,
         },
@@ -227,6 +230,23 @@ test('cancel_booking is fenced, customer-scoped, atomic and replay-safe', async 
       ),
       /Idempotency conflict/,
     );
+
+    const staleVersion = await canceller.cancel(
+      {
+        tenantId,
+        conversationId,
+        customerId,
+        turnId,
+        expectedModeEpoch: 21n,
+        idempotencyKey: `${turnId}:stale-version`,
+        executionMode: 'live',
+        bookingId,
+        expectedVersion: 1,
+        confirmed: true,
+      },
+      new AbortController().signal,
+    );
+    assert.deepEqual(staleVersion, { status: 'stale' });
 
     const foreign = await canceller.cancel(
       {
@@ -238,6 +258,7 @@ test('cancel_booking is fenced, customer-scoped, atomic and replay-safe', async 
         idempotencyKey: `${otherTurnId}:foreign`,
         executionMode: 'live',
         bookingId,
+        expectedVersion: 2,
         confirmed: true,
       },
       new AbortController().signal,
@@ -252,9 +273,10 @@ test('cancel_booking is fenced, customer-scoped, atomic and replay-safe', async 
           customerId,
           turnId,
           expectedModeEpoch: 20n,
-          idempotencyKey: `${turnId}:stale`,
+          idempotencyKey: `${turnId}:stale-epoch`,
           executionMode: 'live',
           bookingId: alreadyCancelledId,
+          expectedVersion: 1,
           confirmed: true,
         },
         new AbortController().signal,
@@ -272,6 +294,7 @@ test('cancel_booking is fenced, customer-scoped, atomic and replay-safe', async 
           idempotencyKey: `${turnId}:sandbox`,
           executionMode: 'sandbox',
           bookingId: alreadyCancelledId,
+          expectedVersion: 1,
           confirmed: true,
         },
         new AbortController().signal,
@@ -289,6 +312,7 @@ test('cancel_booking is fenced, customer-scoped, atomic and replay-safe', async 
         idempotencyKey: `${turnId}:already`,
         executionMode: 'live',
         bookingId: alreadyCancelledId,
+        expectedVersion: 1,
         confirmed: true,
       },
       new AbortController().signal,
