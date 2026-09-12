@@ -81,7 +81,8 @@ test('Google Calendar booking mutation is deterministic, replay-safe and resched
   let stored: Record<string, unknown> | undefined;
   let etag = '"v1"';
   const methods: string[] = [];
-  const provider = new GoogleCalendarProvider(secrets, 1000, async (_url, init) => {
+  const provider = new GoogleCalendarProvider(secrets, 1000, async (url, init) => {
+    assert(url.includes('/calendar/v3/calendars/primary/events'));
     const method = init.method ?? 'GET';
     methods.push(method);
     if (method === 'GET') {
@@ -120,7 +121,8 @@ test('Google Calendar booking mutation is deterministic, replay-safe and resched
 
 test('Google Calendar cancellation is idempotent even after the event disappears', async () => {
   let deleted = false;
-  const provider = new GoogleCalendarProvider(new MemorySecrets(), 1000, async (_url, init) => {
+  const provider = new GoogleCalendarProvider(new MemorySecrets(), 1000, async (url, init) => {
+    assert(url.includes('/calendar/v3/calendars/primary/events/'));
     if ((init.method ?? 'GET') === 'GET') {
       if (deleted) return new Response('{}', { status: 404 });
       return new Response(
