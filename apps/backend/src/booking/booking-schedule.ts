@@ -147,7 +147,14 @@ export async function isBookingResourceUnblockedInTransaction(
         AND connection.last_success_at IS NOT NULL
         AND connection.last_success_at <= CURRENT_TIMESTAMP
         AND connection.last_success_at +
-          make_interval(secs => connection.freshness_limit_seconds) >= CURRENT_TIMESTAMP AS fresh
+          make_interval(secs => connection.freshness_limit_seconds) >= CURRENT_TIMESTAMP
+        AND connection.coverage_starts_at IS NOT NULL
+        AND connection.coverage_ends_at IS NOT NULL
+        AND connection.coverage_starts_at <=
+          ${startsAt}::timestamptz - make_interval(mins => ${bufferBeforeMinutes}::int)
+        AND connection.coverage_ends_at >=
+          ${startsAt}::timestamptz +
+            make_interval(mins => ${durationMinutes + bufferAfterMinutes}::int) AS fresh
     FROM calendar_connections connection
     JOIN booking_resources resource
       ON resource.tenant_id=connection.tenant_id
