@@ -56,6 +56,10 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
+      - name: Diagnose reschedule Prettier diff
+        run: |
+          pnpm exec prettier apps/backend/src/ai/reschedule-booking-tool.ts > /tmp/reschedule-formatted.ts
+          diff -u apps/backend/src/ai/reschedule-booking-tool.ts /tmp/reschedule-formatted.ts || true
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
