@@ -59,7 +59,11 @@ test('mock calendar provider makes booking mutations idempotent by connection an
   assert.equal(created.cancelled, false);
 
   await assert.rejects(
-    provider.upsertBooking({ ...request, startsAt: '2030-01-01T11:00:00Z' }),
+    provider.upsertBooking({
+      ...request,
+      startsAt: '2030-01-01T11:00:00Z',
+      endsAt: '2030-01-01T11:30:00Z',
+    }),
     (error) => error instanceof CalendarProviderConflict,
   );
 
