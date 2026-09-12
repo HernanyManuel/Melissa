@@ -86,6 +86,7 @@ test('get_booking reads only bookings owned by the trusted customer scope', asyn
     );
     assert.equal(own.found, true);
     assert.equal(own.bookingId, bookingId);
+    assert.equal(own.version, 1);
     assert.equal(own.serviceName, 'Readable service');
     assert.equal(own.status, 'confirmed');
     assert.equal(own.startsAt, '2026-09-16T08:00:00.000Z');
