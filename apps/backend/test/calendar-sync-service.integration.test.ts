@@ -63,11 +63,11 @@ class ControlledCalendarProvider implements CalendarProvider {
     };
   }
 
-  async upsertBooking(_request: CalendarBookingMutation): Promise<CalendarExternalEvent> {
+  async upsertBooking(): Promise<CalendarExternalEvent> {
     throw new Error('Not implemented in sync fixture');
   }
 
-  async cancelBooking(_request: CalendarBookingCancellation): Promise<CalendarExternalEvent> {
+  async cancelBooking(): Promise<CalendarExternalEvent> {
     throw new Error('Not implemented in sync fixture');
   }
 }
