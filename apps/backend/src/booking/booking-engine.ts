@@ -74,6 +74,7 @@ interface ExistingBooking {
   starts_at: Date;
   ends_at: Date;
   timezone: string | null;
+  staff_id: string | null;
 }
 
 function validateDate(date: string): void {
@@ -220,6 +221,13 @@ export class BookingEngine {
     return this.deps.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
 
+      const replay = await this.findExistingBookingInTransaction(
+        tx,
+        input.tenantId,
+        input.idempotencyKey,
+      );
+      if (replay) return this.resolveCreateReplay(replay, input, hash);
+
       const conversations = await tx.$queryRaw<Array<{ mode: string; mode_epoch: bigint }>>`
         SELECT mode, mode_epoch
         FROM conversations
@@ -290,32 +298,13 @@ export class BookingEngine {
       `;
 
       if (!inserted.length) {
-        const previous = await tx.$queryRaw<ExistingBooking[]>`
-          SELECT id::text, conversation_id::text, customer_id::text, turn_id::text,
-            arguments_hash, starts_at, ends_at, timezone
-          FROM bookings
-          WHERE tenant_id=${input.tenantId}::uuid AND idempotency_key=${input.idempotencyKey}
-          LIMIT 1
-        `;
-        const row = previous[0];
-        if (!row) return { status: 'unavailable' };
-        if (
-          row.conversation_id !== input.conversationId ||
-          row.customer_id !== input.customerId ||
-          row.turn_id !== input.turnId ||
-          row.arguments_hash !== hash ||
-          !row.timezone
-        )
-          throw new Error('Idempotency conflict');
-        return {
-          status: 'created',
-          bookingId: row.id,
-          startsAt: row.starts_at.toISOString(),
-          endsAt: row.ends_at.toISOString(),
-          timezone: row.timezone,
-          staffId: selection.staffId,
-          duplicate: true,
-        };
+        const previous = await this.findExistingBookingInTransaction(
+          tx,
+          input.tenantId,
+          input.idempotencyKey,
+        );
+        if (!previous) return { status: 'unavailable' };
+        return this.resolveCreateReplay(previous, input, hash);
       }
 
       const bookingId = inserted[0]!.id;
@@ -344,6 +333,48 @@ export class BookingEngine {
         duplicate: false,
       };
     });
+  }
+
+  private async findExistingBookingInTransaction(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    idempotencyKey: string,
+  ): Promise<ExistingBooking | undefined> {
+    const rows = await tx.$queryRaw<ExistingBooking[]>`
+      SELECT booking.id::text, booking.conversation_id::text, booking.customer_id::text,
+        booking.turn_id::text, booking.arguments_hash, booking.starts_at, booking.ends_at,
+        booking.timezone, resource.staff_id::text
+      FROM bookings booking
+      JOIN booking_resources resource
+        ON resource.tenant_id=booking.tenant_id AND resource.id=booking.resource_id
+      WHERE booking.tenant_id=${tenantId}::uuid AND booking.idempotency_key=${idempotencyKey}
+      LIMIT 1
+    `;
+    return rows[0];
+  }
+
+  private resolveCreateReplay(
+    row: ExistingBooking,
+    input: CreateBookingRequest,
+    hash: string,
+  ): CreateBookingResult {
+    if (
+      row.conversation_id !== input.conversationId ||
+      row.customer_id !== input.customerId ||
+      row.turn_id !== input.turnId ||
+      row.arguments_hash !== hash
+    )
+      throw new Error('Idempotency conflict');
+    if (!row.timezone) throw new Error('Booking replay is inconsistent');
+    return {
+      status: 'created',
+      bookingId: row.id,
+      startsAt: row.starts_at.toISOString(),
+      endsAt: row.ends_at.toISOString(),
+      timezone: row.timezone,
+      staffId: row.staff_id,
+      duplicate: true,
+    };
   }
 
   private async resolveSelectionInTransaction(
