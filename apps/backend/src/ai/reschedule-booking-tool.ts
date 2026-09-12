@@ -114,11 +114,7 @@ function argumentsHash(input: RescheduleBookingRequest, startsAt: Date): string 
 }
 
 function toJson(result: RescheduleBookingResult): JsonObject {
-  if (
-    result.status === 'not_found' ||
-    result.status === 'unavailable' ||
-    result.status === 'stale'
-  )
+  if (result.status === 'not_found' || result.status === 'unavailable' || result.status === 'stale')
     return { status: result.status };
   return {
     status: result.status,
@@ -172,11 +168,7 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
             row.arguments_hash !== hash
           )
             throw new Error('Idempotency conflict');
-          if (
-            !row.result_starts_at ||
-            !row.result_ends_at ||
-            !row.result_timezone
-          ) {
+          if (!row.result_starts_at || !row.result_ends_at || !row.result_timezone) {
             throw new Error('Reschedule replay is inconsistent');
           }
           return {
