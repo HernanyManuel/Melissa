@@ -100,8 +100,12 @@ export class BookingAdminService {
   }
 
   listBlocks(actor: Actor, tenantId: string) {
-    return this.tenants.scoped(actor, tenantId, 'business:read', (tx) =>
-      tx.$queryRaw<ResourceBlockView[]>`
+    return this.tenants.scoped(
+      actor,
+      tenantId,
+      'business:read',
+      (tx) =>
+        tx.$queryRaw<ResourceBlockView[]>`
         SELECT
           block.id::text AS id,
           resource.staff_id::text AS "staffId",
