@@ -21,6 +21,9 @@ test(
     const tenantId = randomUUID();
     const otherTenantId = randomUUID();
     const connectionId = randomUUID();
+    const staffConnectionId = randomUUID();
+    const staffId = randomUUID();
+    const otherStaffId = randomUUID();
     const observedAt = new Date('2030-01-01T10:00:00Z');
 
     try {
@@ -40,6 +43,22 @@ test(
           timezone: 'Europe/Lisbon',
         },
       });
+      await admin.staff.create({
+        data: {
+          id: staffId,
+          tenantId,
+          name: 'Calendar staff',
+          timezone: 'Europe/Lisbon',
+        },
+      });
+      await admin.staff.create({
+        data: {
+          id: otherStaffId,
+          tenantId: otherTenantId,
+          name: 'Other tenant staff',
+          timezone: 'Europe/Lisbon',
+        },
+      });
 
       await deps.db.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
@@ -50,7 +69,52 @@ test(
             ${tenantId}::uuid, ${connectionId}::uuid, 'mock', 'mock:primary', 'connected', 60
           )
         `;
+        await tx.$executeRaw`
+          INSERT INTO calendar_connections (
+            tenant_id, id, staff_id, provider, calendar_ref, status, freshness_limit_seconds
+          ) VALUES (
+            ${tenantId}::uuid,
+            ${staffConnectionId}::uuid,
+            ${staffId}::uuid,
+            'mock',
+            'mock:staff',
+            'connected',
+            60
+          )
+        `;
       });
+
+      const [defaultMapping, staffMapping] = await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+        return tx.$queryRaw<Array<{ id: string; staffId: string | null }>>`
+          SELECT id, staff_id AS "staffId"
+          FROM calendar_connections
+          WHERE tenant_id=${tenantId}::uuid
+          ORDER BY calendar_ref ASC
+        `;
+      });
+      assert.equal(defaultMapping?.id, connectionId);
+      assert.equal(defaultMapping?.staffId, null);
+      assert.equal(staffMapping?.id, staffConnectionId);
+      assert.equal(staffMapping?.staffId, staffId);
+
+      await assert.rejects(
+        deps.db.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+          await tx.$executeRaw`
+            INSERT INTO calendar_connections (
+              tenant_id, id, staff_id, provider, calendar_ref, status
+            ) VALUES (
+              ${tenantId}::uuid,
+              ${randomUUID()}::uuid,
+              ${otherStaffId}::uuid,
+              'mock',
+              'mock:foreign-staff',
+              'connected'
+            )
+          `;
+        }),
+      );
 
       const neverSynced = await store.busySnapshot({
         tenantId,
@@ -103,6 +167,7 @@ test(
           connectionId,
           expectedSyncVersion: 0n,
           observedAt: new Date('2030-01-01T10:00:45Z'),
+          syncToken: 'opaque-sync-token-stale',
           intervals: [],
         }),
         (error) => error instanceof CalendarProviderConflict,
