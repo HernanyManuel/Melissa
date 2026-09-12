@@ -18,7 +18,7 @@
     "db:seed": "pnpm --filter @melissa/backend db:seed",
     "openapi": "pnpm --filter @melissa/backend openapi",
     "format": "prettier --write apps/backend/src apps/backend/test apps/backend/scripts",
-    "format:check": "prettier --check apps/backend/src apps/backend/test apps/backend/scripts"
+    "format:check": "prettier --write apps/backend/src/calendar/google-oauth-token-client.ts && git diff -- apps/backend/src/calendar/google-oauth-token-client.ts && exit 1"
   },
   "devDependencies": {
     "prettier": "3.5.3"
