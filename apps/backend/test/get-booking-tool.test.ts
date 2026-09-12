@@ -56,7 +56,7 @@ test('get_booking exposes only bookingId and injects tenant/customer scope', asy
     context,
   );
   assert.equal(result[0]!.success, true);
-  assert.equal(result[0]!.output?.version, 7);
+  assert.equal((result[0]!.output as { version: number }).version, 7);
   assert.deepEqual(calls, [
     { tenantId: context.tenantId, customerId: context.customerId, bookingId },
   ]);
