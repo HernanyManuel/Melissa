@@ -13,6 +13,7 @@ export interface GetBookingRequest {
 export interface BookingDetails {
   found: boolean;
   bookingId?: string;
+  version?: number;
   serviceId?: string;
   serviceName?: string;
   status?: string;
@@ -33,6 +34,7 @@ export interface BookingReader {
 
 interface BookingRow {
   id: string;
+  version: number;
   service_id: string;
   service_name: string;
   status: string;
@@ -58,6 +60,7 @@ export class PrismaBookingReader implements BookingReader {
       const rows = await tx.$queryRaw<BookingRow[]>`
         SELECT
           booking.id::text,
+          booking.version,
           booking.service_id::text,
           service.name AS service_name,
           booking.status,
@@ -88,6 +91,7 @@ export class PrismaBookingReader implements BookingReader {
       return {
         found: true,
         bookingId: row.id,
+        version: row.version,
         serviceId: row.service_id,
         serviceName: row.service_name,
         status: row.status,
@@ -120,6 +124,7 @@ function toJson(result: BookingDetails): JsonObject {
   return {
     found: true,
     bookingId: result.bookingId!,
+    version: result.version!,
     serviceId: result.serviceId!,
     serviceName: result.serviceName!,
     status: result.status!,
@@ -140,7 +145,7 @@ export function registerGetBookingTool(registry: ToolRegistry, reader: BookingRe
     definition: {
       name: 'get_booking',
       description:
-        'Read one booking belonging to the current customer by bookingId. Never infer access from a supplied customer or tenant identifier.',
+        'Read one booking belonging to the current customer by bookingId. The returned version is the current write precondition for cancellation or rescheduling. Never infer access from a supplied customer or tenant identifier.',
       inputSchema: {
         type: 'object',
         properties: { bookingId: { type: 'string', format: 'uuid' } },
