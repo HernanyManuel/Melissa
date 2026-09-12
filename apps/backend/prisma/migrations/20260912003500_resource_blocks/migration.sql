@@ -52,7 +52,11 @@ BEGIN
     WHERE tenant_id=NEW.tenant_id AND id=NEW.resource_id
     FOR UPDATE;
   END IF;
-  RETURN COALESCE(NEW, OLD);
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
