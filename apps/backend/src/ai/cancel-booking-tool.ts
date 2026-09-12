@@ -214,7 +214,7 @@ export class PrismaBookingCanceller implements BookingCanceller {
       await tx.$executeRaw`
         INSERT INTO booking_outbox (tenant_id, booking_id, event_type)
         VALUES (${input.tenantId}::uuid, ${input.bookingId}::uuid, 'cancelled')
-        ON CONFLICT (tenant_id, booking_id, event_type) DO NOTHING
+        ON CONFLICT DO NOTHING
       `;
       await tx.auditEvent.create({
         data: {
