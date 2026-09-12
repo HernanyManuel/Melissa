@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { isUUID } from 'class-validator';
+import { evaluateBookingMutationPolicyInTransaction } from '../booking/booking-policy';
 import { Dependencies } from '../dependencies';
 import { JsonObject, JsonValue } from './ai-provider';
 import { ToolRegistry } from './tool-registry';
@@ -27,7 +28,12 @@ export type CancelBookingResult =
       alreadyCancelled: boolean;
     }
   | { status: 'not_found' }
-  | { status: 'stale' };
+  | { status: 'stale' }
+  | {
+      status: 'policy_denied';
+      reason: 'disabled' | 'minimum_notice';
+      minimumNoticeMinutes: number;
+    };
 
 export interface BookingCanceller {
   cancel(input: CancelBookingRequest, signal: AbortSignal): Promise<CancelBookingResult>;
@@ -46,6 +52,7 @@ interface BookingRow {
   id: string;
   version: number;
   status: string;
+  starts_at: Date;
   cancelled_at: Date | null;
 }
 
@@ -95,6 +102,13 @@ function argumentsHash(input: CancelBookingRequest): string {
 
 function toJson(result: CancelBookingResult): JsonObject {
   if (result.status === 'not_found' || result.status === 'stale') return { status: result.status };
+  if (result.status === 'policy_denied') {
+    return {
+      status: result.status,
+      reason: result.reason,
+      minimumNoticeMinutes: result.minimumNoticeMinutes,
+    };
+  }
   return {
     status: result.status,
     bookingId: result.bookingId,
@@ -135,7 +149,7 @@ export class PrismaBookingCanceller implements BookingCanceller {
         )
           throw new Error('Idempotency conflict');
         const bookings = await tx.$queryRaw<BookingRow[]>`
-          SELECT id::text, version, status, cancelled_at
+          SELECT id::text, version, status, starts_at, cancelled_at
           FROM bookings
           WHERE tenant_id=${input.tenantId}::uuid AND id=${input.bookingId}::uuid
             AND customer_id=${input.customerId}::uuid
@@ -167,7 +181,7 @@ export class PrismaBookingCanceller implements BookingCanceller {
       if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
       const bookings = await tx.$queryRaw<BookingRow[]>`
-        SELECT id::text, version, status, cancelled_at
+        SELECT id::text, version, status, starts_at, cancelled_at
         FROM bookings
         WHERE tenant_id=${input.tenantId}::uuid AND id=${input.bookingId}::uuid
           AND customer_id=${input.customerId}::uuid
@@ -184,6 +198,20 @@ export class PrismaBookingCanceller implements BookingCanceller {
           cancelledAt: booking.cancelled_at.toISOString(),
           duplicate: false,
           alreadyCancelled: true,
+        };
+      }
+
+      const policy = await evaluateBookingMutationPolicyInTransaction(
+        tx,
+        input.tenantId,
+        'cancel',
+        booking.starts_at,
+      );
+      if (!policy.allowed) {
+        return {
+          status: 'policy_denied',
+          reason: policy.reason,
+          minimumNoticeMinutes: policy.minimumNoticeMinutes,
         };
       }
 
@@ -246,7 +274,7 @@ export function registerCancelBookingTool(
     definition: {
       name: 'cancel_booking',
       description:
-        'Cancel one booking belonging to the current customer only after explicit confirmation. Use the version returned by get_booking as expectedVersion. If status is stale, read the booking again before asking for confirmation. Never claim cancellation unless this tool returns status cancelled.',
+        'Cancel one booking belonging to the current customer only after explicit confirmation. Use the version returned by get_booking as expectedVersion. If status is stale, read the booking again before asking for confirmation. If policy_denied, explain the configured cancellation policy and do not claim success. Never claim cancellation unless this tool returns status cancelled.',
       inputSchema: {
         type: 'object',
         properties: {
