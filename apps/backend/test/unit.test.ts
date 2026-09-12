@@ -24,6 +24,8 @@ import './cancel-booking-tool.test';
 import './reschedule-booking-tool.test';
 import './calendar-provider.test';
 import './google-calendar-provider.test';
+import './calendar-sync-queue.test';
+import './calendar-sync-runtime.test';
 import './ai-context-builder.test';
 import './conversation-state.test';
 import './conversation-engine.test';
@@ -136,6 +138,19 @@ test('automatic AI outbound is disabled by default and requires complete secret 
     WHATSAPP_MESSAGING_API_VERSION: 'v23.0',
   });
   assert.equal(enabled.AI_OUTBOUND_WORKER_ENABLED, 'true');
+  assert.equal(enabled.SECRET_PROVIDER, 'mounted-file');
+});
+
+test('calendar sync worker is disabled by default and requires mounted secrets', () => {
+  assert.equal(parseConfig(base).CALENDAR_SYNC_WORKER_ENABLED, 'false');
+  assert.throws(() => parseConfig({ ...base, CALENDAR_SYNC_WORKER_ENABLED: 'true' }));
+  const enabled = parseConfig({
+    ...base,
+    CALENDAR_SYNC_WORKER_ENABLED: 'true',
+    SECRET_PROVIDER: 'mounted-file',
+    SECRET_MOUNT_DIRECTORY: '/run/secrets/melissa',
+  });
+  assert.equal(enabled.CALENDAR_SYNC_WORKER_ENABLED, 'true');
   assert.equal(enabled.SECRET_PROVIDER, 'mounted-file');
 });
 
