@@ -41,97 +41,91 @@ test('mock calendar provider returns bounded busy intervals with defensive copie
   assert.equal(replay.intervals[0]!.startsAt, '2030-01-01T09:00:00.000Z');
 });
 
-test(
-  'mock calendar provider makes booking mutations idempotent by connection and operation key',
-  async () => {
-    const provider = new MockCalendarProvider();
-    const request = {
+test('mock calendar provider makes booking mutations idempotent by connection and operation key', async () => {
+  const provider = new MockCalendarProvider();
+  const request = {
+    connection,
+    bookingId: 'booking-a',
+    operationKey: 'create-a',
+    startsAt: '2030-01-01T10:00:00+00:00',
+    endsAt: '2030-01-01T10:30:00+00:00',
+    timezone: 'Europe/Lisbon',
+  };
+
+  const created = await provider.upsertBooking(request);
+  const replay = await provider.upsertBooking(request);
+  assert.deepEqual(replay, created);
+  assert.equal(created.version, '1');
+  assert.equal(created.cancelled, false);
+
+  await assert.rejects(
+    provider.upsertBooking({ ...request, startsAt: '2030-01-01T11:00:00Z' }),
+    (error) => error instanceof CalendarProviderConflict,
+  );
+
+  const rescheduled = await provider.upsertBooking({
+    ...request,
+    operationKey: 'reschedule-a',
+    startsAt: '2030-01-01T11:00:00Z',
+    endsAt: '2030-01-01T11:30:00Z',
+  });
+  assert.equal(rescheduled.externalEventId, created.externalEventId);
+  assert.equal(rescheduled.version, '2');
+
+  const cancelled = await provider.cancelBooking({
+    connection,
+    bookingId: request.bookingId,
+    operationKey: 'cancel-a',
+  });
+  const cancelReplay = await provider.cancelBooking({
+    connection,
+    bookingId: request.bookingId,
+    operationKey: 'cancel-a',
+  });
+  assert.deepEqual(cancelReplay, cancelled);
+  assert.equal(cancelled.externalEventId, created.externalEventId);
+  assert.equal(cancelled.version, '3');
+  assert.equal(cancelled.cancelled, true);
+
+  const otherConnectionEvent = await provider.upsertBooking({
+    ...request,
+    connection: { ...connection, connectionId: 'connection-b' },
+  });
+  assert.notEqual(otherConnectionEvent.externalEventId, created.externalEventId);
+});
+
+test('mock calendar provider validates exact instants and fails closed when unavailable', async () => {
+  const provider = new MockCalendarProvider();
+  await assert.rejects(
+    provider.busy({
+      connection,
+      startsAt: '2030-01-01T10:00:00',
+      endsAt: '2030-01-01T11:00:00Z',
+    }),
+    (error) => error instanceof CalendarProviderInvalidRequest,
+  );
+  await assert.rejects(
+    provider.upsertBooking({
       connection,
       bookingId: 'booking-a',
-      operationKey: 'create-a',
-      startsAt: '2030-01-01T10:00:00+00:00',
-      endsAt: '2030-01-01T10:30:00+00:00',
-      timezone: 'Europe/Lisbon',
-    };
-
-    const created = await provider.upsertBooking(request);
-    const replay = await provider.upsertBooking(request);
-    assert.deepEqual(replay, created);
-    assert.equal(created.version, '1');
-    assert.equal(created.cancelled, false);
-
-    await assert.rejects(
-      provider.upsertBooking({ ...request, startsAt: '2030-01-01T11:00:00Z' }),
-      (error) => error instanceof CalendarProviderConflict,
-    );
-
-    const rescheduled = await provider.upsertBooking({
-      ...request,
-      operationKey: 'reschedule-a',
+      operationKey: 'invalid-range',
       startsAt: '2030-01-01T11:00:00Z',
-      endsAt: '2030-01-01T11:30:00Z',
-    });
-    assert.equal(rescheduled.externalEventId, created.externalEventId);
-    assert.equal(rescheduled.version, '2');
+      endsAt: '2030-01-01T10:00:00Z',
+      timezone: 'UTC',
+    }),
+    (error) => error instanceof CalendarProviderInvalidRequest,
+  );
 
-    const cancelled = await provider.cancelBooking({
+  provider.setAvailable(false);
+  await assert.rejects(
+    provider.busy({
       connection,
-      bookingId: request.bookingId,
-      operationKey: 'cancel-a',
-    });
-    const cancelReplay = await provider.cancelBooking({
-      connection,
-      bookingId: request.bookingId,
-      operationKey: 'cancel-a',
-    });
-    assert.deepEqual(cancelReplay, cancelled);
-    assert.equal(cancelled.externalEventId, created.externalEventId);
-    assert.equal(cancelled.version, '3');
-    assert.equal(cancelled.cancelled, true);
-
-    const otherConnectionEvent = await provider.upsertBooking({
-      ...request,
-      connection: { ...connection, connectionId: 'connection-b' },
-    });
-    assert.notEqual(otherConnectionEvent.externalEventId, created.externalEventId);
-  },
-);
-
-test(
-  'mock calendar provider validates exact instants and fails closed when unavailable',
-  async () => {
-    const provider = new MockCalendarProvider();
-    await assert.rejects(
-      provider.busy({
-        connection,
-        startsAt: '2030-01-01T10:00:00',
-        endsAt: '2030-01-01T11:00:00Z',
-      }),
-      (error) => error instanceof CalendarProviderInvalidRequest,
-    );
-    await assert.rejects(
-      provider.upsertBooking({
-        connection,
-        bookingId: 'booking-a',
-        operationKey: 'invalid-range',
-        startsAt: '2030-01-01T11:00:00Z',
-        endsAt: '2030-01-01T10:00:00Z',
-        timezone: 'UTC',
-      }),
-      (error) => error instanceof CalendarProviderInvalidRequest,
-    );
-
-    provider.setAvailable(false);
-    await assert.rejects(
-      provider.busy({
-        connection,
-        startsAt: '2030-01-01T10:00:00Z',
-        endsAt: '2030-01-01T11:00:00Z',
-      }),
-      (error) => error instanceof CalendarProviderUnavailable,
-    );
-  },
-);
+      startsAt: '2030-01-01T10:00:00Z',
+      endsAt: '2030-01-01T11:00:00Z',
+    }),
+    (error) => error instanceof CalendarProviderUnavailable,
+  );
+});
 
 test('calendar provider registry rejects duplicate and unknown providers', () => {
   const registry = new CalendarProviderRegistry();
