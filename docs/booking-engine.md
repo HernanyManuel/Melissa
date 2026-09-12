@@ -8,6 +8,8 @@ Entrada: TenantContext, customer quando aplicável, serviço, data/janela, timez
 
 Interseção de business hours e staff hours, exceções (fechado tem precedência), duração/buffers, antecedência/horizonte configurados, resource blocks, bookings pending/confirmed e busy externo válido. Intervalos `[start,end)` permitem adjacência sem sobreposição; buffers ampliam ocupação. Guardar timezone da reserva e apresentar offset. Horas locais inexistentes por DST são rejeitadas; horas ambíguas exigem offset explícito. “Amanhã” é interpretado no timezone do negócio, comunicado ao cliente.
 
+A implementação atual usa uma primitive transacional comum para o calendário interno em `availableSlots`, `createBooking` e `reschedule_booking`. `staff_hours` é tenant-scoped com RLS. Quando não existe qualquer linha de horário individual para o funcionário naquele weekday, herda o horário do negócio; quando existe configuração individual, a disponibilidade é a interseção estrita dos períodos ativos. A presença de configuração com todas as linhas desativadas significa indisponibilidade, não fallback para business hours. Exceções de fecho continuam a ter precedência.
+
 ## Criação atómica
 
 1. Validar actor, customer/serviço/staff do tenant, plano, estado do tenant e chave de idempotência.
@@ -22,6 +24,8 @@ Updates de horário/bloqueios seguem a mesma disciplina de lock; mudanças que a
 
 Comprovada relação customer/conversation nas tools; ter UUID não autoriza operação. Policies validadas pelo backend. Version/If-Match evita lost updates. Reschedule e cancelamento são idempotentes; audit preserva ator/motivo. Mover entre recursos adquire locks em ordem estável. Falha na nova ocupação faz rollback da mudança inteira.
 
+As tools de cancelamento/remarcação atuais usam `expectedVersion` obtida por `get_booking`; essa versão é apenas uma precondition de concorrência e nunca uma autorização. Tenant/customer/conversation continuam server-owned. A representação atual de `TenantConfiguration.cancellation/rescheduling` é texto livre e não é interpretada como policy executável; uma policy estruturada e validada server-side continua requisito antes de declarar P6 completo.
+
 ## Calendário externo
 
 Não é possível uma transação atómica comum entre PostgreSQL e edições independentes no Google. Garantimos ausência de sobreposição entre reservas internas. Para calendários externos: frescura controlada, revalidação, sync/reconciliação e aviso de conflito; não prometer ausência absoluta de corridas externas. Se disponibilidade externa obrigatória está indisponível/desatualizada, bloquear confirmação com erro claro; agenda puramente interna continua operacional.
@@ -31,3 +35,5 @@ Pending ocupa enquanto válido; se usado como hold deve ter expires_at, TTL conf
 ## Testes de saída
 
 Requests concorrentes no mesmo resource/slot → uma reserva. Slots adjacentes; buffers; default resource; tenant A/B; cancel+create; reschedule com falha preserva anterior; DST Europe/Lisbon/America/New_York; múltiplos intervalos; exceções; staff custom duration/price; calendar stale/revogado; mesma idempotency key retorna a mesma reserva, payload diferente conflita.
+
+Cobertura PostgreSQL incremental já inclui herança de business hours sem configuração individual, interseção de `staff_hours`, rejeição de criação/remarcação fora do horário individual e isolamento RLS da tabela. Isto não fecha ainda os casos P6 de policy estruturada, resource moves com lock order estável, resource blocks, antecedência/horizonte nem calendários externos.
