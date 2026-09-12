@@ -120,3 +120,40 @@ export async function isBookingCandidateInPeriods(
   }
   return false;
 }
+
+export async function isBookingResourceUnblockedInTransaction(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  resourceId: string,
+  startsAt: Date,
+  durationMinutes: number,
+  bufferBeforeMinutes: number,
+  bufferAfterMinutes: number,
+): Promise<boolean> {
+  if (
+    !Number.isInteger(durationMinutes) ||
+    durationMinutes <= 0 ||
+    !Number.isInteger(bufferBeforeMinutes) ||
+    bufferBeforeMinutes < 0 ||
+    !Number.isInteger(bufferAfterMinutes) ||
+    bufferAfterMinutes < 0
+  )
+    return false;
+
+  const [row] = await tx.$queryRaw<Array<{ available: boolean }>>`
+    SELECT NOT EXISTS (
+      SELECT 1
+      FROM resource_blocks block
+      WHERE block.tenant_id=${tenantId}::uuid
+        AND block.resource_id=${resourceId}::uuid
+        AND tstzrange(block.starts_at, block.ends_at, '[)') &&
+          tstzrange(
+            ${startsAt}::timestamptz - make_interval(mins => ${bufferBeforeMinutes}::int),
+            ${startsAt}::timestamptz +
+              make_interval(mins => ${durationMinutes + bufferAfterMinutes}::int),
+            '[)'
+          )
+    ) AS available
+  `;
+  return row?.available === true;
+}
