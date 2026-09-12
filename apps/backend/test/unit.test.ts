@@ -24,6 +24,7 @@ import './cancel-booking-tool.test';
 import './reschedule-booking-tool.test';
 import './calendar-provider.test';
 import './google-calendar-provider.test';
+import './google-oauth-token-client.test';
 import './calendar-sync-queue.test';
 import './calendar-sync-runtime.test';
 import './ai-context-builder.test';
