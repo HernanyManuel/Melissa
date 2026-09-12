@@ -2,6 +2,10 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { Dependencies } from '../dependencies';
 import {
+  evaluateBookingCreationPolicyInTransaction,
+  readBookingCreationWindowInTransaction,
+} from './booking-policy';
+import {
   BookingPeriod,
   effectiveBookingPeriodsInTransaction,
   isBookingCandidateInPeriods,
@@ -52,7 +56,13 @@ export type CreateBookingResult =
       staffId: string | null;
       duplicate: boolean;
     }
-  | { status: 'unavailable' };
+  | { status: 'unavailable' }
+  | {
+      status: 'policy_denied';
+      reason: 'minimum_notice' | 'maximum_horizon';
+      minimumNoticeMinutes: number;
+      maximumHorizonDays: number | null;
+    };
 
 interface BookingSelection {
   timezone: string;
@@ -129,6 +139,7 @@ export class BookingEngine {
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
       if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
+      const creationWindow = await readBookingCreationWindowInTransaction(tx, input.tenantId);
       const selection = await this.resolveSelectionInTransaction(
         tx,
         input.tenantId,
@@ -162,31 +173,36 @@ export class BookingEngine {
             candidates.starts_at,
             candidates.starts_at + make_interval(mins => ${selection.durationMinutes}::int) AS ends_at
           FROM candidates
-          WHERE NOT EXISTS (
-            SELECT 1
-            FROM bookings booking
-            WHERE booking.tenant_id=${input.tenantId}::uuid
-              AND booking.resource_id=${selection.resourceId}::uuid
-              AND booking.status IN ('pending', 'confirmed')
-              AND tstzrange(booking.occupied_start_at, booking.occupied_end_at, '[)') &&
-                tstzrange(
-                  candidates.starts_at - make_interval(mins => ${selection.bufferBeforeMinutes}::int),
-                  candidates.starts_at + make_interval(mins => ${selection.durationMinutes + selection.bufferAfterMinutes}::int),
-                  '[)'
-                )
-          )
-          AND NOT EXISTS (
-            SELECT 1
-            FROM resource_blocks block
-            WHERE block.tenant_id=${input.tenantId}::uuid
-              AND block.resource_id=${selection.resourceId}::uuid
-              AND tstzrange(block.starts_at, block.ends_at, '[)') &&
-                tstzrange(
-                  candidates.starts_at - make_interval(mins => ${selection.bufferBeforeMinutes}::int),
-                  candidates.starts_at + make_interval(mins => ${selection.durationMinutes + selection.bufferAfterMinutes}::int),
-                  '[)'
-                )
-          )
+          WHERE candidates.starts_at >= ${creationWindow.earliestStartsAt}::timestamptz
+            AND (
+              ${creationWindow.latestStartsAt}::timestamptz IS NULL OR
+              candidates.starts_at <= ${creationWindow.latestStartsAt}::timestamptz
+            )
+            AND NOT EXISTS (
+              SELECT 1
+              FROM bookings booking
+              WHERE booking.tenant_id=${input.tenantId}::uuid
+                AND booking.resource_id=${selection.resourceId}::uuid
+                AND booking.status IN ('pending', 'confirmed')
+                AND tstzrange(booking.occupied_start_at, booking.occupied_end_at, '[)') &&
+                  tstzrange(
+                    candidates.starts_at - make_interval(mins => ${selection.bufferBeforeMinutes}::int),
+                    candidates.starts_at + make_interval(mins => ${selection.durationMinutes + selection.bufferAfterMinutes}::int),
+                    '[)'
+                  )
+            )
+            AND NOT EXISTS (
+              SELECT 1
+              FROM resource_blocks block
+              WHERE block.tenant_id=${input.tenantId}::uuid
+                AND block.resource_id=${selection.resourceId}::uuid
+                AND tstzrange(block.starts_at, block.ends_at, '[)') &&
+                  tstzrange(
+                    candidates.starts_at - make_interval(mins => ${selection.bufferBeforeMinutes}::int),
+                    candidates.starts_at + make_interval(mins => ${selection.durationMinutes + selection.bufferAfterMinutes}::int),
+                    '[)'
+                  )
+            )
           ORDER BY candidates.starts_at
           LIMIT 50
         `;
@@ -240,6 +256,20 @@ export class BookingEngine {
       if (conversation?.mode !== 'AI_ACTIVE' || conversation.mode_epoch !== input.expectedModeEpoch)
         throw new Error('Booking creation is stale');
       if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
+      const creationPolicy = await evaluateBookingCreationPolicyInTransaction(
+        tx,
+        input.tenantId,
+        startsAt,
+      );
+      if (!creationPolicy.allowed) {
+        return {
+          status: 'policy_denied',
+          reason: creationPolicy.reason,
+          minimumNoticeMinutes: creationPolicy.minimumNoticeMinutes,
+          maximumHorizonDays: creationPolicy.maximumHorizonDays,
+        };
+      }
 
       const selection = await this.resolveSelectionInTransaction(
         tx,
