@@ -108,10 +108,7 @@ test(
         },
       });
 
-      const resourceId = await engine.ensureDefaultResource(
-        tenantId,
-        new AbortController().signal,
-      );
+      const resourceId = await engine.ensureDefaultResource(tenantId, new AbortController().signal);
 
       let releaseResourceLock!: () => void;
       let resourceLocked!: () => void;
@@ -165,18 +162,10 @@ test(
         new AbortController().signal,
       );
       assert.equal(availability.resourceId, resourceId);
-      assert(
-        !availability.slots.some((slot) => slot.startsAt === '2026-09-15T09:00:00.000Z'),
-      );
-      assert(
-        !availability.slots.some((slot) => slot.startsAt === '2026-09-15T09:15:00.000Z'),
-      );
-      assert(
-        !availability.slots.some((slot) => slot.startsAt === '2026-09-15T09:30:00.000Z'),
-      );
-      assert(
-        !availability.slots.some((slot) => slot.startsAt === '2026-09-15T09:45:00.000Z'),
-      );
+      assert(!availability.slots.some((slot) => slot.startsAt === '2026-09-15T09:00:00.000Z'));
+      assert(!availability.slots.some((slot) => slot.startsAt === '2026-09-15T09:15:00.000Z'));
+      assert(!availability.slots.some((slot) => slot.startsAt === '2026-09-15T09:30:00.000Z'));
+      assert(!availability.slots.some((slot) => slot.startsAt === '2026-09-15T09:45:00.000Z'));
 
       const blockedCreate = await engine.createBooking(
         {
