@@ -14,6 +14,7 @@ export interface RescheduleBookingRequest {
   idempotencyKey: string;
   executionMode: 'live' | 'sandbox';
   bookingId: string;
+  expectedVersion: number;
   startsAt: string;
   confirmed: true;
 }
@@ -28,7 +29,8 @@ export type RescheduleBookingResult =
       duplicate: boolean;
     }
   | { status: 'not_found' }
-  | { status: 'unavailable' };
+  | { status: 'unavailable' }
+  | { status: 'stale' };
 
 export interface BookingRescheduler {
   reschedule(
@@ -51,6 +53,7 @@ interface ExistingOperation {
 
 interface BookingRow {
   id: string;
+  version: number;
   status: string;
   resource_id: string;
   starts_at: Date;
@@ -74,17 +77,24 @@ function validateInstant(value: string): string {
 
 function validateArguments(value: JsonObject): JsonObject {
   const keys = Object.keys(value);
-  if (keys.length !== 3) throw new Error('Invalid reschedule request');
+  if (keys.length !== 4) throw new Error('Invalid reschedule request');
   if (typeof value.bookingId !== 'string' || !isUUID(value.bookingId))
     throw new Error('Invalid booking ID');
+  if (
+    typeof value.expectedVersion !== 'number' ||
+    !Number.isInteger(value.expectedVersion) ||
+    value.expectedVersion < 1
+  )
+    throw new Error('Invalid booking version');
   if (typeof value.startsAt !== 'string') throw new Error('Invalid booking time');
   if (value.confirmed !== true) throw new Error('Reschedule requires explicit confirmation');
   for (const key of keys) {
-    if (!['bookingId', 'startsAt', 'confirmed'].includes(key))
+    if (!['bookingId', 'expectedVersion', 'startsAt', 'confirmed'].includes(key))
       throw new Error('Invalid reschedule request');
   }
   return {
     bookingId: value.bookingId,
+    expectedVersion: value.expectedVersion,
     startsAt: validateInstant(value.startsAt),
     confirmed: true,
   };
@@ -95,6 +105,7 @@ function argumentsHash(input: RescheduleBookingRequest, startsAt: Date): string 
     .update(
       JSON.stringify({
         bookingId: input.bookingId,
+        expectedVersion: input.expectedVersion,
         startsAt: startsAt.toISOString(),
         confirmed: true,
       }),
@@ -103,7 +114,11 @@ function argumentsHash(input: RescheduleBookingRequest, startsAt: Date): string 
 }
 
 function toJson(result: RescheduleBookingResult): JsonObject {
-  if (result.status === 'not_found' || result.status === 'unavailable')
+  if (
+    result.status === 'not_found' ||
+    result.status === 'unavailable' ||
+    result.status === 'stale'
+  )
     return { status: result.status };
   return {
     status: result.status,
@@ -157,11 +172,7 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
             row.arguments_hash !== hash
           )
             throw new Error('Idempotency conflict');
-          if (
-            !row.result_starts_at ||
-            !row.result_ends_at ||
-            !row.result_timezone
-          ) {
+          if (!row.result_starts_at || !row.result_ends_at || !row.result_timezone) {
             throw new Error('Reschedule replay is inconsistent');
           }
           return {
@@ -188,7 +199,7 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
         const bookings = await tx.$queryRaw<BookingRow[]>`
-          SELECT id::text, status, resource_id::text, starts_at, ends_at,
+          SELECT id::text, version, status, resource_id::text, starts_at, ends_at,
             buffer_before_minutes, buffer_after_minutes, timezone
           FROM bookings
           WHERE tenant_id=${input.tenantId}::uuid AND id=${input.bookingId}::uuid
@@ -197,6 +208,7 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
         `;
         const booking = bookings[0];
         if (!booking) return { status: 'not_found' };
+        if (booking.version !== input.expectedVersion) return { status: 'stale' };
         if (booking.status === 'cancelled') return { status: 'unavailable' };
         if (booking.starts_at.getTime() === startsAt.getTime()) return { status: 'unavailable' };
 
@@ -232,6 +244,14 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
           return { status: 'unavailable' };
 
         const endsAt = new Date(startsAt.getTime() + durationMs);
+        const updated = await tx.$executeRaw`
+          UPDATE bookings
+          SET starts_at=${startsAt}, ends_at=${endsAt}, version=version+1, updated_at=CURRENT_TIMESTAMP
+          WHERE tenant_id=${input.tenantId}::uuid AND id=${input.bookingId}::uuid
+            AND customer_id=${input.customerId}::uuid AND version=${input.expectedVersion}
+        `;
+        if (updated !== 1) return { status: 'stale' };
+
         const operations = await tx.$queryRaw<Array<{ id: string }>>`
           INSERT INTO booking_operations (
             tenant_id, booking_id, conversation_id, customer_id, turn_id,
@@ -247,12 +267,6 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
         `;
         if (!operations.length) throw new Error('Reschedule operation conflict');
 
-        await tx.$executeRaw`
-          UPDATE bookings
-          SET starts_at=${startsAt}, ends_at=${endsAt}, version=version+1, updated_at=CURRENT_TIMESTAMP
-          WHERE tenant_id=${input.tenantId}::uuid AND id=${input.bookingId}::uuid
-            AND customer_id=${input.customerId}::uuid
-        `;
         await tx.$executeRaw`
           INSERT INTO booking_outbox (tenant_id, booking_id, event_type)
           VALUES (${input.tenantId}::uuid, ${input.bookingId}::uuid, 'rescheduled')
@@ -359,15 +373,16 @@ export function registerRescheduleBookingTool(
     definition: {
       name: 'reschedule_booking',
       description:
-        'Move one booking belonging to the current customer to one exact confirmed time while preserving its service and resource. Never claim success unless this tool returns status rescheduled.',
+        'Move one booking belonging to the current customer to one exact confirmed time while preserving its service and resource. Use the version returned by get_booking as expectedVersion. If status is stale, read the booking again before asking for confirmation. Never claim success unless this tool returns status rescheduled.',
       inputSchema: {
         type: 'object',
         properties: {
           bookingId: { type: 'string', format: 'uuid' },
+          expectedVersion: { type: 'integer', minimum: 1 },
           startsAt: { type: 'string', format: 'date-time' },
           confirmed: { type: 'boolean', enum: [true] },
         },
-        required: ['bookingId', 'startsAt', 'confirmed'],
+        required: ['bookingId', 'expectedVersion', 'startsAt', 'confirmed'],
         additionalProperties: false,
       },
     },
@@ -387,6 +402,7 @@ export function registerRescheduleBookingTool(
             idempotencyKey: context.idempotencyKey,
             executionMode: context.executionMode,
             bookingId: arguments_.bookingId as string,
+            expectedVersion: arguments_.expectedVersion as number,
             startsAt: arguments_.startsAt as string,
             confirmed: true,
           },
