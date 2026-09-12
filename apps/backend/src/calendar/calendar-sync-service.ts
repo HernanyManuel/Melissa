@@ -39,7 +39,10 @@ export class CalendarSyncService {
 
   async syncBusy(input: CalendarSyncBusyInput): Promise<CalendarSyncBusyResult> {
     this.validateInput(input);
-    const connection = await this.readConnection(input.tenantId, input.connectionId);
+    const connection = await this.readConnection(
+      input.tenantId,
+      input.connectionId,
+    );
     if (connection.status !== 'connected' || !connection.credentialRef)
       throw new CalendarProviderConflict();
 
