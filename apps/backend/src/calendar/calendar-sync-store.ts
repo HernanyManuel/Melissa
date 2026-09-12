@@ -7,12 +7,19 @@ import { CalendarBusyInterval, CalendarProviderConflict } from './calendar-provi
 const MAX_BUSY_INTERVALS = 5000;
 const MAX_SYNC_TOKEN_LENGTH = 4096;
 
-export type CalendarFreshnessReason = 'fresh' | 'never_synced' | 'stale' | 'disconnected';
+export type CalendarFreshnessReason =
+  | 'fresh'
+  | 'never_synced'
+  | 'stale'
+  | 'disconnected'
+  | 'out_of_coverage';
 
 export interface CalendarBusySnapshot {
   connectionId: string;
   syncVersion: bigint;
   observedAt: string | null;
+  coverageStartsAt: string | null;
+  coverageEndsAt: string | null;
   fresh: boolean;
   reason: CalendarFreshnessReason;
   intervals: CalendarBusyInterval[];
@@ -23,6 +30,8 @@ interface ConnectionRow {
   syncVersion: bigint;
   lastSuccessAt: Date | null;
   freshnessLimitSeconds: number;
+  coverageStartsAt: Date | null;
+  coverageEndsAt: Date | null;
 }
 
 interface BusyRow {
@@ -35,6 +44,8 @@ export interface ReplaceCalendarBusySnapshotInput {
   connectionId: string;
   expectedSyncVersion: bigint;
   observedAt: Date;
+  coverageStartsAt: Date;
+  coverageEndsAt: Date;
   syncToken: string | null;
   intervals: Array<{ startsAt: Date; endsAt: Date }>;
 }
@@ -52,7 +63,9 @@ export class CalendarSyncStore {
           status,
           sync_version AS "syncVersion",
           last_success_at AS "lastSuccessAt",
-          freshness_limit_seconds AS "freshnessLimitSeconds"
+          freshness_limit_seconds AS "freshnessLimitSeconds",
+          coverage_starts_at AS "coverageStartsAt",
+          coverage_ends_at AS "coverageEndsAt"
         FROM calendar_connections
         WHERE tenant_id=${input.tenantId}::uuid AND id=${input.connectionId}::uuid
         FOR UPDATE
@@ -88,6 +101,8 @@ export class CalendarSyncStore {
           sync_version=${nextVersion},
           sync_token=${input.syncToken},
           last_success_at=${input.observedAt},
+          coverage_starts_at=${input.coverageStartsAt},
+          coverage_ends_at=${input.coverageEndsAt},
           updated_at=CURRENT_TIMESTAMP
         WHERE tenant_id=${input.tenantId}::uuid AND id=${input.connectionId}::uuid
       `);
@@ -111,18 +126,26 @@ export class CalendarSyncStore {
           status,
           sync_version AS "syncVersion",
           last_success_at AS "lastSuccessAt",
-          freshness_limit_seconds AS "freshnessLimitSeconds"
+          freshness_limit_seconds AS "freshnessLimitSeconds",
+          coverage_starts_at AS "coverageStartsAt",
+          coverage_ends_at AS "coverageEndsAt"
         FROM calendar_connections
         WHERE tenant_id=${input.tenantId}::uuid AND id=${input.connectionId}::uuid
       `);
       if (!connection) throw new CalendarProviderConflict();
 
-      const reason = this.freshnessReason(connection, now);
+      const freshnessReason = this.freshnessReason(connection, now);
+      const reason =
+        freshnessReason === 'fresh' && !this.covers(connection, input.startsAt, input.endsAt)
+          ? 'out_of_coverage'
+          : freshnessReason;
       if (reason !== 'fresh') {
         return {
           connectionId: input.connectionId,
           syncVersion: connection.syncVersion,
           observedAt: connection.lastSuccessAt?.toISOString() ?? null,
+          coverageStartsAt: connection.coverageStartsAt?.toISOString() ?? null,
+          coverageEndsAt: connection.coverageEndsAt?.toISOString() ?? null,
           fresh: false,
           reason,
           intervals: [],
@@ -143,6 +166,8 @@ export class CalendarSyncStore {
         connectionId: input.connectionId,
         syncVersion: connection.syncVersion,
         observedAt: connection.lastSuccessAt!.toISOString(),
+        coverageStartsAt: connection.coverageStartsAt!.toISOString(),
+        coverageEndsAt: connection.coverageEndsAt!.toISOString(),
         fresh: true,
         reason,
         intervals: intervals.map((interval) => ({
@@ -161,10 +186,22 @@ export class CalendarSyncStore {
     return 'fresh';
   }
 
+  private covers(connection: ConnectionRow, startsAt: Date, endsAt: Date): boolean {
+    return Boolean(
+      connection.coverageStartsAt &&
+        connection.coverageEndsAt &&
+        connection.coverageStartsAt <= startsAt &&
+        connection.coverageEndsAt >= endsAt,
+    );
+  }
+
   private validateReplacement(input: ReplaceCalendarBusySnapshotInput): void {
     if (
       input.expectedSyncVersion < 0n ||
       Number.isNaN(input.observedAt.getTime()) ||
+      Number.isNaN(input.coverageStartsAt.getTime()) ||
+      Number.isNaN(input.coverageEndsAt.getTime()) ||
+      input.coverageEndsAt <= input.coverageStartsAt ||
       input.intervals.length > MAX_BUSY_INTERVALS ||
       (input.syncToken !== null &&
         (input.syncToken.length === 0 || input.syncToken.length > MAX_SYNC_TOKEN_LENGTH))
