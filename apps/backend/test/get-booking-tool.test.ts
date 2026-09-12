@@ -28,6 +28,7 @@ test('get_booking exposes only bookingId and injects tenant/customer scope', asy
       return {
         found: true,
         bookingId: input.bookingId,
+        version: 7,
         serviceId: '00000000-0000-4000-8000-000000000020',
         serviceName: 'Corte',
         status: 'confirmed',
@@ -55,6 +56,7 @@ test('get_booking exposes only bookingId and injects tenant/customer scope', asy
     context,
   );
   assert.equal(result[0]!.success, true);
+  assert.equal(result[0]!.output?.version, 7);
   assert.deepEqual(calls, [
     { tenantId: context.tenantId, customerId: context.customerId, bookingId },
   ]);
