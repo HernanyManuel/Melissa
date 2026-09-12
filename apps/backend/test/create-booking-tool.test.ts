@@ -71,6 +71,43 @@ test('create_booking exposes confirmation-gated schema and trusted scope', async
   ]);
 });
 
+test('create_booking returns structured creation policy denial as a successful tool result', async () => {
+  const creator: BookingCreator = {
+    async createBooking() {
+      return {
+        status: 'policy_denied',
+        reason: 'maximum_horizon',
+        minimumNoticeMinutes: 120,
+        maximumHorizonDays: 30,
+      } as const;
+    },
+  };
+  const registry = new ToolRegistry();
+  registerCreateBookingTool(registry, creator);
+
+  const [result] = await new ToolExecutor(registry).execute(
+    [
+      {
+        id: 'booking_policy',
+        name: 'create_booking',
+        arguments: {
+          serviceId: '00000000-0000-4000-8000-000000000020',
+          startsAt: '2026-10-15T08:00:00Z',
+          confirmed: true,
+        },
+      },
+    ],
+    context,
+  );
+  assert.equal(result?.success, true);
+  assert.deepEqual(result?.result, {
+    status: 'policy_denied',
+    reason: 'maximum_horizon',
+    minimumNoticeMinutes: 120,
+    maximumHorizonDays: 30,
+  });
+});
+
 test('create_booking rejects missing confirmation, naive time, scope injection and missing capability', async () => {
   let executions = 0;
   const creator: BookingCreator = {
