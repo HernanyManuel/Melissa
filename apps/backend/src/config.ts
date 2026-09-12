@@ -65,6 +65,7 @@ const schema = z.object({
   MEDIA_INGESTION_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   AI_OUTBOUND_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   AI_TURN_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
+  CALENDAR_SYNC_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   MALWARE_SCANNER: z.enum(['disabled', 'clamav']).default('disabled'),
   CLAMAV_HOST: z
     .string()
@@ -250,6 +251,11 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     result.data.WHATSAPP_MESSAGING_API_VERSION
   )
     throw new Error('WhatsApp messaging API version requires AI_OUTBOUND_WORKER_ENABLED=true');
+  if (
+    result.data.CALENDAR_SYNC_WORKER_ENABLED === 'true' &&
+    (result.data.SECRET_PROVIDER !== 'mounted-file' || !result.data.SECRET_MOUNT_DIRECTORY)
+  )
+    throw new Error('Calendar sync worker requires mounted secrets');
   if (
     result.data.MALWARE_SCANNER === 'clamav' &&
     (!result.data.CLAMAV_HOST || !result.data.CLAMAV_PORT)
