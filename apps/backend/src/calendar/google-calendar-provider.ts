@@ -49,7 +49,10 @@ function cancellationVersion(operationKey: string): string {
   return `cancelled:${createHash('sha256').update(operationKey).digest('hex').slice(0, 16)}`;
 }
 
-/** Google Calendar v3 transport. Construction alone performs no network or secret access. */
+/**
+ * Google Calendar v3 transport. Construction alone performs no network or secret access.
+ * FreeBusy reads are full snapshots; incremental sync is intentionally not advertised.
+ */
 export class GoogleCalendarProvider implements CalendarProvider {
   readonly providerKey = 'google';
 
