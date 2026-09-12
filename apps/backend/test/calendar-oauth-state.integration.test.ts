@@ -17,10 +17,7 @@ interface Fixture {
   membershipId: string;
 }
 
-async function createFixture(
-  admin: PrismaClient,
-  role: TenantRole = 'owner',
-): Promise<Fixture> {
+async function createFixture(admin: PrismaClient, role: TenantRole = 'owner'): Promise<Fixture> {
   const tenantId = randomUUID();
   const userId = randomUUID();
   const sessionId = randomUUID();
@@ -94,13 +91,25 @@ test(
       assert.equal((await oauth.consume(replacementB.state)).tenantId, owner.tenantId);
 
       await assert.rejects(
-        oauth.begin(owner.actor, owner.tenantId, 'https://evil.example.test/oauth/google/callback'),
+        oauth.begin(
+          owner.actor,
+          owner.tenantId,
+          'https://evil.example.test/oauth/google/callback',
+        ),
       );
       await assert.rejects(
-        oauth.begin(owner.actor, owner.tenantId, 'https://user:pass@app.example.test/oauth/google/callback'),
+        oauth.begin(
+          owner.actor,
+          owner.tenantId,
+          'https://user:pass@app.example.test/oauth/google/callback',
+        ),
       );
       await assert.rejects(
-        oauth.begin(owner.actor, owner.tenantId, 'https://app.example.test/oauth/google/callback#token'),
+        oauth.begin(
+          owner.actor,
+          owner.tenantId,
+          'https://app.example.test/oauth/google/callback#token',
+        ),
       );
 
       const manager = await createFixture(admin, 'manager');
@@ -136,7 +145,9 @@ test(
       const stateA = await oauth.begin(isolatedA.actor, isolatedA.tenantId, callback);
       const stateB = await oauth.begin(isolatedB.actor, isolatedB.tenantId, callback);
       const visible = await deps.db.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT set_config('app.oauth_state_hash', ${tokenHash(stateA.state)}, true)`;
+        await tx.$executeRaw`SELECT set_config('app.oauth_state_hash', ${tokenHash(
+          stateA.state,
+        )}, true)`;
         return tx.$queryRaw<Array<{ stateHash: string }>>`
           SELECT state_hash AS "stateHash"
           FROM calendar_oauth_states
