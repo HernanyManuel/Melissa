@@ -100,7 +100,7 @@ test('create_booking returns structured creation policy denial as a successful t
     context,
   );
   assert.equal(result?.success, true);
-  assert.deepEqual(result?.result, {
+  assert.deepEqual(result?.output, {
     status: 'policy_denied',
     reason: 'maximum_horizon',
     minimumNoticeMinutes: 120,
