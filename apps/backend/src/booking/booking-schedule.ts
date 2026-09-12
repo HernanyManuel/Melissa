@@ -52,7 +52,9 @@ export async function effectiveBookingPeriodsInTransaction(
 
   if (!staffId || !businessPeriods.length) return businessPeriods;
 
-  const staffRows = await tx.$queryRaw<Array<{ start_time: string; end_time: string; enabled: boolean }>>`
+  const staffRows = await tx.$queryRaw<
+    Array<{ start_time: string; end_time: string; enabled: boolean }>
+  >`
     SELECT start_time, end_time, enabled
     FROM staff_hours
     WHERE tenant_id=${tenantId}::uuid AND staff_id=${staffId}::uuid AND weekday=${weekday}
