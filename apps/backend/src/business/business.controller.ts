@@ -146,10 +146,6 @@ export class BusinessController {
   ) {
     return this.business.saveBookingPolicy(req.actor, id, body);
   }
-  @Get('tenants/:tenantId/booking-resources')
-  bookingResources(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) id: string) {
-    return this.business.listBookingResources(req.actor, id);
-  }
   @Get('tenants/:tenantId/resource-blocks')
   resourceBlocks(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) id: string) {
     return this.business.listResourceBlocks(req.actor, id);
