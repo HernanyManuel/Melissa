@@ -18,7 +18,7 @@
     "db:seed": "pnpm --filter @melissa/backend db:seed",
     "openapi": "pnpm --filter @melissa/backend openapi",
     "format": "prettier --write apps/backend/src apps/backend/test apps/backend/scripts",
-    "format:check": "prettier --check apps/backend/src apps/backend/test apps/backend/scripts"
+    "format:check": "prettier --write apps/backend/test/calendar-provider.test.ts && git diff -- apps/backend/test/calendar-provider.test.ts && false"
   },
   "devDependencies": {
     "prettier": "3.5.3"
