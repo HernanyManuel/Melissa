@@ -1,6 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { Dependencies } from '../dependencies';
+import {
+  BookingPeriod,
+  effectiveBookingPeriodsInTransaction,
+  isBookingCandidateInPeriods,
+  localBookingDateInTransaction,
+} from './booking-schedule';
 
 export interface AvailabilityRequest {
   tenantId: string;
@@ -47,14 +53,10 @@ export type CreateBookingResult =
     }
   | { status: 'unavailable' };
 
-interface Period {
-  startTime: string;
-  endTime: string;
-}
-
 interface BookingSelection {
   timezone: string;
   resourceId: string;
+  staffId: string | null;
   durationMinutes: number;
   bufferBeforeMinutes: number;
   bufferAfterMinutes: number;
@@ -131,7 +133,12 @@ export class BookingEngine {
         input.serviceId,
         input.staffId,
       );
-      const periods = await this.periodsInTransaction(tx, input.tenantId, input.date);
+      const periods = await this.periodsInTransaction(
+        tx,
+        input.tenantId,
+        input.date,
+        selection.staffId,
+      );
       const slots: BookingSlot[] = [];
       for (const period of periods) {
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -181,7 +188,7 @@ export class BookingEngine {
       return {
         timezone: selection.timezone,
         resourceId: selection.resourceId,
-        staffId: input.staffId ?? null,
+        staffId: selection.staffId,
         slots: slots.slice(0, 50),
       };
     });
@@ -229,12 +236,14 @@ export class BookingEngine {
       `;
       if (!lockedResources.length) throw new Error('Booking resource is unavailable');
 
-      const [local] = await tx.$queryRaw<Array<{ local_date: string }>>`
-        SELECT to_char(${startsAt}::timestamptz AT TIME ZONE ${selection.timezone}, 'YYYY-MM-DD') AS local_date
-      `;
-      if (!local) throw new Error('Booking time is unavailable');
-      const periods = await this.periodsInTransaction(tx, input.tenantId, local.local_date);
-      if (!(await this.isCandidateInPeriods(tx, startsAt, local.local_date, periods, selection)))
+      const localDate = await localBookingDateInTransaction(tx, startsAt, selection.timezone);
+      const periods = await this.periodsInTransaction(
+        tx,
+        input.tenantId,
+        localDate,
+        selection.staffId,
+      );
+      if (!(await this.isCandidateInPeriods(tx, startsAt, localDate, periods, selection)))
         return { status: 'unavailable' };
 
       const endsAt = new Date(startsAt.getTime() + selection.durationMinutes * 60_000);
@@ -279,7 +288,7 @@ export class BookingEngine {
           startsAt: row.starts_at.toISOString(),
           endsAt: row.ends_at.toISOString(),
           timezone: row.timezone,
-          staffId: input.staffId ?? null,
+          staffId: selection.staffId,
           duplicate: true,
         };
       }
@@ -306,7 +315,7 @@ export class BookingEngine {
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
         timezone: selection.timezone,
-        staffId: input.staffId ?? null,
+        staffId: selection.staffId,
         duplicate: false,
       };
     });
@@ -370,6 +379,7 @@ export class BookingEngine {
     return {
       timezone: tenant.timezone,
       resourceId,
+      staffId: staffId ?? null,
       durationMinutes,
       bufferBeforeMinutes: service.bufferBeforeMinutes,
       bufferAfterMinutes: service.bufferAfterMinutes,
@@ -382,48 +392,26 @@ export class BookingEngine {
     tx: Prisma.TransactionClient,
     tenantId: string,
     date: string,
-  ): Promise<Period[]> {
-    validateDate(date);
-    const day = new Date(`${date}T00:00:00Z`);
-    const weekday = day.getUTCDay() === 0 ? 7 : day.getUTCDay();
-    const exception = await tx.scheduleException.findFirst({
-      where: { tenantId, date: day },
-      select: { closed: true, startTime: true, endTime: true },
-    });
-    if (exception?.closed) return [];
-    if (exception?.startTime && exception.endTime)
-      return [{ startTime: exception.startTime, endTime: exception.endTime }];
-    return tx.businessHour.findMany({
-      where: { tenantId, weekday, enabled: true },
-      select: { startTime: true, endTime: true },
-      orderBy: { startTime: 'asc' },
-      take: 10,
-    });
+    staffId: string | null,
+  ): Promise<BookingPeriod[]> {
+    return effectiveBookingPeriodsInTransaction(tx, tenantId, date, staffId);
   }
 
   private async isCandidateInPeriods(
     tx: Prisma.TransactionClient,
     startsAt: Date,
     date: string,
-    periods: Period[],
+    periods: readonly BookingPeriod[],
     selection: BookingSelection,
   ): Promise<boolean> {
-    for (const period of periods) {
-      const [row] = await tx.$queryRaw<Array<{ valid: boolean }>>`
-        SELECT EXISTS (
-          SELECT 1
-          FROM generate_series(
-            (${date}::date + ${period.startTime}::time) AT TIME ZONE ${selection.timezone},
-            ((${date}::date + ${period.endTime}::time) AT TIME ZONE ${selection.timezone}) -
-              make_interval(mins => ${selection.durationMinutes}::int),
-            interval '15 minutes'
-          ) AS candidate
-          WHERE candidate=${startsAt}::timestamptz
-        ) AS valid
-      `;
-      if (row?.valid) return true;
-    }
-    return false;
+    return isBookingCandidateInPeriods(
+      tx,
+      startsAt,
+      date,
+      periods,
+      selection.timezone,
+      selection.durationMinutes,
+    );
   }
 
   private async ensureDefaultResourceInTransaction(
