@@ -5,6 +5,7 @@ import { evaluateBookingMutationPolicyInTransaction } from '../booking/booking-p
 import {
   effectiveBookingPeriodsInTransaction,
   isBookingCandidateInPeriods,
+  isBookingResourceUnblockedInTransaction,
   localBookingDateInTransaction,
 } from '../booking/booking-schedule';
 import { Dependencies } from '../dependencies';
@@ -268,6 +269,18 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
             periods,
             timezone,
             durationMinutes,
+          ))
+        )
+          return { status: 'unavailable' };
+        if (
+          !(await isBookingResourceUnblockedInTransaction(
+            tx,
+            input.tenantId,
+            booking.resource_id,
+            startsAt,
+            durationMinutes,
+            booking.buffer_before_minutes,
+            booking.buffer_after_minutes,
           ))
         )
           return { status: 'unavailable' };
