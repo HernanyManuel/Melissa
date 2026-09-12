@@ -242,7 +242,8 @@ test(
         new AbortController().signal,
       );
       assert.equal(replay.status, 'created');
-      if (replay.status !== 'created') assert.fail('exact replay should ignore current creation policy');
+      if (replay.status !== 'created')
+        assert.fail('exact replay should ignore current creation policy');
       assert.equal(replay.bookingId, created.bookingId);
       assert.equal(replay.duplicate, true);
 
