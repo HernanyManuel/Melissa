@@ -61,8 +61,12 @@ services:
       WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
       WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
       WHATSAPP_WEBHOOK_RATE_LIMIT: ${WHATSAPP_WEBHOOK_RATE_LIMIT:-300}
+      WHATSAPP_MESSAGING_API_VERSION: ${WHATSAPP_MESSAGING_API_VERSION:-}
       WHATSAPP_QUARANTINE_KEY_ID: ${WHATSAPP_QUARANTINE_KEY_ID:-}
       WHATSAPP_QUARANTINE_KEY: ${WHATSAPP_QUARANTINE_KEY:-}
+      SECRET_PROVIDER: ${SECRET_PROVIDER:-disabled}
+      SECRET_MOUNT_DIRECTORY: ${SECRET_MOUNT_DIRECTORY:-}
+      AI_OUTBOUND_WORKER_ENABLED: ${AI_OUTBOUND_WORKER_ENABLED:-false}
       LOG_LEVEL: info
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
@@ -88,7 +92,13 @@ services:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
-    environment: *backend_environment
+    environment:
+      <<: *backend_environment
+      AI_TURN_WORKER_ENABLED: ${AI_TURN_WORKER_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-disabled}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_TIMEOUT_MS: ${OPENAI_TIMEOUT_MS:-45000}
     command: ['node', 'apps/backend/dist/src/worker.js']
     depends_on:
       migrate:

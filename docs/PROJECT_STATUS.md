@@ -1,5 +1,21 @@
 # Estado do projeto
 
+## Atualização Phase 5 — Outbox automática (schema 23)
+
+Resposta live, conclusão do turno, usage e envelope de dispatch são persistidos atomicamente após fence final sob lock. Takeover concorrente produz `stale` sem outbound; conteúdo fica numa tabela tenant-scoped imutável e o índice global não o expõe. Ver [ADR-062](decisions/ADR-062-ai-automatic-outbox.md). Ainda sem consumer, adapter live, retries/recibos ou deploy.
+
+## Atualização Phase 5 — Coordenador de turno
+
+`ConversationTurnCoordinator` liga contexto, tools, engine, fencing e ledger com replay seguro e códigos de falha sanitizados. Uso consumido antes de fencing obsoleto é preservado; texto só é devolvido após finalização durável e erro de DB propaga para retry. Ver [ADR-061](decisions/ADR-061-conversation-turn-coordinator.md). Ainda sem queue/worker, outbox automática, handoff persistido ou deploy.
+
+## Atualização Phase 5 — Ledger de turnos e usage (schema 22)
+
+`ai_turns` fixa tenant/conversation/customer e versões de fencing; `ai_usage_events` regista uma única medição append-only por turno. Início idempotente, replay com scope exato, transição terminal e usage são protegidos transacionalmente; prompts/respostas não são persistidos. Ver [ADR-060](decisions/ADR-060-exactly-once-ai-turn-ledger.md). Ainda sem wiring ao worker, pricing/custo, reconciliação, outbound ou deploy.
+
+## Atualização Phase 5 — AIProvider e AIGateway
+
+Contrato vendor-neutral sem DB/rede, gateway com limites de contexto/output, tools allowlisted, JSON defensivo e erros sanitizados. Tenant/correlation não chegam ao provider; MockAIProvider determinístico permite testes. Ver [ADR-053](decisions/ADR-053-ai-provider-gateway-boundary.md) e [motor de IA](ai-engine.md). Sem adapter real, tool executor, persistência, integração com conversas, merge ou deploy.
+
 ## Atualização Phase 4 — Gate de malware ClamAV
 
 MalwareScanner/ClamAV INSTREAM analisa bytes validados antes do storage. Apenas `OK` permite escrita; `FOUND`, timeout, erro ou resposta desconhecida falham fechados. Worker exige scanner completo, com limites de corpo/resposta/tempo; testes cobrem protocolo, deteção, indisponibilidade, configuração e ausência de escrita. Ver [ADR-052](decisions/ADR-052-clamav-malware-gate.md). Base real/updates/health/network policy ainda não validados; sem merge/deploy.
@@ -111,6 +127,30 @@ Canal mock ativo permite selecionar cliente, enviar texto pela outbox/fila e con
 ## Atualização Phase 4 — Página de canais
 
 Flutter permite listar/criar canais mock e desligá-los com confirmação, através das APIs existentes. Acesso owner/admin, seis idiomas, estados de UI e proteção contra respostas tardias/duplicação por repetição automática. Canais live apenas de consulta. Ver [ADR-024](decisions/ADR-024-channel-management-ui.md). Testes novos de interface; CI nos checks do PR #5. Simulação de mensagens pela UI e provisioning Meta permanecem pendentes. Sem merge/deploy.
+
+## Atualização Phase 5 — ConversationEngine limitado
+
+Adicionado loop neutral de até quatro rondas/oito tools, resultados tipados, execução sequencial, usage acumulado e `handoff_required` ao atingir limites. `ConversationFence` revalida associação tenant/conversation/customer, `AI_ACTIVE` e `mode_epoch` antes/depois do provider, antes de cada tool e antes do resultado final. O adapter OpenAI suporta pares `function_call`/`function_call_output`. Ver [ADR-059](decisions/ADR-059-bounded-conversation-engine-loop.md). Ainda sem worker, persistência do turno, cost guard, auditoria, outbound ou mudança real para handoff. Validação local/CI pendentes; sem merge/deploy.
+
+## Atualização Phase 5 — Estado versionado e fencing
+
+Schema 21 adiciona `mode_epoch`, `state_version`, estado V1 e trigger DB que impede alterações não versionadas. `ConversationStateService` valida shape/transições e faz compare-and-swap por tenant/conversation/customer, `AI_ACTIVE`, epoch e versão; workers antigos falham sem commit. Contadores BigInt internos são removidos da API pública. Ver [ADR-058](decisions/ADR-058-conversation-state-fencing.md). Ainda sem endpoints de takeover, auditoria, loop IA ou outbound automático. Validação local/CI pendentes; sem merge/deploy.
+
+## Atualização Phase 5 — AIContextBuilder mínimo
+
+Adicionados `AIContextBuilder` e `PrismaAIContextSource`: associação tenant/conversation/customer validada sob RLS, política de sistema estática, referência JSON marcada como não confiável, campos públicos mínimos, até 12 mensagens e orçamentos determinísticos. Contactos/notas/consentimentos/credenciais/metadata são excluídos; live exige conversa `AI_ACTIVE`. Ver [ADR-057](decisions/ADR-057-minimal-untrusted-ai-context.md). Ainda não há state version, resumo, metering, loop de tools ou ligação ao worker; sem ativação real. Validação local e CI pendentes; sem merge/deploy.
+
+## Atualização Phase 5 — Tools read-only de negócio
+
+Implementadas seis tools server-owned (`get_business_info`, `get_services`, `get_service_details`, `get_price`, `get_business_hours`, `get_staff`) com schemas fechados, validators semânticos, capabilities e porta `BusinessToolReader`. O adapter Prisma usa transação curta, `app.tenant_id`, filtros tenant explícitos, campos públicos mínimos e strings decimais. Testes impedem injeção de tenant, UUID/data inválidos e acesso sem capability. Ver [ADR-056](decisions/ADR-056-tenant-scoped-business-read-tools.md). Ainda não ligadas ao worker/loop; sem tráfego, escrita ou ativação real. Validação local e CI pendentes; sem merge/deploy.
+
+## Atualização Phase 5 — Registry e executor seguro de tools
+
+Adicionados `ToolRegistry` e `ToolExecutor` controlados pelo backend: schemas e handlers server-side, capabilities obrigatórias, contexto tenant/customer/conversation injetado, idempotency key derivada do turno, validação semântica, outputs JSON limitados, até oito calls sequenciais, timeout e erros sanitizados. Registos de escrita/handoff sem suporte declarado a idempotência são recusados. Ver [ADR-055](decisions/ADR-055-server-owned-tool-registry.md). Ainda não existem handlers reais, loop conversacional, persistência, auditoria ou metering; a IA continua sem acesso a dados/efeitos reais. Validação local e CI pendentes; sem merge/deploy.
+
+## Atualização Phase 5 — Adapter OpenAI Responses
+
+Adicionado adapter real, mas opt-in, atrás de `AIProvider`/`AIGateway`: endpoint fixo, chave e modelo explícitos server-side, timeout, resposta limitada, `store: false`, schemas de tools estritos e parsing fechado de texto/tool calls. Seleção `disabled|mock|openai` sem fallback silencioso e testes de contrato sem rede. Ver [ADR-054](decisions/ADR-054-openai-responses-adapter.md). Não foram usadas credenciais nem feitas chamadas reais; executor de tools, estado, metering, integração com conversas e UI continuam pendentes. Validação local e CI do commit desta alteração ainda pendentes; sem merge/deploy.
 
 ## Atualização Phase 4 — Contrato OpenAPI de quarentena
 

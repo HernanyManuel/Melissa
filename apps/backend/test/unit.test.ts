@@ -3,6 +3,7 @@ import './whatsapp-inbound.test';
 import './quarantine-policy.test';
 import './receipt-state.test';
 import './messaging-provider.test';
+import './whatsapp-cloud-messaging-provider.test';
 import './storage-provider.test';
 import './media-ingestor.test';
 import './whatsapp-media-source.test';
@@ -11,6 +12,34 @@ import './quarantine-keyring.test';
 import './s3-storage-provider.test';
 import './media-ingestion-queue.test';
 import './malware-scanner.test';
+import './mounted-file-secret-resolver.test';
+import './ai-gateway.test';
+import './openai-responses-provider.test';
+import './tool-executor.test';
+import './business-read-tools.test';
+import './available-slots-tool.test';
+import './get-booking-tool.test';
+import './create-booking-tool.test';
+import './cancel-booking-tool.test';
+import './reschedule-booking-tool.test';
+import './calendar-provider.test';
+import './google-calendar-provider.test';
+import './google-oauth-token-client.test';
+import './calendar-sync-queue.test';
+import './calendar-sync-runtime.test';
+import './ai-context-builder.test';
+import './conversation-state.test';
+import './conversation-engine.test';
+import './ai-turn-ledger.test';
+import './conversation-turn-coordinator.test';
+import './ai-turn-queue.test';
+import './ai-turn-processor.test';
+import './ai-turn-runtime.test';
+import './ai-outbound-dispatcher.test';
+import './ai-outbound-queue.test';
+import './ai-outbound-runtime.test';
+import './create-lead-tool.test';
+import './update-customer-tool.test';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
@@ -88,6 +117,72 @@ test('WhatsApp HTTP is opt-in and requires complete server configuration', () =>
     'true',
   );
 });
+
+test('automatic AI outbound is disabled by default and requires complete secret routing', () => {
+  const config = parseConfig(base);
+  assert.equal(config.AI_OUTBOUND_WORKER_ENABLED, 'false');
+  assert.equal(config.SECRET_PROVIDER, 'disabled');
+  assert.throws(() => parseConfig({ ...base, AI_OUTBOUND_WORKER_ENABLED: 'true' }));
+  assert.throws(() =>
+    parseConfig({
+      ...base,
+      SECRET_PROVIDER: 'mounted-file',
+      SECRET_MOUNT_DIRECTORY: '/run/secrets/melissa',
+      WHATSAPP_MESSAGING_API_VERSION: 'v23.0',
+    }),
+  );
+  const enabled = parseConfig({
+    ...base,
+    SECRET_PROVIDER: 'mounted-file',
+    SECRET_MOUNT_DIRECTORY: '/run/secrets/melissa',
+    AI_OUTBOUND_WORKER_ENABLED: 'true',
+    WHATSAPP_MESSAGING_API_VERSION: 'v23.0',
+  });
+  assert.equal(enabled.AI_OUTBOUND_WORKER_ENABLED, 'true');
+  assert.equal(enabled.SECRET_PROVIDER, 'mounted-file');
+});
+
+test('calendar sync worker is disabled by default and requires mounted secrets', () => {
+  assert.equal(parseConfig(base).CALENDAR_SYNC_WORKER_ENABLED, 'false');
+  assert.throws(() => parseConfig({ ...base, CALENDAR_SYNC_WORKER_ENABLED: 'true' }));
+  const enabled = parseConfig({
+    ...base,
+    CALENDAR_SYNC_WORKER_ENABLED: 'true',
+    SECRET_PROVIDER: 'mounted-file',
+    SECRET_MOUNT_DIRECTORY: '/run/secrets/melissa',
+  });
+  assert.equal(enabled.CALENDAR_SYNC_WORKER_ENABLED, 'true');
+  assert.equal(enabled.SECRET_PROVIDER, 'mounted-file');
+});
+
+test('AI turn worker is disabled by default and requires an explicit provider', () => {
+  assert.equal(parseConfig(base).AI_TURN_WORKER_ENABLED, 'false');
+  assert.throws(
+    () => parseConfig({ ...base, AI_TURN_WORKER_ENABLED: 'true' }),
+    /explicit AI provider/,
+  );
+  const enabled = parseConfig({
+    ...base,
+    AI_TURN_WORKER_ENABLED: 'true',
+    AI_PROVIDER: 'mock',
+  });
+  assert.equal(enabled.AI_TURN_WORKER_ENABLED, 'true');
+  assert.equal(enabled.AI_PROVIDER, 'mock');
+  assert.throws(
+    () =>
+      parseConfig({
+        ...base,
+        AI_TURN_WORKER_ENABLED: 'true',
+        AI_PROVIDER: 'mock',
+        AI_OUTBOUND_WORKER_ENABLED: 'true',
+        SECRET_PROVIDER: 'mounted-file',
+        SECRET_MOUNT_DIRECTORY: '/run/secrets/melissa',
+        WHATSAPP_MESSAGING_API_VERSION: 'v23.0',
+      }),
+    /cannot use the mock AI provider/,
+  );
+});
+
 test('accepts development settings with explicit defaults', () => {
   const config = parseConfig(base);
   assert.equal(config.PORT, 3000);

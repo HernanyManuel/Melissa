@@ -11,6 +11,7 @@ allowBuilds:
   argon2: false
   msgpackr-extract: false
 overrides:
-  js-yaml: 4.3.1
+  js-yaml: 4.3.2
+  multer: 2.3.0
   lodash: 4.18.1
   '@prisma/config>deepmerge-ts': 8.0.0

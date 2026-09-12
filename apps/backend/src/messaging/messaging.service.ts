@@ -153,7 +153,15 @@ export class MessagingService {
           channelConnection: { select: { displayName: true, mode: true } },
         },
       });
-      return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49]!.id : null };
+      return {
+        // Internal fencing counters are BigInt and must not leak through the public JSON API.
+        items: rows.slice(0, 50).map(({ modeEpoch, stateVersion, ...row }) => {
+          void modeEpoch;
+          void stateVersion;
+          return row;
+        }),
+        next: rows.length > 50 ? rows[49]!.id : null,
+      };
     });
   }
 

@@ -14,3 +14,11 @@ Propostas documentadas para revisão; aceitação é registada no PR, substitui�
 - [ADR-008 — Dinheiro e medição de utilização](ADR-008.md)
 
 - [ADR-009 — Sessões e contexto transacional](ADR-009-identity-runtime.md)
+- [ADR-068 — Handoff humano durável](ADR-068-durable-human-handoff.md)
+- [ADR-069 — Atualização fenced do perfil do customer pela IA](ADR-069-fenced-customer-profile-update.md)
+- [ADR-070 — Criação de lead durável e fenced pela IA](ADR-070-durable-fenced-lead-creation.md)
+- [ADR-071 — Disponibilidade de reservas server-owned e timezone-aware](ADR-071-booking-availability-tool.md)
+- [ADR-072 — Criação de booking confirmada, fenced e idempotente pela IA](ADR-072-fenced-ai-booking-creation.md)
+- [ADR-073 — Leitura de booking customer-scoped pela IA](ADR-073-customer-scoped-booking-read.md)
+- [ADR-074 — Cancelamento de booking confirmado, fenced e idempotente pela IA](ADR-074-fenced-ai-booking-cancellation.md)
+- [ADR-075 — Remarcação de booking confirmada, versionada, fenced e idempotente pela IA](ADR-075-fenced-ai-booking-reschedule.md)
