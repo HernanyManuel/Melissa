@@ -205,6 +205,34 @@ test(
       assert.equal(created.status, 'created');
       if (created.status !== 'created') assert.fail('unblocked booking should be created');
 
+      await admin.$executeRaw`
+        INSERT INTO resource_blocks (tenant_id, resource_id, starts_at, ends_at, reason)
+        VALUES (
+          ${tenantId}::uuid, ${resourceId}::uuid,
+          ${new Date('2026-09-15T08:00:00Z')}, ${new Date('2026-09-15T08:15:00Z')},
+          'Later block covering committed booking'
+        )
+      `;
+      const replay = await engine.createBooking(
+        {
+          tenantId,
+          conversationId,
+          customerId,
+          turnId,
+          expectedModeEpoch: 999n,
+          idempotencyKey: `${turnId}:created`,
+          executionMode: 'live',
+          serviceId,
+          startsAt: '2026-09-15T09:00:00+01:00',
+          confirmed: true,
+        },
+        new AbortController().signal,
+      );
+      assert.equal(replay.status, 'created');
+      if (replay.status !== 'created') assert.fail('exact replay should resolve committed booking');
+      assert.equal(replay.bookingId, created.bookingId);
+      assert.equal(replay.duplicate, true);
+
       const blockedReschedule = await rescheduler.reschedule(
         {
           tenantId,
@@ -239,7 +267,7 @@ test(
           WHERE tenant_id=${tenantId}::uuid
         `;
       });
-      assert.equal(visible?.count, 1n);
+      assert.equal(visible?.count, 2n);
 
       const [hidden] = await deps.db.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.tenant_id', ${otherTenantId}, true)`;
