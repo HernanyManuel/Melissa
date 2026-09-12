@@ -44,6 +44,9 @@ interface ExistingOperation {
   turn_id: string;
   operation: string;
   arguments_hash: string;
+  result_starts_at: Date | null;
+  result_ends_at: Date | null;
+  result_timezone: string | null;
 }
 
 interface BookingRow {
@@ -138,7 +141,7 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
 
         const replay = await tx.$queryRaw<ExistingOperation[]>`
           SELECT booking_id::text, conversation_id::text, customer_id::text, turn_id::text,
-            operation, arguments_hash
+            operation, arguments_hash, result_starts_at, result_ends_at, result_timezone
           FROM booking_operations
           WHERE tenant_id=${input.tenantId}::uuid AND idempotency_key=${input.idempotencyKey}
           LIMIT 1
@@ -154,28 +157,14 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
             row.arguments_hash !== hash
           )
             throw new Error('Idempotency conflict');
-          const bookings = await tx.$queryRaw<BookingRow[]>`
-            SELECT id::text, status, resource_id::text, starts_at, ends_at,
-              buffer_before_minutes, buffer_after_minutes, timezone
-            FROM bookings
-            WHERE tenant_id=${input.tenantId}::uuid AND id=${input.bookingId}::uuid
-              AND customer_id=${input.customerId}::uuid
-            LIMIT 1
-          `;
-          const booking = bookings[0];
-          if (
-            !booking ||
-            booking.status === 'cancelled' ||
-            booking.starts_at.getTime() !== startsAt.getTime()
-          )
+          if (!row.result_starts_at || !row.result_ends_at || !row.result_timezone)
             throw new Error('Reschedule replay is inconsistent');
-          const timezone = await this.resolveTimezone(tx, input.tenantId, booking.timezone);
           return {
             status: 'rescheduled',
-            bookingId: booking.id,
-            startsAt: booking.starts_at.toISOString(),
-            endsAt: booking.ends_at.toISOString(),
-            timezone,
+            bookingId: row.booking_id,
+            startsAt: row.result_starts_at.toISOString(),
+            endsAt: row.result_ends_at.toISOString(),
+            timezone: row.result_timezone,
             duplicate: true,
           };
         }
@@ -237,21 +226,22 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
         )
           return { status: 'unavailable' };
 
+        const endsAt = new Date(startsAt.getTime() + durationMs);
         const operations = await tx.$queryRaw<Array<{ id: string }>>`
           INSERT INTO booking_operations (
             tenant_id, booking_id, conversation_id, customer_id, turn_id,
-            idempotency_key, operation, arguments_hash
+            idempotency_key, operation, arguments_hash,
+            result_starts_at, result_ends_at, result_timezone
           ) VALUES (
             ${input.tenantId}::uuid, ${input.bookingId}::uuid, ${input.conversationId}::uuid,
             ${input.customerId}::uuid, ${input.turnId}::uuid, ${input.idempotencyKey},
-            'reschedule', ${hash}
+            'reschedule', ${hash}, ${startsAt}, ${endsAt}, ${timezone}
           )
           ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
           RETURNING id::text
         `;
         if (!operations.length) throw new Error('Reschedule operation conflict');
 
-        const endsAt = new Date(startsAt.getTime() + durationMs);
         await tx.$executeRaw`
           UPDATE bookings
           SET starts_at=${startsAt}, ends_at=${endsAt}, version=version+1, updated_at=CURRENT_TIMESTAMP
