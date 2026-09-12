@@ -1,6 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { isUUID } from 'class-validator';
+import {
+  effectiveBookingPeriodsInTransaction,
+  isBookingCandidateInPeriods,
+  localBookingDateInTransaction,
+} from '../booking/booking-schedule';
 import { Dependencies } from '../dependencies';
 import { JsonObject, JsonValue } from './ai-provider';
 import { ToolRegistry } from './tool-registry';
@@ -61,11 +66,6 @@ interface BookingRow {
   buffer_before_minutes: number;
   buffer_after_minutes: number;
   timezone: string | null;
-}
-
-interface Period {
-  start_time: string;
-  end_time: string;
 }
 
 function validateInstant(value: string): string {
@@ -211,30 +211,33 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
         if (booking.status === 'cancelled') return { status: 'unavailable' };
         if (booking.starts_at.getTime() === startsAt.getTime()) return { status: 'unavailable' };
 
-        const resources = await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT id::text
+        const resources = await tx.$queryRaw<Array<{ id: string; staff_id: string | null }>>`
+          SELECT id::text, staff_id::text
           FROM booking_resources
           WHERE tenant_id=${input.tenantId}::uuid
             AND id=${booking.resource_id}::uuid
             AND active=true
           FOR UPDATE
         `;
-        if (!resources.length) return { status: 'unavailable' };
+        const resource = resources[0];
+        if (!resource) return { status: 'unavailable' };
 
         const durationMs = booking.ends_at.getTime() - booking.starts_at.getTime();
         if (durationMs <= 0 || durationMs % 60_000 !== 0) return { status: 'unavailable' };
         const durationMinutes = durationMs / 60_000;
         const timezone = await this.resolveTimezone(tx, input.tenantId, booking.timezone);
-        const [local] = await tx.$queryRaw<Array<{ local_date: string }>>`
-          SELECT to_char(${startsAt}::timestamptz AT TIME ZONE ${timezone}, 'YYYY-MM-DD') AS local_date
-        `;
-        if (!local) return { status: 'unavailable' };
-        const periods = await this.periods(tx, input.tenantId, local.local_date);
+        const localDate = await localBookingDateInTransaction(tx, startsAt, timezone);
+        const periods = await effectiveBookingPeriodsInTransaction(
+          tx,
+          input.tenantId,
+          localDate,
+          resource.staff_id,
+        );
         if (
-          !(await this.isCandidateInPeriods(
+          !(await isBookingCandidateInPeriods(
             tx,
             startsAt,
-            local.local_date,
+            localDate,
             periods,
             timezone,
             durationMinutes,
@@ -308,59 +311,6 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
     });
     if (!tenant) throw new Error('Booking tenant is unavailable');
     return tenant.timezone;
-  }
-
-  private async periods(
-    tx: Prisma.TransactionClient,
-    tenantId: string,
-    date: string,
-  ): Promise<Period[]> {
-    const [exception] = await tx.$queryRaw<
-      Array<{ closed: boolean; start_time: string | null; end_time: string | null }>
-    >`
-      SELECT closed, start_time, end_time
-      FROM schedule_exceptions
-      WHERE tenant_id=${tenantId}::uuid AND date=${date}::date
-      LIMIT 1
-    `;
-    if (exception?.closed) return [];
-    if (exception?.start_time && exception.end_time)
-      return [{ start_time: exception.start_time, end_time: exception.end_time }];
-    return tx.$queryRaw<Period[]>`
-      SELECT start_time, end_time
-      FROM business_hours
-      WHERE tenant_id=${tenantId}::uuid
-        AND weekday=EXTRACT(ISODOW FROM ${date}::date)::int
-        AND enabled=true
-      ORDER BY start_time
-      LIMIT 10
-    `;
-  }
-
-  private async isCandidateInPeriods(
-    tx: Prisma.TransactionClient,
-    startsAt: Date,
-    date: string,
-    periods: Period[],
-    timezone: string,
-    durationMinutes: number,
-  ): Promise<boolean> {
-    for (const period of periods) {
-      const [row] = await tx.$queryRaw<Array<{ valid: boolean }>>`
-        SELECT EXISTS (
-          SELECT 1
-          FROM generate_series(
-            (${date}::date + ${period.start_time}::time) AT TIME ZONE ${timezone},
-            ((${date}::date + ${period.end_time}::time) AT TIME ZONE ${timezone}) -
-              make_interval(mins => ${durationMinutes}::int),
-            interval '15 minutes'
-          ) AS candidate
-          WHERE candidate=${startsAt}::timestamptz
-        ) AS valid
-      `;
-      if (row?.valid) return true;
-    }
-    return false;
   }
 }
 
