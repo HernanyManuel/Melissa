@@ -2,7 +2,12 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { BookingAdminService } from '../src/business/booking-admin.service';
 import { parseConfig } from '../src/config';
@@ -113,6 +118,7 @@ test(
         version: 1,
       });
       const savedPolicy = await service.savePolicy(owner, tenantId, {
+        expectedVersion: 1,
         cancellationEnabled: false,
         cancellationMinNoticeMinutes: 60,
         reschedulingEnabled: true,
@@ -123,9 +129,25 @@ test(
       assert.equal(savedPolicy.cancellationEnabled, false);
       assert.equal(savedPolicy.creationMinNoticeMinutes, 180);
       assert.equal(savedPolicy.creationMaxHorizonDays, 30);
+      assert.equal(savedPolicy.version, 2);
+
+      await assert.rejects(
+        service.savePolicy(owner, tenantId, {
+          expectedVersion: 1,
+          cancellationEnabled: true,
+          cancellationMinNoticeMinutes: 0,
+          reschedulingEnabled: false,
+          reschedulingMinNoticeMinutes: 0,
+          creationMinNoticeMinutes: 0,
+          creationMaxHorizonDays: null,
+        }),
+        (error) => error instanceof ConflictException,
+      );
+      assert.deepEqual(await service.getPolicy(owner, tenantId), savedPolicy);
 
       await assert.rejects(
         service.savePolicy(viewer, tenantId, {
+          expectedVersion: 2,
           cancellationEnabled: true,
           cancellationMinNoticeMinutes: 0,
           reschedulingEnabled: true,
@@ -141,6 +163,7 @@ test(
       );
       await assert.rejects(
         service.savePolicy(owner, tenantId, {
+          expectedVersion: 2,
           cancellationEnabled: true,
           cancellationMinNoticeMinutes: 0,
           reschedulingEnabled: true,
