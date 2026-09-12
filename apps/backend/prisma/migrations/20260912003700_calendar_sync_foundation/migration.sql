@@ -5,6 +5,7 @@ SET LOCAL statement_timeout = '60s';
 CREATE TABLE calendar_connections (
   tenant_id UUID NOT NULL,
   id UUID NOT NULL,
+  staff_id UUID,
   provider VARCHAR(24) NOT NULL CHECK (provider IN ('mock', 'google')),
   calendar_ref VARCHAR(512) NOT NULL CHECK (length(trim(calendar_ref)) BETWEEN 1 AND 512),
   credential_ref TEXT,
@@ -20,14 +21,20 @@ CREATE TABLE calendar_connections (
   CONSTRAINT calendar_connections_pkey PRIMARY KEY (tenant_id, id),
   CONSTRAINT calendar_connections_tenant_fkey FOREIGN KEY (tenant_id)
     REFERENCES tenants(id) ON DELETE CASCADE,
+  CONSTRAINT calendar_connections_staff_fkey FOREIGN KEY (tenant_id, staff_id)
+    REFERENCES staff(tenant_id, id) ON DELETE RESTRICT,
   CONSTRAINT calendar_connections_provider_calendar_key
     UNIQUE (tenant_id, provider, calendar_ref),
+  CONSTRAINT calendar_connections_credential_ref_check
+    CHECK (credential_ref IS NULL OR length(trim(credential_ref)) > 0),
   CONSTRAINT calendar_connections_google_credential_check
     CHECK (provider <> 'google' OR credential_ref IS NOT NULL)
 );
 
 CREATE INDEX calendar_connections_tenant_status_id_idx
   ON calendar_connections (tenant_id, status, id);
+CREATE INDEX calendar_connections_tenant_staff_status_idx
+  ON calendar_connections (tenant_id, staff_id, status, id);
 
 CREATE TABLE calendar_busy_intervals (
   tenant_id UUID NOT NULL,
