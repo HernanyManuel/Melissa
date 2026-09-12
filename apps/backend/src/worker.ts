@@ -20,6 +20,7 @@ import { createMalwareScanner } from './storage/malware-scanner-factory';
 import { createSecretResolver } from './secrets/secret-resolver-factory';
 import { startAIAutomaticOutboundRuntime } from './ai/ai-outbound-runtime';
 import { startAITurnRuntime } from './ai/ai-turn-runtime';
+import { startCalendarSyncRuntime } from './calendar/calendar-sync-runtime';
 
 // Isolated probe and durable consumers; no public product API on this process.
 async function bootstrap(): Promise<void> {
@@ -71,6 +72,15 @@ async function bootstrap(): Promise<void> {
       secretResolver,
     });
   }
+  let stopCalendarSync: () => Promise<void> = async () => undefined;
+  if (config.CALENDAR_SYNC_WORKER_ENABLED === 'true') {
+    const secretResolver = await createSecretResolver(config);
+    if (!secretResolver) throw new Error('Incomplete calendar sync dependencies');
+    stopCalendarSync = await startCalendarSyncRuntime(deps, {
+      redisUrl: config.REDIS_URL,
+      secretResolver,
+    });
+  }
   let stopAITurns: () => Promise<void> = async () => undefined;
   if (config.AI_TURN_WORKER_ENABLED === 'true')
     stopAITurns = await startAITurnRuntime(deps, config);
@@ -82,6 +92,7 @@ async function bootstrap(): Promise<void> {
     stopping = true;
     await stopRetention();
     await stopAITurns();
+    await stopCalendarSync();
     await stopAIOutbound();
     await stopMedia();
     await stopOutbound();
