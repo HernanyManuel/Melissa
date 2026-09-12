@@ -32,7 +32,7 @@ export interface ReplaceCalendarBusySnapshotInput {
   connectionId: string;
   expectedSyncVersion: bigint;
   observedAt: Date;
-  syncToken?: string | null;
+  syncToken: string | null;
   intervals: Array<{ startsAt: Date; endsAt: Date }>;
 }
 
@@ -83,7 +83,7 @@ export class CalendarSyncStore {
         UPDATE calendar_connections
         SET
           sync_version=${nextVersion},
-          sync_token=${input.syncToken ?? null},
+          sync_token=${input.syncToken},
           last_success_at=${input.observedAt},
           updated_at=CURRENT_TIMESTAMP
         WHERE tenant_id=${input.tenantId}::uuid AND id=${input.connectionId}::uuid
