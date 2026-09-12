@@ -61,6 +61,8 @@ export class CalendarSyncService {
       connectionId: input.connectionId,
       expectedSyncVersion: connection.syncVersion,
       observedAt,
+      coverageStartsAt: input.startsAt,
+      coverageEndsAt: input.endsAt,
       syncToken: result.syncToken,
       intervals,
     });
