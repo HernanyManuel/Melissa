@@ -56,7 +56,8 @@ export class CalendarSyncStore {
       `);
       if (!connection) throw new CalendarProviderConflict();
       if (connection.status !== 'connected') throw new CalendarProviderConflict();
-      if (connection.syncVersion !== input.expectedSyncVersion) throw new CalendarProviderConflict();
+      if (connection.syncVersion !== input.expectedSyncVersion)
+        throw new CalendarProviderConflict();
 
       const nextVersion = connection.syncVersion + 1n;
       await tx.$executeRaw(Prisma.sql`
