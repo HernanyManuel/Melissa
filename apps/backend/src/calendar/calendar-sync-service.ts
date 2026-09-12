@@ -1,7 +1,10 @@
 import { Prisma } from '@prisma/client';
 import { isUUID } from 'class-validator';
 import { Dependencies } from '../dependencies';
-import { CalendarProviderConflict, CalendarProviderInvalidRequest } from './calendar-provider';
+import {
+  CalendarProviderConflict,
+  CalendarProviderInvalidRequest,
+} from './calendar-provider';
 import { CalendarProviderRegistry } from './calendar-provider-registry';
 import { CalendarSyncStore } from './calendar-sync-store';
 
