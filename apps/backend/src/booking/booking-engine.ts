@@ -5,6 +5,7 @@ import {
   BookingPeriod,
   effectiveBookingPeriodsInTransaction,
   isBookingCandidateInPeriods,
+  isBookingResourceUnblockedInTransaction,
   localBookingDateInTransaction,
 } from './booking-schedule';
 
@@ -173,6 +174,18 @@ export class BookingEngine {
                   '[)'
                 )
           )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM resource_blocks block
+            WHERE block.tenant_id=${input.tenantId}::uuid
+              AND block.resource_id=${selection.resourceId}::uuid
+              AND tstzrange(block.starts_at, block.ends_at, '[)') &&
+                tstzrange(
+                  candidates.starts_at - make_interval(mins => ${selection.bufferBeforeMinutes}::int),
+                  candidates.starts_at + make_interval(mins => ${selection.durationMinutes + selection.bufferAfterMinutes}::int),
+                  '[)'
+                )
+          )
           ORDER BY candidates.starts_at
           LIMIT 50
         `;
@@ -244,6 +257,18 @@ export class BookingEngine {
         selection.staffId,
       );
       if (!(await this.isCandidateInPeriods(tx, startsAt, localDate, periods, selection)))
+        return { status: 'unavailable' };
+      if (
+        !(await isBookingResourceUnblockedInTransaction(
+          tx,
+          input.tenantId,
+          selection.resourceId,
+          startsAt,
+          selection.durationMinutes,
+          selection.bufferBeforeMinutes,
+          selection.bufferAfterMinutes,
+        ))
+      )
         return { status: 'unavailable' };
 
       const endsAt = new Date(startsAt.getTime() + selection.durationMinutes * 60_000);
