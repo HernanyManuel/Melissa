@@ -223,9 +223,19 @@ test(
       assert.equal(disconnected.reason, 'disconnected');
       assert.deepEqual(disconnected.intervals, []);
     } finally {
-      await admin.tenant.deleteMany({ where: { id: { in: [tenantId, otherTenantId] } } });
-      await deps.onModuleDestroy();
-      await admin.$disconnect();
+      try {
+        await admin.$executeRaw`
+          DELETE FROM calendar_connections
+          WHERE tenant_id=${tenantId}::uuid OR tenant_id=${otherTenantId}::uuid
+        `;
+        await admin.staff.deleteMany({
+          where: { tenantId: { in: [tenantId, otherTenantId] } },
+        });
+        await admin.tenant.deleteMany({ where: { id: { in: [tenantId, otherTenantId] } } });
+      } finally {
+        await deps.onModuleDestroy();
+        await admin.$disconnect();
+      }
     }
   },
 );
