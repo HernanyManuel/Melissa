@@ -49,7 +49,11 @@ test('Google OAuth exchanges an authorization code with server-owned secret and 
     () => now,
   );
 
-  const result = await client.exchange({ code: 'synthetic-authorization-code', redirectUri, pkceVerifier: verifier });
+  const result = await client.exchange({
+    code: 'synthetic-authorization-code',
+    redirectUri,
+    pkceVerifier: verifier,
+  });
 
   assert.equal(seenUrl, 'https://oauth2.googleapis.com/token');
   assert.equal(seenInit?.method, 'POST');
@@ -85,7 +89,12 @@ test('Google OAuth maps invalid_grant separately without exposing provider detai
   );
 
   await assert.rejects(
-    () => client.exchange({ code: 'expired-authorization-code', redirectUri, pkceVerifier: verifier }),
+    () =>
+      client.exchange({
+        code: 'expired-authorization-code',
+        redirectUri,
+        pkceVerifier: verifier,
+      }),
     (error: unknown) =>
       error instanceof GoogleOAuthInvalidGrant && !error.message.includes('sensitive detail'),
   );
@@ -104,7 +113,12 @@ test('Google OAuth fails closed before or after transport on invalid security bo
     },
   );
   await assert.rejects(
-    () => invalidPkce.exchange({ code: 'synthetic-authorization-code', redirectUri, pkceVerifier: 'short' }),
+    () =>
+      invalidPkce.exchange({
+        code: 'synthetic-authorization-code',
+        redirectUri,
+        pkceVerifier: 'short',
+      }),
     GoogleOAuthUnavailable,
   );
   assert.equal(calls, 0);
@@ -119,7 +133,12 @@ test('Google OAuth fails closed before or after transport on invalid security bo
     },
   );
   await assert.rejects(
-    () => missingSecret.exchange({ code: 'synthetic-authorization-code', redirectUri, pkceVerifier: verifier }),
+    () =>
+      missingSecret.exchange({
+        code: 'synthetic-authorization-code',
+        redirectUri,
+        pkceVerifier: verifier,
+      }),
     GoogleOAuthUnavailable,
   );
 
@@ -128,10 +147,18 @@ test('Google OAuth fails closed before or after transport on invalid security bo
     'google-client-id',
     secretReference,
     1000,
-    async () => new Response(JSON.stringify({ access_token: 'too-short', expires_in: 3600, token_type: 'Bearer' })),
+    async () =>
+      new Response(
+        JSON.stringify({ access_token: 'too-short', expires_in: 3600, token_type: 'Bearer' }),
+      ),
   );
   await assert.rejects(
-    () => malformed.exchange({ code: 'synthetic-authorization-code', redirectUri, pkceVerifier: verifier }),
+    () =>
+      malformed.exchange({
+        code: 'synthetic-authorization-code',
+        redirectUri,
+        pkceVerifier: verifier,
+      }),
     GoogleOAuthUnavailable,
   );
 
@@ -143,7 +170,12 @@ test('Google OAuth fails closed before or after transport on invalid security bo
     async () => new Response('{}', { status: 200, headers: { 'content-length': '65537' } }),
   );
   await assert.rejects(
-    () => oversized.exchange({ code: 'synthetic-authorization-code', redirectUri, pkceVerifier: verifier }),
+    () =>
+      oversized.exchange({
+        code: 'synthetic-authorization-code',
+        redirectUri,
+        pkceVerifier: verifier,
+      }),
     GoogleOAuthUnavailable,
   );
 });
