@@ -17,6 +17,7 @@ interface Fixture {
   membershipId: string;
 }
 
+// prettier-ignore
 async function createFixture(admin: PrismaClient, role: TenantRole = 'owner'): Promise<Fixture> {
   const tenantId = randomUUID();
   const userId = randomUUID();
@@ -53,6 +54,7 @@ async function createFixture(admin: PrismaClient, role: TenantRole = 'owner'): P
   return { actor: { userId, sessionId }, tenantId, membershipId: membership.id };
 }
 
+// prettier-ignore
 test(
   'calendar OAuth state is tenant/session bound, one-time and permission gated',
   { timeout: 15000 },
