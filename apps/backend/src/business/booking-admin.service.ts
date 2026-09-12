@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Actor } from '../identity/auth.service';
 import { TenantService } from '../tenancy/tenant.service';
@@ -57,42 +62,76 @@ export class BookingAdminService {
       throw new BadRequestException();
 
     return this.tenants.scoped(actor, tenantId, 'business:write', async (tx) => {
-      const [policy] = await tx.$queryRaw<BookingPolicyView[]>`
-        INSERT INTO booking_policies (
-          tenant_id,
-          cancellation_enabled,
-          cancellation_min_notice_minutes,
-          rescheduling_enabled,
-          rescheduling_min_notice_minutes,
-          creation_min_notice_minutes,
-          creation_max_horizon_days
-        ) VALUES (
-          ${tenantId}::uuid,
-          ${input.cancellationEnabled},
-          ${input.cancellationMinNoticeMinutes},
-          ${input.reschedulingEnabled},
-          ${input.reschedulingMinNoticeMinutes},
-          ${input.creationMinNoticeMinutes},
-          ${input.creationMaxHorizonDays ?? null}::int
-        )
-        ON CONFLICT (tenant_id) DO UPDATE SET
-          cancellation_enabled=EXCLUDED.cancellation_enabled,
-          cancellation_min_notice_minutes=EXCLUDED.cancellation_min_notice_minutes,
-          rescheduling_enabled=EXCLUDED.rescheduling_enabled,
-          rescheduling_min_notice_minutes=EXCLUDED.rescheduling_min_notice_minutes,
-          creation_min_notice_minutes=EXCLUDED.creation_min_notice_minutes,
-          creation_max_horizon_days=EXCLUDED.creation_max_horizon_days,
-          version=booking_policies.version+1,
-          updated_at=CURRENT_TIMESTAMP
-        RETURNING
-          cancellation_enabled AS "cancellationEnabled",
-          cancellation_min_notice_minutes AS "cancellationMinNoticeMinutes",
-          rescheduling_enabled AS "reschedulingEnabled",
-          rescheduling_min_notice_minutes AS "reschedulingMinNoticeMinutes",
-          creation_min_notice_minutes AS "creationMinNoticeMinutes",
-          creation_max_horizon_days AS "creationMaxHorizonDays",
-          version
+      const [current] = await tx.$queryRaw<Array<{ version: number }>>`
+        SELECT version
+        FROM booking_policies
+        WHERE tenant_id=${tenantId}::uuid
+        FOR UPDATE
       `;
+      const currentVersion = current?.version ?? 1;
+      if (currentVersion !== input.expectedVersion) throw new ConflictException();
+
+      const commonValues = {
+        cancellationEnabled: input.cancellationEnabled,
+        cancellationMinNoticeMinutes: input.cancellationMinNoticeMinutes,
+        reschedulingEnabled: input.reschedulingEnabled,
+        reschedulingMinNoticeMinutes: input.reschedulingMinNoticeMinutes,
+        creationMinNoticeMinutes: input.creationMinNoticeMinutes,
+        creationMaxHorizonDays: input.creationMaxHorizonDays ?? null,
+      };
+      let policy: BookingPolicyView | undefined;
+      if (current) {
+        [policy] = await tx.$queryRaw<BookingPolicyView[]>`
+          UPDATE booking_policies
+          SET cancellation_enabled=${commonValues.cancellationEnabled},
+            cancellation_min_notice_minutes=${commonValues.cancellationMinNoticeMinutes},
+            rescheduling_enabled=${commonValues.reschedulingEnabled},
+            rescheduling_min_notice_minutes=${commonValues.reschedulingMinNoticeMinutes},
+            creation_min_notice_minutes=${commonValues.creationMinNoticeMinutes},
+            creation_max_horizon_days=${commonValues.creationMaxHorizonDays}::int,
+            version=version+1,
+            updated_at=CURRENT_TIMESTAMP
+          WHERE tenant_id=${tenantId}::uuid
+          RETURNING
+            cancellation_enabled AS "cancellationEnabled",
+            cancellation_min_notice_minutes AS "cancellationMinNoticeMinutes",
+            rescheduling_enabled AS "reschedulingEnabled",
+            rescheduling_min_notice_minutes AS "reschedulingMinNoticeMinutes",
+            creation_min_notice_minutes AS "creationMinNoticeMinutes",
+            creation_max_horizon_days AS "creationMaxHorizonDays",
+            version
+        `;
+      } else {
+        [policy] = await tx.$queryRaw<BookingPolicyView[]>`
+          INSERT INTO booking_policies (
+            tenant_id,
+            cancellation_enabled,
+            cancellation_min_notice_minutes,
+            rescheduling_enabled,
+            rescheduling_min_notice_minutes,
+            creation_min_notice_minutes,
+            creation_max_horizon_days,
+            version
+          ) VALUES (
+            ${tenantId}::uuid,
+            ${commonValues.cancellationEnabled},
+            ${commonValues.cancellationMinNoticeMinutes},
+            ${commonValues.reschedulingEnabled},
+            ${commonValues.reschedulingMinNoticeMinutes},
+            ${commonValues.creationMinNoticeMinutes},
+            ${commonValues.creationMaxHorizonDays}::int,
+            2
+          )
+          RETURNING
+            cancellation_enabled AS "cancellationEnabled",
+            cancellation_min_notice_minutes AS "cancellationMinNoticeMinutes",
+            rescheduling_enabled AS "reschedulingEnabled",
+            rescheduling_min_notice_minutes AS "reschedulingMinNoticeMinutes",
+            creation_min_notice_minutes AS "creationMinNoticeMinutes",
+            creation_max_horizon_days AS "creationMaxHorizonDays",
+            version
+        `;
+      }
       if (!policy) throw new Error('Booking policy update failed');
       await this.tenants.audit(tx, actor, tenantId, 'booking_policy.updated', tenantId);
       return policy;
