@@ -36,7 +36,11 @@ test('cancel_booking requires confirmation and injects trusted write scope', asy
   const registry = new ToolRegistry();
   registerCancelBookingTool(registry, canceller);
   const definition = registry.definitions(['cancel_booking'])[0]!;
-  assert.deepEqual(definition.inputSchema.required, ['bookingId', 'confirmed']);
+  assert.deepEqual(definition.inputSchema.required, [
+    'bookingId',
+    'expectedVersion',
+    'confirmed',
+  ]);
   assert.equal(definition.inputSchema.additionalProperties, false);
 
   const bookingId = '00000000-0000-4000-8000-000000000010';
@@ -45,7 +49,12 @@ test('cancel_booking requires confirmation and injects trusted write scope', asy
       {
         id: 'cancel_1',
         name: 'cancel_booking',
-        arguments: { bookingId, reason: 'Cliente pediu cancelamento', confirmed: true },
+        arguments: {
+          bookingId,
+          expectedVersion: 4,
+          reason: 'Cliente pediu cancelamento',
+          confirmed: true,
+        },
       },
     ],
     context,
@@ -61,6 +70,7 @@ test('cancel_booking requires confirmation and injects trusted write scope', asy
       idempotencyKey: `${context.turnId}:cancel_1`,
       executionMode: 'live',
       bookingId,
+      expectedVersion: 4,
       reason: 'Cliente pediu cancelamento',
       confirmed: true,
     },
@@ -82,22 +92,45 @@ test('cancel_booking rejects unsafe arguments and missing capability before exec
 
   const invalid = await executor.execute(
     [
-      { id: 'c1', name: 'cancel_booking', arguments: { bookingId, confirmed: false } },
-      { id: 'c2', name: 'cancel_booking', arguments: { bookingId: 'bad', confirmed: true } },
+      {
+        id: 'c1',
+        name: 'cancel_booking',
+        arguments: { bookingId, expectedVersion: 1, confirmed: false },
+      },
+      {
+        id: 'c2',
+        name: 'cancel_booking',
+        arguments: { bookingId: 'bad', expectedVersion: 1, confirmed: true },
+      },
       {
         id: 'c3',
         name: 'cancel_booking',
-        arguments: { bookingId, confirmed: true, tenantId: context.tenantId },
+        arguments: { bookingId, expectedVersion: 0, confirmed: true },
       },
       {
         id: 'c4',
         name: 'cancel_booking',
-        arguments: { bookingId, confirmed: true, reason: '   ' },
+        arguments: {
+          bookingId,
+          expectedVersion: 1,
+          confirmed: true,
+          tenantId: context.tenantId,
+        },
       },
       {
         id: 'c5',
         name: 'cancel_booking',
-        arguments: { bookingId, confirmed: true, reason: 'x'.repeat(501) },
+        arguments: { bookingId, expectedVersion: 1, confirmed: true, reason: '   ' },
+      },
+      {
+        id: 'c6',
+        name: 'cancel_booking',
+        arguments: {
+          bookingId,
+          expectedVersion: 1,
+          confirmed: true,
+          reason: 'x'.repeat(501),
+        },
       },
     ],
     context,
@@ -110,11 +143,18 @@ test('cancel_booking rejects unsafe arguments and missing capability before exec
       'invalid_arguments',
       'invalid_arguments',
       'invalid_arguments',
+      'invalid_arguments',
     ],
   );
 
   const forbidden = await executor.execute(
-    [{ id: 'c6', name: 'cancel_booking', arguments: { bookingId, confirmed: true } }],
+    [
+      {
+        id: 'c7',
+        name: 'cancel_booking',
+        arguments: { bookingId, expectedVersion: 1, confirmed: true },
+      },
+    ],
     { ...context, capabilities: [] },
   );
   assert.equal(forbidden[0]!.error, 'forbidden');
