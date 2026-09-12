@@ -203,6 +203,42 @@ export class BookingEngine {
                     '[)'
                   )
             )
+            AND NOT EXISTS (
+              SELECT 1
+              FROM calendar_connections connection
+              JOIN booking_resources resource
+                ON resource.tenant_id=connection.tenant_id
+              WHERE connection.tenant_id=${input.tenantId}::uuid
+                AND resource.tenant_id=${input.tenantId}::uuid
+                AND resource.id=${selection.resourceId}::uuid
+                AND connection.staff_id IS NOT DISTINCT FROM resource.staff_id
+                AND NOT (
+                  connection.status='connected'
+                  AND connection.last_success_at IS NOT NULL
+                  AND connection.last_success_at <= CURRENT_TIMESTAMP
+                  AND connection.last_success_at +
+                    make_interval(secs => connection.freshness_limit_seconds) >= CURRENT_TIMESTAMP
+                )
+            )
+            AND NOT EXISTS (
+              SELECT 1
+              FROM calendar_busy_intervals busy
+              JOIN calendar_connections connection
+                ON connection.tenant_id=busy.tenant_id AND connection.id=busy.connection_id
+              JOIN booking_resources resource
+                ON resource.tenant_id=connection.tenant_id
+              WHERE connection.tenant_id=${input.tenantId}::uuid
+                AND resource.tenant_id=${input.tenantId}::uuid
+                AND resource.id=${selection.resourceId}::uuid
+                AND connection.staff_id IS NOT DISTINCT FROM resource.staff_id
+                AND busy.sync_version=connection.sync_version
+                AND tstzrange(busy.starts_at, busy.ends_at, '[)') &&
+                  tstzrange(
+                    candidates.starts_at - make_interval(mins => ${selection.bufferBeforeMinutes}::int),
+                    candidates.starts_at + make_interval(mins => ${selection.durationMinutes + selection.bufferAfterMinutes}::int),
+                    '[)'
+                  )
+            )
           ORDER BY candidates.starts_at
           LIMIT 50
         `;

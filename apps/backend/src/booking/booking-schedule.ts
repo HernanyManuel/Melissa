@@ -140,20 +140,61 @@ export async function isBookingResourceUnblockedInTransaction(
   )
     return false;
 
+  const calendarConnections = await tx.$queryRaw<Array<{ id: string; fresh: boolean }>>`
+    SELECT
+      connection.id::text,
+      connection.status='connected'
+        AND connection.last_success_at IS NOT NULL
+        AND connection.last_success_at <= CURRENT_TIMESTAMP
+        AND connection.last_success_at +
+          make_interval(secs => connection.freshness_limit_seconds) >= CURRENT_TIMESTAMP AS fresh
+    FROM calendar_connections connection
+    JOIN booking_resources resource
+      ON resource.tenant_id=connection.tenant_id
+    WHERE connection.tenant_id=${tenantId}::uuid
+      AND resource.tenant_id=${tenantId}::uuid
+      AND resource.id=${resourceId}::uuid
+      AND connection.staff_id IS NOT DISTINCT FROM resource.staff_id
+    ORDER BY connection.id
+    FOR SHARE OF connection
+  `;
+  if (calendarConnections.some((connection) => !connection.fresh)) return false;
+
   const [row] = await tx.$queryRaw<Array<{ available: boolean }>>`
-    SELECT NOT EXISTS (
-      SELECT 1
-      FROM resource_blocks block
-      WHERE block.tenant_id=${tenantId}::uuid
-        AND block.resource_id=${resourceId}::uuid
-        AND tstzrange(block.starts_at, block.ends_at, '[)') &&
-          tstzrange(
-            ${startsAt}::timestamptz - make_interval(mins => ${bufferBeforeMinutes}::int),
-            ${startsAt}::timestamptz +
-              make_interval(mins => ${durationMinutes + bufferAfterMinutes}::int),
-            '[)'
-          )
-    ) AS available
+    SELECT
+      NOT EXISTS (
+        SELECT 1
+        FROM resource_blocks block
+        WHERE block.tenant_id=${tenantId}::uuid
+          AND block.resource_id=${resourceId}::uuid
+          AND tstzrange(block.starts_at, block.ends_at, '[)') &&
+            tstzrange(
+              ${startsAt}::timestamptz - make_interval(mins => ${bufferBeforeMinutes}::int),
+              ${startsAt}::timestamptz +
+                make_interval(mins => ${durationMinutes + bufferAfterMinutes}::int),
+              '[)'
+            )
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM calendar_busy_intervals busy
+        JOIN calendar_connections connection
+          ON connection.tenant_id=busy.tenant_id AND connection.id=busy.connection_id
+        JOIN booking_resources resource
+          ON resource.tenant_id=connection.tenant_id
+        WHERE connection.tenant_id=${tenantId}::uuid
+          AND resource.tenant_id=${tenantId}::uuid
+          AND resource.id=${resourceId}::uuid
+          AND connection.staff_id IS NOT DISTINCT FROM resource.staff_id
+          AND busy.sync_version=connection.sync_version
+          AND tstzrange(busy.starts_at, busy.ends_at, '[)') &&
+            tstzrange(
+              ${startsAt}::timestamptz - make_interval(mins => ${bufferBeforeMinutes}::int),
+              ${startsAt}::timestamptz +
+                make_interval(mins => ${durationMinutes + bufferAfterMinutes}::int),
+              '[)'
+            )
+      ) AS available
   `;
   return row?.available === true;
 }
