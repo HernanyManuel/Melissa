@@ -1,8 +1,5 @@
 import { createHash } from 'node:crypto';
-import {
-  SecretResolver,
-  validateSecretReference,
-} from '../secrets/secret-resolver';
+import { SecretResolver, validateSecretReference } from '../secrets/secret-resolver';
 import {
   CalendarBookingCancellation,
   CalendarBookingMutation,
@@ -31,8 +28,7 @@ interface GoogleEvent {
 }
 
 function exactInstant(value: string): string {
-  if (!/(?:Z|[+-]\d{2}:\d{2})$/i.test(value))
-    throw new CalendarProviderInvalidRequest();
+  if (!/(?:Z|[+-]\d{2}:\d{2})$/i.test(value)) throw new CalendarProviderInvalidRequest();
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) throw new CalendarProviderInvalidRequest();
   return parsed.toISOString();
@@ -46,13 +42,11 @@ function nonEmpty(value: string, maximum = 512): string {
 }
 
 function eventId(connectionId: string, bookingId: string): string {
-  const digest = createHash('sha256').update(`${connectionId}:${bookingId}`).digest('hex');
-  return digest.slice(0, 32);
+  return createHash('sha256').update(`${connectionId}:${bookingId}`).digest('hex').slice(0, 32);
 }
 
 function cancellationVersion(operationKey: string): string {
-  const digest = createHash('sha256').update(operationKey).digest('hex');
-  return `cancelled:${digest.slice(0, 16)}`;
+  return `cancelled:${createHash('sha256').update(operationKey).digest('hex').slice(0, 16)}`;
 }
 
 /** Google Calendar v3 transport. Construction alone performs no network or secret access. */
@@ -77,11 +71,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     const response = await this.request(`${API_BASE}/freeBusy`, token, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        timeMin: startsAt,
-        timeMax: endsAt,
-        items: [{ id: calendarRef }],
-      }),
+      body: JSON.stringify({ timeMin: startsAt, timeMax: endsAt, items: [{ id: calendarRef }] }),
     });
     if (!response.ok) this.throwForStatus(response.status);
 
@@ -95,8 +85,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     if (!calendar || typeof calendar !== 'object' || Array.isArray(calendar))
       throw new CalendarProviderUnavailable();
     const errors = (calendar as { errors?: unknown }).errors;
-    if (Array.isArray(errors) && errors.length > 0)
-      throw new CalendarProviderUnavailable();
+    if (Array.isArray(errors) && errors.length > 0) throw new CalendarProviderUnavailable();
     const busy = (calendar as { busy?: unknown }).busy;
     if (!Array.isArray(busy) || busy.length > MAX_BUSY_INTERVALS)
       throw new CalendarProviderUnavailable();
@@ -117,9 +106,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     return { observedAt: new Date().toISOString(), intervals, syncToken: null };
   }
 
-  async upsertBooking(
-    request: CalendarBookingMutation,
-  ): Promise<CalendarExternalEvent> {
+  async upsertBooking(request: CalendarBookingMutation): Promise<CalendarExternalEvent> {
     const connectionId = nonEmpty(request.connection.connectionId);
     const calendarRef = nonEmpty(request.connection.calendarRef);
     const bookingId = nonEmpty(request.bookingId);
@@ -151,9 +138,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     return this.eventResult(await this.readJson(response), id);
   }
 
-  async cancelBooking(
-    request: CalendarBookingCancellation,
-  ): Promise<CalendarExternalEvent> {
+  async cancelBooking(request: CalendarBookingCancellation): Promise<CalendarExternalEvent> {
     const connectionId = nonEmpty(request.connection.connectionId);
     const calendarRef = nonEmpty(request.connection.calendarRef);
     const bookingId = nonEmpty(request.bookingId);
@@ -211,23 +196,14 @@ export class GoogleCalendarProvider implements CalendarProvider {
     return this.eventResult(await this.readJson(response), id);
   }
 
-  private eventBody(
-    request: CalendarBookingMutation,
-    id?: string,
-  ): Record<string, unknown> {
+  private eventBody(request: CalendarBookingMutation, id?: string): Record<string, unknown> {
     return {
       ...(id ? { id } : {}),
       summary: 'Melissa booking',
       visibility: 'private',
       transparency: 'opaque',
-      start: {
-        dateTime: exactInstant(request.startsAt),
-        timeZone: request.timezone,
-      },
-      end: {
-        dateTime: exactInstant(request.endsAt),
-        timeZone: request.timezone,
-      },
+      start: { dateTime: exactInstant(request.startsAt), timeZone: request.timezone },
+      end: { dateTime: exactInstant(request.endsAt), timeZone: request.timezone },
       extendedProperties: {
         private: {
           melissaBookingId: request.bookingId,
@@ -255,18 +231,11 @@ export class GoogleCalendarProvider implements CalendarProvider {
     return payload as GoogleEvent;
   }
 
-  private eventResult(
-    payload: unknown,
-    expectedId: string,
-  ): CalendarExternalEvent {
+  private eventResult(payload: unknown, expectedId: string): CalendarExternalEvent {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload))
       throw new CalendarProviderUnavailable();
     const event = payload as GoogleEvent;
-    if (
-      event.id !== expectedId ||
-      typeof event.etag !== 'string' ||
-      event.etag.length < 1
-    )
+    if (event.id !== expectedId || typeof event.etag !== 'string' || event.etag.length < 1)
       throw new CalendarProviderUnavailable();
     return { externalEventId: expectedId, version: event.etag, cancelled: false };
   }
@@ -282,11 +251,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     }
   }
 
-  private async request(
-    url: string,
-    token: string,
-    init: RequestInit,
-  ): Promise<Response> {
+  private async request(url: string, token: string, init: RequestInit): Promise<Response> {
     try {
       return await this.fetcher(url, {
         ...init,
@@ -304,18 +269,14 @@ export class GoogleCalendarProvider implements CalendarProvider {
   }
 
   private throwForStatus(status: number): never {
-    if (status === 400 || status === 422)
-      throw new CalendarProviderInvalidRequest();
+    if (status === 400 || status === 422) throw new CalendarProviderInvalidRequest();
     if (status === 409 || status === 412) throw new CalendarProviderConflict();
     throw new CalendarProviderUnavailable();
   }
 
   private async readJson(response: Response): Promise<unknown> {
     const declared = response.headers.get('content-length');
-    if (
-      declared &&
-      (!/^\d+$/.test(declared) || Number(declared) > MAX_RESPONSE_BYTES)
-    )
+    if (declared && (!/^\d+$/.test(declared) || Number(declared) > MAX_RESPONSE_BYTES))
       throw new CalendarProviderUnavailable();
     if (!response.body) throw new CalendarProviderUnavailable();
     const reader = response.body.getReader();
