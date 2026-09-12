@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
+import { BookingAdminService } from './booking-admin.service';
 import { BusinessService } from './business.service';
 import {
   BookingPolicyDto,
@@ -32,7 +33,10 @@ import {
 @UseGuards(AuthGuard)
 @Controller('api/v1')
 export class BusinessController {
-  constructor(private readonly business: BusinessService) {}
+  constructor(
+    private readonly business: BusinessService,
+    private readonly bookingAdmin: BookingAdminService,
+  ) {}
   @Get('industry-templates') templates() {
     return this.business.templates();
   }
@@ -136,7 +140,7 @@ export class BusinessController {
   }
   @Get('tenants/:tenantId/booking-policy')
   bookingPolicy(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) id: string) {
-    return this.business.getBookingPolicy(req.actor, id);
+    return this.bookingAdmin.getPolicy(req.actor, id);
   }
   @Put('tenants/:tenantId/booking-policy')
   saveBookingPolicy(
@@ -144,11 +148,11 @@ export class BusinessController {
     @Param('tenantId', ParseUUIDPipe) id: string,
     @Body() body: BookingPolicyDto,
   ) {
-    return this.business.saveBookingPolicy(req.actor, id, body);
+    return this.bookingAdmin.savePolicy(req.actor, id, body);
   }
   @Get('tenants/:tenantId/resource-blocks')
   resourceBlocks(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) id: string) {
-    return this.business.listResourceBlocks(req.actor, id);
+    return this.bookingAdmin.listBlocks(req.actor, id);
   }
   @Post('tenants/:tenantId/resource-blocks')
   createResourceBlock(
@@ -156,7 +160,7 @@ export class BusinessController {
     @Param('tenantId', ParseUUIDPipe) id: string,
     @Body() body: ResourceBlockDto,
   ) {
-    return this.business.createResourceBlock(req.actor, id, body);
+    return this.bookingAdmin.createBlock(req.actor, id, body);
   }
   @Put('tenants/:tenantId/resource-blocks/:blockId')
   updateResourceBlock(
@@ -165,7 +169,7 @@ export class BusinessController {
     @Param('blockId', ParseUUIDPipe) blockId: string,
     @Body() body: ResourceBlockDto,
   ) {
-    return this.business.updateResourceBlock(req.actor, id, blockId, body);
+    return this.bookingAdmin.updateBlock(req.actor, id, blockId, body);
   }
   @Delete('tenants/:tenantId/resource-blocks/:blockId')
   @HttpCode(204)
@@ -174,6 +178,6 @@ export class BusinessController {
     @Param('tenantId', ParseUUIDPipe) id: string,
     @Param('blockId', ParseUUIDPipe) blockId: string,
   ) {
-    return this.business.deleteResourceBlock(req.actor, id, blockId);
+    return this.bookingAdmin.deleteBlock(req.actor, id, blockId);
   }
 }
