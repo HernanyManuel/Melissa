@@ -23,6 +23,7 @@ import './create-booking-tool.test';
 import './cancel-booking-tool.test';
 import './reschedule-booking-tool.test';
 import './calendar-provider.test';
+import './google-calendar-provider.test';
 import './ai-context-builder.test';
 import './conversation-state.test';
 import './conversation-engine.test';
