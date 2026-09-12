@@ -9,7 +9,7 @@ import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 
 test(
-  'external calendar busy and freshness gate availability, create and reschedule',
+  'external calendar busy, coverage and freshness gate availability, create and reschedule',
   { timeout: 15000 },
   async () => {
     const migrationUrl = process.env.MIGRATION_DATABASE_URL;
@@ -101,10 +101,12 @@ test(
       await admin.$executeRaw`
         INSERT INTO calendar_connections (
           tenant_id, id, provider, calendar_ref, status, sync_version,
-          last_success_at, freshness_limit_seconds
+          last_success_at, freshness_limit_seconds, coverage_starts_at, coverage_ends_at
         ) VALUES (
           ${tenantId}::uuid, ${connectionId}::uuid, 'mock', 'mock:booking-gate',
-          'connected', 1, CURRENT_TIMESTAMP, 60
+          'connected', 1, CURRENT_TIMESTAMP, 60,
+          '2026-09-15T07:00:00Z'::timestamptz,
+          '2026-09-15T12:00:00Z'::timestamptz
         )
       `;
       await admin.$executeRaw`
@@ -181,7 +183,51 @@ test(
 
       await admin.$executeRaw`
         UPDATE calendar_connections
-        SET last_success_at=CURRENT_TIMESTAMP - interval '61 seconds',
+        SET coverage_ends_at='2026-09-15T09:15:00Z'::timestamptz,
+          last_success_at=CURRENT_TIMESTAMP,
+          updated_at=CURRENT_TIMESTAMP
+        WHERE tenant_id=${tenantId}::uuid AND id=${connectionId}::uuid
+      `;
+
+      const uncoveredCreate = await engine.createBooking(
+        {
+          tenantId,
+          conversationId,
+          customerId,
+          turnId,
+          expectedModeEpoch: 51n,
+          idempotencyKey: `${turnId}:external-out-of-coverage`,
+          executionMode: 'live',
+          serviceId,
+          startsAt: '2026-09-15T10:30:00+01:00',
+          confirmed: true,
+        },
+        new AbortController().signal,
+      );
+      assert.deepEqual(uncoveredCreate, { status: 'unavailable' });
+
+      const uncoveredReschedule = await rescheduler.reschedule(
+        {
+          tenantId,
+          conversationId,
+          customerId,
+          turnId,
+          expectedModeEpoch: 51n,
+          idempotencyKey: `${turnId}:reschedule-out-of-coverage`,
+          executionMode: 'live',
+          bookingId: created.bookingId,
+          expectedVersion: 1,
+          startsAt: '2026-09-15T10:30:00+01:00',
+          confirmed: true,
+        },
+        new AbortController().signal,
+      );
+      assert.deepEqual(uncoveredReschedule, { status: 'unavailable' });
+
+      await admin.$executeRaw`
+        UPDATE calendar_connections
+        SET coverage_ends_at='2026-09-15T12:00:00Z'::timestamptz,
+          last_success_at=CURRENT_TIMESTAMP - interval '61 seconds',
           updated_at=CURRENT_TIMESTAMP
         WHERE tenant_id=${tenantId}::uuid AND id=${connectionId}::uuid
       `;
