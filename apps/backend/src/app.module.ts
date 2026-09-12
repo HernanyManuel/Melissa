@@ -9,6 +9,7 @@ import { TenantService } from './tenancy/tenant.service';
 import { TenantController } from './tenancy/tenant.controller';
 import { BusinessController } from './business/business.controller';
 import { BusinessService } from './business/business.service';
+import { BookingAdminService } from './business/booking-admin.service';
 import { CustomerController } from './customers/customer.controller';
 import { CustomerService } from './customers/customer.service';
 import { ChannelController } from './channels/channel.controller';
@@ -40,6 +41,7 @@ import { QuarantineController, QuarantineService } from './channels/quarantine.c
     IdentityRateLimit,
     TenantService,
     BusinessService,
+    BookingAdminService,
     CustomerService,
     ChannelService,
     MessagingService,
