@@ -16,10 +16,12 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { BusinessService } from './business.service';
 import {
+  BookingPolicyDto,
   BusinessProfileDto,
   ConfigurationDto,
   FaqDto,
   HoursDto,
+  ResourceBlockDto,
   ScheduleExceptionDto,
   ServiceDto,
   StaffDto,
@@ -131,5 +133,51 @@ export class BusinessController {
     @Body() body: ConfigurationDto,
   ) {
     return this.business.saveConfiguration(req.actor, id, body);
+  }
+  @Get('tenants/:tenantId/booking-policy')
+  bookingPolicy(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) id: string) {
+    return this.business.getBookingPolicy(req.actor, id);
+  }
+  @Put('tenants/:tenantId/booking-policy')
+  saveBookingPolicy(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) id: string,
+    @Body() body: BookingPolicyDto,
+  ) {
+    return this.business.saveBookingPolicy(req.actor, id, body);
+  }
+  @Get('tenants/:tenantId/booking-resources')
+  bookingResources(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) id: string) {
+    return this.business.listBookingResources(req.actor, id);
+  }
+  @Get('tenants/:tenantId/resource-blocks')
+  resourceBlocks(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) id: string) {
+    return this.business.listResourceBlocks(req.actor, id);
+  }
+  @Post('tenants/:tenantId/resource-blocks')
+  createResourceBlock(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) id: string,
+    @Body() body: ResourceBlockDto,
+  ) {
+    return this.business.createResourceBlock(req.actor, id, body);
+  }
+  @Put('tenants/:tenantId/resource-blocks/:blockId')
+  updateResourceBlock(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) id: string,
+    @Param('blockId', ParseUUIDPipe) blockId: string,
+    @Body() body: ResourceBlockDto,
+  ) {
+    return this.business.updateResourceBlock(req.actor, id, blockId, body);
+  }
+  @Delete('tenants/:tenantId/resource-blocks/:blockId')
+  @HttpCode(204)
+  removeResourceBlock(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) id: string,
+    @Param('blockId', ParseUUIDPipe) blockId: string,
+  ) {
+    return this.business.deleteResourceBlock(req.actor, id, blockId);
   }
 }
