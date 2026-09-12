@@ -10,6 +10,8 @@ Interseção de business hours e staff hours, exceções (fechado tem precedênc
 
 A implementação atual usa uma primitive transacional comum para o calendário interno em `availableSlots`, `createBooking` e `reschedule_booking`. `staff_hours` é tenant-scoped com RLS. Quando não existe qualquer linha de horário individual para o funcionário naquele weekday, herda o horário do negócio; quando existe configuração individual, a disponibilidade é a interseção estrita dos períodos ativos. A presença de configuração com todas as linhas desativadas significa indisponibilidade, não fallback para business hours. Exceções de fecho continuam a ter precedência.
 
+`resource_blocks` é tenant-scoped com RLS e intervalos `[start,end)`. Um candidate é bloqueado quando o seu intervalo ocupado — incluindo buffer anterior e posterior — intersecta um block. Availability filtra blocks como snapshot informativo; create/reschedule revalidam-nos dentro da transação depois de bloquear a linha de `booking_resources`. INSERT/UPDATE/DELETE de blocks usam trigger que adquire o mesmo resource lock, serializando alterações de blocks com writes de booking. Quando um UPDATE muda de resource, old/new são bloqueados em ordem estável. Um block criado depois de uma reserva não altera retroativamente essa reserva nem invalida exact replay de uma criação já comprometida.
+
 ## Criação atómica
 
 1. Validar actor, customer/serviço/staff do tenant, plano, estado do tenant e chave de idempotência.
@@ -19,6 +21,8 @@ A implementação atual usa uma primitive transacional comum para o calendário 
 5. Commit; iniciar sync externo e notificação por outbox. Resposta 201 confirma booking interno; estado de sync separado.
 
 Updates de horário/bloqueios seguem a mesma disciplina de lock; mudanças que afetem reservas existentes devem exigir resolução explícita. Conflito devolve 409 SLOT_UNAVAILABLE com alternativas consultáveis; nenhum retry muda silenciosamente data/staff escolhido.
+
+Exact replay de `create_booking` é resolvido a partir da reserva persistida antes de reavaliar epoch/calendário/blocks correntes. O replay valida conversation/customer/turn e arguments hash armazenados, devolve os snapshots persistidos e não repete efeitos. Assim uma alteração operacional posterior não transforma um commit anterior num falso `unavailable`.
 
 ## Cancelar/remarcar
 
@@ -38,4 +42,4 @@ Pending ocupa enquanto válido; se usado como hold deve ter expires_at, TTL conf
 
 Requests concorrentes no mesmo resource/slot → uma reserva. Slots adjacentes; buffers; default resource; tenant A/B; cancel+create; reschedule com falha preserva anterior; DST Europe/Lisbon/America/New_York; múltiplos intervalos; exceções; staff custom duration/price; calendar stale/revogado; mesma idempotency key retorna a mesma reserva, payload diferente conflita.
 
-Cobertura PostgreSQL incremental inclui herança de business hours sem configuração individual, interseção de `staff_hours`, rejeição de criação/remarcação fora do horário individual, RLS de `staff_hours`, policy disable/minimum-notice sem side effects, replay depois de mudança de policy e RLS de `booking_policies`. A fronteira LLM/tool também preserva `policy_denied` como resultado funcional estruturado. Ainda faltam resource blocks, antecedência/horizonte para criação/disponibilidade, resource moves com lock order estável e calendários externos.
+Cobertura PostgreSQL incremental inclui herança de business hours sem configuração individual, interseção de `staff_hours`, rejeição de criação/remarcação fora do horário individual, RLS de `staff_hours`, policy disable/minimum-notice sem side effects, replay depois de mudança de policy e RLS de `booking_policies`. `resource_blocks` cobre filtro com buffers, create/reschedule bloqueados, RLS tenant A/B, serialização por resource lock/trigger e exact replay de create após block posterior e epoch corrente diferente. A fronteira LLM/tool também preserva `policy_denied` como resultado funcional estruturado. Ainda faltam antecedência/horizonte para criação/disponibilidade, resource moves com lock order estável e calendários externos.
