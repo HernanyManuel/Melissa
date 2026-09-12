@@ -115,6 +115,7 @@ export class ConfigurationDto {
 }
 
 export class BookingPolicyDto {
+  @IsInt() @Min(1) expectedVersion!: number;
   @IsBoolean() cancellationEnabled!: boolean;
   @IsInt() @Min(0) @Max(525600) cancellationMinNoticeMinutes!: number;
   @IsBoolean() reschedulingEnabled!: boolean;
