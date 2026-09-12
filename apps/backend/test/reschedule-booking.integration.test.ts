@@ -169,8 +169,7 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
       },
       new AbortController().signal,
     );
-    assert.equal(replay.status, 'rescheduled');
-    assert.equal(replay.duplicate, true);
+    assert.deepEqual(replay, { ...first, duplicate: true });
 
     await assert.rejects(
       rescheduler.reschedule(
@@ -242,6 +241,23 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
     );
     assert.equal(second.status, 'rescheduled');
     assert.equal(second.duplicate, false);
+
+    const oldReplayAfterSecond = await rescheduler.reschedule(
+      {
+        tenantId,
+        conversationId,
+        customerId,
+        turnId,
+        expectedModeEpoch: 31n,
+        idempotencyKey: firstKey,
+        executionMode: 'live',
+        bookingId,
+        startsAt: '2026-09-18T09:00:00Z',
+        confirmed: true,
+      },
+      new AbortController().signal,
+    );
+    assert.deepEqual(oldReplayAfterSecond, { ...first, duplicate: true });
 
     const [booking] = await admin.$queryRaw<
       Array<{ starts_at: Date; ends_at: Date; version: number }>
