@@ -190,7 +190,10 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
           FOR UPDATE
         `;
         const conversation = conversations[0];
-        if (conversation?.mode !== 'AI_ACTIVE' || conversation.mode_epoch !== input.expectedModeEpoch)
+        if (
+          conversation?.mode !== 'AI_ACTIVE' ||
+          conversation.mode_epoch !== input.expectedModeEpoch
+        )
           throw new Error('Booking reschedule is stale');
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
