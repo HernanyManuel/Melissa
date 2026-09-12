@@ -31,7 +31,8 @@ CREATE INDEX calendar_oauth_states_tenant_created_idx
 CREATE INDEX calendar_oauth_states_expires_idx
   ON calendar_oauth_states (expires_at);
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON calendar_oauth_states TO melissa_runtime;
+GRANT SELECT, INSERT, DELETE ON calendar_oauth_states TO melissa_runtime;
+GRANT UPDATE (used_at) ON calendar_oauth_states TO melissa_runtime;
 ALTER TABLE calendar_oauth_states ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calendar_oauth_states FORCE ROW LEVEL SECURITY;
 
