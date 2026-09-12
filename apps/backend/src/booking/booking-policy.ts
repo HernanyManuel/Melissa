@@ -9,11 +9,90 @@ export type BookingPolicyDecision =
       minimumNoticeMinutes: number;
     };
 
+export interface BookingCreationWindow {
+  minimumNoticeMinutes: number;
+  maximumHorizonDays: number | null;
+  earliestStartsAt: Date;
+  latestStartsAt: Date | null;
+}
+
+export type BookingCreationPolicyDecision =
+  | { allowed: true; window: BookingCreationWindow }
+  | {
+      allowed: false;
+      reason: 'minimum_notice' | 'maximum_horizon';
+      minimumNoticeMinutes: number;
+      maximumHorizonDays: number | null;
+    };
+
 interface PolicyRow {
   cancellation_enabled: boolean;
   cancellation_min_notice_minutes: number;
   rescheduling_enabled: boolean;
   rescheduling_min_notice_minutes: number;
+}
+
+interface CreationPolicyRow {
+  creation_min_notice_minutes: number;
+  creation_max_horizon_days: number | null;
+}
+
+export async function readBookingCreationWindowInTransaction(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+): Promise<BookingCreationWindow> {
+  const [policy] = await tx.$queryRaw<CreationPolicyRow[]>`
+    SELECT creation_min_notice_minutes, creation_max_horizon_days
+    FROM booking_policies
+    WHERE tenant_id=${tenantId}::uuid
+    LIMIT 1
+  `;
+  const minimumNoticeMinutes = policy?.creation_min_notice_minutes ?? 0;
+  const maximumHorizonDays = policy?.creation_max_horizon_days ?? null;
+
+  const [bounds] = await tx.$queryRaw<
+    Array<{ earliest_starts_at: Date; latest_starts_at: Date | null }>
+  >`
+    SELECT
+      CURRENT_TIMESTAMP + make_interval(mins => ${minimumNoticeMinutes}::int) AS earliest_starts_at,
+      CASE
+        WHEN ${maximumHorizonDays}::int IS NULL THEN NULL
+        ELSE CURRENT_TIMESTAMP + make_interval(days => ${maximumHorizonDays}::int)
+      END AS latest_starts_at
+  `;
+  if (!bounds) throw new Error('Booking creation window is unavailable');
+
+  return {
+    minimumNoticeMinutes,
+    maximumHorizonDays,
+    earliestStartsAt: bounds.earliest_starts_at,
+    latestStartsAt: bounds.latest_starts_at,
+  };
+}
+
+export async function evaluateBookingCreationPolicyInTransaction(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  startsAt: Date,
+): Promise<BookingCreationPolicyDecision> {
+  const window = await readBookingCreationWindowInTransaction(tx, tenantId);
+  if (startsAt.getTime() < window.earliestStartsAt.getTime()) {
+    return {
+      allowed: false,
+      reason: 'minimum_notice',
+      minimumNoticeMinutes: window.minimumNoticeMinutes,
+      maximumHorizonDays: window.maximumHorizonDays,
+    };
+  }
+  if (window.latestStartsAt && startsAt.getTime() > window.latestStartsAt.getTime()) {
+    return {
+      allowed: false,
+      reason: 'maximum_horizon',
+      minimumNoticeMinutes: window.minimumNoticeMinutes,
+      maximumHorizonDays: window.maximumHorizonDays,
+    };
+  }
+  return { allowed: true, window };
 }
 
 export async function evaluateBookingMutationPolicyInTransaction(
