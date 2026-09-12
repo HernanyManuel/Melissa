@@ -80,7 +80,11 @@ function validateArguments(value: JsonObject): JsonObject {
     if (!['bookingId', 'startsAt', 'confirmed'].includes(key))
       throw new Error('Invalid reschedule request');
   }
-  return { bookingId: value.bookingId, startsAt: validateInstant(value.startsAt), confirmed: true };
+  return {
+    bookingId: value.bookingId,
+    startsAt: validateInstant(value.startsAt),
+    confirmed: true,
+  };
 }
 
 function argumentsHash(input: RescheduleBookingRequest, startsAt: Date): string {
@@ -96,7 +100,8 @@ function argumentsHash(input: RescheduleBookingRequest, startsAt: Date): string 
 }
 
 function toJson(result: RescheduleBookingResult): JsonObject {
-  if (result.status === 'not_found' || result.status === 'unavailable') return { status: result.status };
+  if (result.status === 'not_found' || result.status === 'unavailable')
+    return { status: result.status };
   return {
     status: result.status,
     bookingId: result.bookingId,
@@ -158,7 +163,11 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
             LIMIT 1
           `;
           const booking = bookings[0];
-          if (!booking || booking.status === 'cancelled' || booking.starts_at.getTime() !== startsAt.getTime())
+          if (
+            !booking ||
+            booking.status === 'cancelled' ||
+            booking.starts_at.getTime() !== startsAt.getTime()
+          )
             throw new Error('Reschedule replay is inconsistent');
           const timezone = await this.resolveTimezone(tx, input.tenantId, booking.timezone);
           return {
@@ -200,7 +209,9 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
         const resources = await tx.$queryRaw<Array<{ id: string }>>`
           SELECT id::text
           FROM booking_resources
-          WHERE tenant_id=${input.tenantId}::uuid AND id=${booking.resource_id}::uuid AND active=true
+          WHERE tenant_id=${input.tenantId}::uuid
+            AND id=${booking.resource_id}::uuid
+            AND active=true
           FOR UPDATE
         `;
         if (!resources.length) return { status: 'unavailable' };
@@ -214,7 +225,16 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
         `;
         if (!local) return { status: 'unavailable' };
         const periods = await this.periods(tx, input.tenantId, local.local_date);
-        if (!(await this.isCandidateInPeriods(tx, startsAt, local.local_date, periods, timezone, durationMinutes)))
+        if (
+          !(await this.isCandidateInPeriods(
+            tx,
+            startsAt,
+            local.local_date,
+            periods,
+            timezone,
+            durationMinutes,
+          ))
+        )
           return { status: 'unavailable' };
 
         const operations = await tx.$queryRaw<Array<{ id: string }>>`
@@ -274,7 +294,10 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
     snapshot: string | null,
   ): Promise<string> {
     if (snapshot) return snapshot;
-    const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { timezone: true } });
+    const tenant = await tx.tenant.findUnique({
+      where: { id: tenantId },
+      select: { timezone: true },
+    });
     if (!tenant) throw new Error('Booking tenant is unavailable');
     return tenant.timezone;
   }
