@@ -16,6 +16,7 @@ const keyring: CalendarCredentialKeyring = {
   resolve: (keyId) => (keyId === 'calendar-v1' ? Buffer.from(key) : null),
 };
 
+// prettier-ignore
 test('calendar credentials are tenant-scoped, encrypted and authenticated', { timeout: 15000 }, async () => {
   const migrationUrl = process.env.MIGRATION_DATABASE_URL;
   assert(migrationUrl, 'calendar credential integration requires MIGRATION_DATABASE_URL');
