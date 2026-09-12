@@ -124,7 +124,7 @@ export class BookingPolicyDto {
 }
 
 export class ResourceBlockDto {
-  @IsUUID() resourceId!: string;
+  @IsOptional() @IsUUID() staffId?: string;
   @IsISO8601({ strict: true }) startsAt!: string;
   @IsISO8601({ strict: true }) endsAt!: string;
   @IsOptional() @IsString() @Length(1, 500) reason?: string;
