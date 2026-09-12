@@ -36,11 +36,7 @@ test('cancel_booking requires confirmation and injects trusted write scope', asy
   const registry = new ToolRegistry();
   registerCancelBookingTool(registry, canceller);
   const definition = registry.definitions(['cancel_booking'])[0]!;
-  assert.deepEqual(definition.inputSchema.required, [
-    'bookingId',
-    'expectedVersion',
-    'confirmed',
-  ]);
+  assert.deepEqual(definition.inputSchema.required, ['bookingId', 'expectedVersion', 'confirmed']);
   assert.equal(definition.inputSchema.additionalProperties, false);
 
   const bookingId = '00000000-0000-4000-8000-000000000010';
