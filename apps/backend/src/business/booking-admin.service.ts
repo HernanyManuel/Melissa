@@ -201,11 +201,7 @@ export class BookingAdminService {
   private interval(input: ResourceBlockDto): { startsAt: Date; endsAt: Date } {
     const startsAt = new Date(input.startsAt);
     const endsAt = new Date(input.endsAt);
-    if (
-      Number.isNaN(startsAt.valueOf()) ||
-      Number.isNaN(endsAt.valueOf()) ||
-      endsAt <= startsAt
-    )
+    if (Number.isNaN(startsAt.valueOf()) || Number.isNaN(endsAt.valueOf()) || endsAt <= startsAt)
       throw new BadRequestException();
     return { startsAt, endsAt };
   }
