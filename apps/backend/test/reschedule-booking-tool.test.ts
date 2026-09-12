@@ -79,6 +79,42 @@ test('reschedule_booking exposes booking, version, time and confirmation with tr
   ]);
 });
 
+test('reschedule_booking exposes structured policy denial without turning it into execution failure', async () => {
+  const rescheduler: BookingRescheduler = {
+    async reschedule() {
+      return {
+        status: 'policy_denied',
+        reason: 'disabled',
+        minimumNoticeMinutes: 0,
+      };
+    },
+  };
+  const registry = new ToolRegistry();
+  registerRescheduleBookingTool(registry, rescheduler);
+  const bookingId = '00000000-0000-4000-8000-000000000010';
+  const [result] = await new ToolExecutor(registry).execute(
+    [
+      {
+        id: 'reschedule_policy',
+        name: 'reschedule_booking',
+        arguments: {
+          bookingId,
+          expectedVersion: 3,
+          startsAt: '2026-09-18T11:00:00+01:00',
+          confirmed: true,
+        },
+      },
+    ],
+    context,
+  );
+  assert.equal(result?.success, true);
+  assert.deepEqual(result?.output, {
+    status: 'policy_denied',
+    reason: 'disabled',
+    minimumNoticeMinutes: 0,
+  });
+});
+
 test('reschedule_booking rejects unsafe arguments, stale preconditions, naive time and missing capability', async () => {
   let executions = 0;
   const rescheduler: BookingRescheduler = {
