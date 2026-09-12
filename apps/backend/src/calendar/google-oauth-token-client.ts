@@ -110,10 +110,16 @@ export class GoogleOAuthTokenClient {
     const accessToken = this.text(item.access_token, 16, 4096);
     const refreshToken =
       item.refresh_token === undefined ? null : this.text(item.refresh_token, 16, 4096);
-    if (!Number.isInteger(item.expires_in) || Number(item.expires_in) < 1 || Number(item.expires_in) > 86400)
+    if (
+      !Number.isInteger(item.expires_in) ||
+      Number(item.expires_in) < 1 ||
+      Number(item.expires_in) > 86400
+    )
       throw new GoogleOAuthUnavailable();
     const scopes =
-      item.scope === undefined ? [] : this.text(item.scope, 1, 8192).split(' ').filter(Boolean);
+      item.scope === undefined
+        ? []
+        : this.text(item.scope, 1, 8192).split(' ').filter(Boolean);
     if (scopes.length > 64 || new Set(scopes).size !== scopes.length)
       throw new GoogleOAuthUnavailable();
     return {
