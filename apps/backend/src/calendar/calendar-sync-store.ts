@@ -4,6 +4,9 @@ import { randomUUID } from 'node:crypto';
 import { Dependencies } from '../dependencies';
 import { CalendarBusyInterval, CalendarProviderConflict } from './calendar-provider';
 
+const MAX_BUSY_INTERVALS = 5000;
+const MAX_SYNC_TOKEN_LENGTH = 4096;
+
 export type CalendarFreshnessReason = 'fresh' | 'never_synced' | 'stale' | 'disconnected';
 
 export interface CalendarBusySnapshot {
@@ -159,7 +162,13 @@ export class CalendarSyncStore {
   }
 
   private validateReplacement(input: ReplaceCalendarBusySnapshotInput): void {
-    if (input.expectedSyncVersion < 0n || Number.isNaN(input.observedAt.getTime())) {
+    if (
+      input.expectedSyncVersion < 0n ||
+      Number.isNaN(input.observedAt.getTime()) ||
+      input.intervals.length > MAX_BUSY_INTERVALS ||
+      (input.syncToken !== null &&
+        (input.syncToken.length === 0 || input.syncToken.length > MAX_SYNC_TOKEN_LENGTH))
+    ) {
       throw new CalendarProviderConflict();
     }
     for (const interval of input.intervals) {

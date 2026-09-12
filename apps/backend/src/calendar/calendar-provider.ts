@@ -13,11 +13,13 @@ export interface CalendarBusyRequest {
   connection: CalendarConnectionRef;
   startsAt: string;
   endsAt: string;
+  syncToken: string | null;
 }
 
 export interface CalendarBusyResult {
   observedAt: string;
   intervals: CalendarBusyInterval[];
+  syncToken: string | null;
 }
 
 export interface CalendarBookingMutation {

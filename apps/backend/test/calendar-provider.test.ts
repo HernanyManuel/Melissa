@@ -25,20 +25,24 @@ test('mock calendar provider returns bounded busy intervals with defensive copie
     connection,
     startsAt: '2030-01-01T09:30:00Z',
     endsAt: '2030-01-01T12:30:00Z',
+    syncToken: null,
   });
   assert.deepEqual(result.intervals, [
     { startsAt: '2030-01-01T09:00:00.000Z', endsAt: '2030-01-01T10:00:00.000Z' },
     { startsAt: '2030-01-01T12:00:00.000Z', endsAt: '2030-01-01T13:00:00.000Z' },
   ]);
   assert(!Number.isNaN(new Date(result.observedAt).valueOf()));
+  assert.equal(result.syncToken, null);
 
   result.intervals[0]!.startsAt = '2099-01-01T00:00:00.000Z';
   const replay = await provider.busy({
     connection,
     startsAt: '2030-01-01T09:30:00Z',
     endsAt: '2030-01-01T10:30:00Z',
+    syncToken: 'checkpoint-a',
   });
   assert.equal(replay.intervals[0]!.startsAt, '2030-01-01T09:00:00.000Z');
+  assert.equal(replay.syncToken, 'checkpoint-a');
 });
 
 test('mock calendar provider makes booking mutations idempotent by connection and operation key', async () => {
@@ -105,6 +109,7 @@ test('mock calendar provider validates exact instants and fails closed when unav
       connection,
       startsAt: '2030-01-01T10:00:00',
       endsAt: '2030-01-01T11:00:00Z',
+      syncToken: null,
     }),
     (error) => error instanceof CalendarProviderInvalidRequest,
   );
@@ -126,6 +131,7 @@ test('mock calendar provider validates exact instants and fails closed when unav
       connection,
       startsAt: '2030-01-01T10:00:00Z',
       endsAt: '2030-01-01T11:00:00Z',
+      syncToken: null,
     }),
     (error) => error instanceof CalendarProviderUnavailable,
   );

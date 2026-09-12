@@ -77,12 +77,14 @@ export class MockCalendarProvider implements CalendarProvider {
     const startsAt = exactInstant(request.startsAt);
     const endsAt = exactInstant(request.endsAt);
     if (endsAt <= startsAt) throw new CalendarProviderInvalidRequest();
+    if (request.syncToken !== null) nonEmpty(request.syncToken);
     const intervals = (this.busyByConnection.get(connectionId) ?? []).filter(
       (interval) => interval.startsAt < endsAt && interval.endsAt > startsAt,
     );
     return {
       observedAt: new Date().toISOString(),
       intervals: intervals.map((interval) => ({ ...interval })),
+      syncToken: request.syncToken,
     };
   }
 
