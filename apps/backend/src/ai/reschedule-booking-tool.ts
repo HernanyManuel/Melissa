@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { isUUID } from 'class-validator';
+import { evaluateBookingMutationPolicyInTransaction } from '../booking/booking-policy';
 import {
   effectiveBookingPeriodsInTransaction,
   isBookingCandidateInPeriods,
@@ -35,7 +36,12 @@ export type RescheduleBookingResult =
     }
   | { status: 'not_found' }
   | { status: 'unavailable' }
-  | { status: 'stale' };
+  | { status: 'stale' }
+  | {
+      status: 'policy_denied';
+      reason: 'disabled' | 'minimum_notice';
+      minimumNoticeMinutes: number;
+    };
 
 export interface BookingRescheduler {
   reschedule(
@@ -116,6 +122,13 @@ function argumentsHash(input: RescheduleBookingRequest, startsAt: Date): string 
 function toJson(result: RescheduleBookingResult): JsonObject {
   if (result.status === 'not_found' || result.status === 'unavailable' || result.status === 'stale')
     return { status: result.status };
+  if (result.status === 'policy_denied') {
+    return {
+      status: result.status,
+      reason: result.reason,
+      minimumNoticeMinutes: result.minimumNoticeMinutes,
+    };
+  }
   return {
     status: result.status,
     bookingId: result.bookingId,
@@ -210,6 +223,20 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
         if (booking.version !== input.expectedVersion) return { status: 'stale' };
         if (booking.status === 'cancelled') return { status: 'unavailable' };
         if (booking.starts_at.getTime() === startsAt.getTime()) return { status: 'unavailable' };
+
+        const policy = await evaluateBookingMutationPolicyInTransaction(
+          tx,
+          input.tenantId,
+          'reschedule',
+          booking.starts_at,
+        );
+        if (!policy.allowed) {
+          return {
+            status: 'policy_denied',
+            reason: policy.reason,
+            minimumNoticeMinutes: policy.minimumNoticeMinutes,
+          };
+        }
 
         const resources = await tx.$queryRaw<Array<{ id: string; staff_id: string | null }>>`
           SELECT id::text, staff_id::text
@@ -322,7 +349,7 @@ export function registerRescheduleBookingTool(
     definition: {
       name: 'reschedule_booking',
       description:
-        'Move one booking belonging to the current customer to one exact confirmed time while preserving its service and resource. Use the version returned by get_booking as expectedVersion. If status is stale, read the booking again before asking for confirmation. Never claim success unless this tool returns status rescheduled.',
+        'Move one booking belonging to the current customer to one exact confirmed time while preserving its service and resource. Use the version returned by get_booking as expectedVersion. If status is stale, read the booking again before asking for confirmation. If policy_denied, explain the configured rescheduling policy and do not claim success. Never claim success unless this tool returns status rescheduled.',
       inputSchema: {
         type: 'object',
         properties: {
