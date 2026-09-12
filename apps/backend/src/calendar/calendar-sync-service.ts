@@ -1,10 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { isUUID } from 'class-validator';
 import { Dependencies } from '../dependencies';
-import {
-  CalendarProviderConflict,
-  CalendarProviderInvalidRequest,
-} from './calendar-provider';
+import { CalendarProviderConflict, CalendarProviderInvalidRequest } from './calendar-provider';
 import { CalendarProviderRegistry } from './calendar-provider-registry';
 import { CalendarSyncStore } from './calendar-sync-store';
 
@@ -74,7 +71,10 @@ export class CalendarSyncService {
     };
   }
 
-  private async readConnection(tenantId: string, connectionId: string): Promise<SyncConnectionRow> {
+  private async readConnection(
+    tenantId: string,
+    connectionId: string,
+  ): Promise<SyncConnectionRow> {
     return this.deps.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
       const [connection] = await tx.$queryRaw<SyncConnectionRow[]>(Prisma.sql`
