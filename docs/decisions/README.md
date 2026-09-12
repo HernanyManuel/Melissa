@@ -21,3 +21,4 @@ Propostas documentadas para revisão; aceitação é registada no PR, substitui�
 - [ADR-072 — Criação de booking confirmada, fenced e idempotente pela IA](ADR-072-fenced-ai-booking-creation.md)
 - [ADR-073 — Leitura de booking customer-scoped pela IA](ADR-073-customer-scoped-booking-read.md)
 - [ADR-074 — Cancelamento de booking confirmado, fenced e idempotente pela IA](ADR-074-fenced-ai-booking-cancellation.md)
+- [ADR-075 — Remarcação de booking confirmada, versionada, fenced e idempotente pela IA](ADR-075-fenced-ai-booking-reschedule.md)
