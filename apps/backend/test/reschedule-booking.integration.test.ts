@@ -7,7 +7,7 @@ import { PrismaBookingRescheduler } from '../src/ai/reschedule-booking-tool';
 import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 
-test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-safe', async () => {
+test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe and replay-safe', async () => {
   const migrationUrl = process.env.MIGRATION_DATABASE_URL;
   assert(migrationUrl, 'reschedule booking integration requires MIGRATION_DATABASE_URL');
   const deps = new Dependencies(parseConfig(process.env));
@@ -140,6 +140,7 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
         idempotencyKey: firstKey,
         executionMode: 'live',
         bookingId,
+        expectedVersion: 1,
         startsAt: '2026-09-18T09:00:00Z',
         confirmed: true,
       },
@@ -164,6 +165,7 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
         idempotencyKey: firstKey,
         executionMode: 'live',
         bookingId,
+        expectedVersion: 1,
         startsAt: '2026-09-18T09:00:00Z',
         confirmed: true,
       },
@@ -182,6 +184,7 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
           idempotencyKey: firstKey,
           executionMode: 'live',
           bookingId,
+          expectedVersion: 1,
           startsAt: '2026-09-18T11:00:00Z',
           confirmed: true,
         },
@@ -189,6 +192,24 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
       ),
       /Idempotency conflict/,
     );
+
+    const staleVersion = await rescheduler.reschedule(
+      {
+        tenantId,
+        conversationId,
+        customerId,
+        turnId,
+        expectedModeEpoch: 31n,
+        idempotencyKey: `${turnId}:stale-version`,
+        executionMode: 'live',
+        bookingId,
+        expectedVersion: 1,
+        startsAt: '2026-09-18T11:00:00Z',
+        confirmed: true,
+      },
+      new AbortController().signal,
+    );
+    assert.deepEqual(staleVersion, { status: 'stale' });
 
     const foreign = await rescheduler.reschedule(
       {
@@ -200,6 +221,7 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
         idempotencyKey: `${otherTurnId}:foreign`,
         executionMode: 'live',
         bookingId,
+        expectedVersion: 2,
         startsAt: '2026-09-18T11:00:00Z',
         confirmed: true,
       },
@@ -217,6 +239,7 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
         idempotencyKey: `${turnId}:conflict`,
         executionMode: 'live',
         bookingId,
+        expectedVersion: 2,
         startsAt: '2026-09-18T10:00:00Z',
         confirmed: true,
       },
@@ -234,6 +257,7 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
         idempotencyKey: `${turnId}:reschedule_2`,
         executionMode: 'live',
         bookingId,
+        expectedVersion: 2,
         startsAt: '2026-09-18T11:00:00Z',
         confirmed: true,
       },
@@ -252,6 +276,7 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
         idempotencyKey: firstKey,
         executionMode: 'live',
         bookingId,
+        expectedVersion: 1,
         startsAt: '2026-09-18T09:00:00Z',
         confirmed: true,
       },
@@ -297,9 +322,10 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
           customerId,
           turnId,
           expectedModeEpoch: 30n,
-          idempotencyKey: `${turnId}:stale`,
+          idempotencyKey: `${turnId}:stale-epoch`,
           executionMode: 'live',
           bookingId,
+          expectedVersion: 3,
           startsAt: '2026-09-18T09:00:00Z',
           confirmed: true,
         },
@@ -318,6 +344,7 @@ test('reschedule_booking is fenced, customer-scoped, conflict-safe and replay-sa
           idempotencyKey: `${turnId}:sandbox`,
           executionMode: 'sandbox',
           bookingId,
+          expectedVersion: 3,
           startsAt: '2026-09-18T09:00:00Z',
           confirmed: true,
         },
