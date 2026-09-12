@@ -4,8 +4,6 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import {
-  CalendarBookingCancellation,
-  CalendarBookingMutation,
   CalendarBusyRequest,
   CalendarBusyResult,
   CalendarExternalEvent,
