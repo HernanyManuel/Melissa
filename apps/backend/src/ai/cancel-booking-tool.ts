@@ -13,6 +13,7 @@ export interface CancelBookingRequest {
   idempotencyKey: string;
   executionMode: 'live' | 'sandbox';
   bookingId: string;
+  expectedVersion: number;
   reason?: string;
   confirmed: true;
 }
@@ -25,7 +26,8 @@ export type CancelBookingResult =
       duplicate: boolean;
       alreadyCancelled: boolean;
     }
-  | { status: 'not_found' };
+  | { status: 'not_found' }
+  | { status: 'stale' };
 
 export interface BookingCanceller {
   cancel(input: CancelBookingRequest, signal: AbortSignal): Promise<CancelBookingResult>;
@@ -42,28 +44,40 @@ interface ExistingOperation {
 
 interface BookingRow {
   id: string;
+  version: number;
   status: string;
   cancelled_at: Date | null;
 }
 
 function validateArguments(value: JsonObject): JsonObject {
   const keys = Object.keys(value);
-  if (keys.length < 2 || keys.length > 3) throw new Error('Invalid cancellation request');
+  if (keys.length < 3 || keys.length > 4) throw new Error('Invalid cancellation request');
   if (typeof value.bookingId !== 'string' || !isUUID(value.bookingId))
     throw new Error('Invalid booking ID');
+  if (
+    typeof value.expectedVersion !== 'number' ||
+    !Number.isInteger(value.expectedVersion) ||
+    value.expectedVersion < 1
+  )
+    throw new Error('Invalid booking version');
   if (value.confirmed !== true) throw new Error('Cancellation requires explicit confirmation');
   if (value.reason !== undefined && typeof value.reason !== 'string')
     throw new Error('Invalid cancellation reason');
   for (const key of keys) {
-    if (!['bookingId', 'reason', 'confirmed'].includes(key))
+    if (!['bookingId', 'expectedVersion', 'reason', 'confirmed'].includes(key))
       throw new Error('Invalid cancellation request');
   }
   const reason = typeof value.reason === 'string' ? value.reason.trim() : undefined;
   if (reason !== undefined && (!reason.length || reason.length > 500))
     throw new Error('Invalid cancellation reason');
   return reason === undefined
-    ? { bookingId: value.bookingId, confirmed: true }
-    : { bookingId: value.bookingId, reason, confirmed: true };
+    ? { bookingId: value.bookingId, expectedVersion: value.expectedVersion, confirmed: true }
+    : {
+        bookingId: value.bookingId,
+        expectedVersion: value.expectedVersion,
+        reason,
+        confirmed: true,
+      };
 }
 
 function argumentsHash(input: CancelBookingRequest): string {
@@ -71,6 +85,7 @@ function argumentsHash(input: CancelBookingRequest): string {
     .update(
       JSON.stringify({
         bookingId: input.bookingId,
+        expectedVersion: input.expectedVersion,
         reason: input.reason ?? null,
         confirmed: true,
       }),
@@ -79,7 +94,7 @@ function argumentsHash(input: CancelBookingRequest): string {
 }
 
 function toJson(result: CancelBookingResult): JsonObject {
-  if (result.status === 'not_found') return { status: 'not_found' };
+  if (result.status === 'not_found' || result.status === 'stale') return { status: result.status };
   return {
     status: result.status,
     bookingId: result.bookingId,
@@ -120,7 +135,7 @@ export class PrismaBookingCanceller implements BookingCanceller {
         )
           throw new Error('Idempotency conflict');
         const bookings = await tx.$queryRaw<BookingRow[]>`
-          SELECT id::text, status, cancelled_at
+          SELECT id::text, version, status, cancelled_at
           FROM bookings
           WHERE tenant_id=${input.tenantId}::uuid AND id=${input.bookingId}::uuid
             AND customer_id=${input.customerId}::uuid
@@ -152,7 +167,7 @@ export class PrismaBookingCanceller implements BookingCanceller {
       if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
       const bookings = await tx.$queryRaw<BookingRow[]>`
-        SELECT id::text, status, cancelled_at
+        SELECT id::text, version, status, cancelled_at
         FROM bookings
         WHERE tenant_id=${input.tenantId}::uuid AND id=${input.bookingId}::uuid
           AND customer_id=${input.customerId}::uuid
@@ -160,6 +175,7 @@ export class PrismaBookingCanceller implements BookingCanceller {
       `;
       const booking = bookings[0];
       if (!booking) return { status: 'not_found' };
+      if (booking.version !== input.expectedVersion) return { status: 'stale' };
       if (booking.status === 'cancelled') {
         if (!booking.cancelled_at) throw new Error('Cancelled booking is inconsistent');
         return {
@@ -170,6 +186,16 @@ export class PrismaBookingCanceller implements BookingCanceller {
           alreadyCancelled: true,
         };
       }
+
+      const cancelledAt = new Date();
+      const updated = await tx.$executeRaw`
+        UPDATE bookings
+        SET status='cancelled', cancelled_at=${cancelledAt}, cancellation_reason=${input.reason ?? null},
+          version=version+1, updated_at=CURRENT_TIMESTAMP
+        WHERE tenant_id=${input.tenantId}::uuid AND id=${input.bookingId}::uuid
+          AND customer_id=${input.customerId}::uuid AND version=${input.expectedVersion}
+      `;
+      if (updated !== 1) return { status: 'stale' };
 
       const operations = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO booking_operations (
@@ -185,14 +211,6 @@ export class PrismaBookingCanceller implements BookingCanceller {
       `;
       if (!operations.length) throw new Error('Cancellation operation conflict');
 
-      const cancelledAt = new Date();
-      await tx.$executeRaw`
-        UPDATE bookings
-        SET status='cancelled', cancelled_at=${cancelledAt}, cancellation_reason=${input.reason ?? null},
-          version=version+1, updated_at=CURRENT_TIMESTAMP
-        WHERE tenant_id=${input.tenantId}::uuid AND id=${input.bookingId}::uuid
-          AND customer_id=${input.customerId}::uuid
-      `;
       await tx.$executeRaw`
         INSERT INTO booking_outbox (tenant_id, booking_id, event_type)
         VALUES (${input.tenantId}::uuid, ${input.bookingId}::uuid, 'cancelled')
@@ -228,15 +246,16 @@ export function registerCancelBookingTool(
     definition: {
       name: 'cancel_booking',
       description:
-        'Cancel one booking belonging to the current customer only after explicit confirmation. Never claim cancellation unless this tool returns status cancelled.',
+        'Cancel one booking belonging to the current customer only after explicit confirmation. Use the version returned by get_booking as expectedVersion. If status is stale, read the booking again before asking for confirmation. Never claim cancellation unless this tool returns status cancelled.',
       inputSchema: {
         type: 'object',
         properties: {
           bookingId: { type: 'string', format: 'uuid' },
+          expectedVersion: { type: 'integer', minimum: 1 },
           reason: { type: 'string', minLength: 1, maxLength: 500 },
           confirmed: { type: 'boolean', enum: [true] },
         },
-        required: ['bookingId', 'confirmed'],
+        required: ['bookingId', 'expectedVersion', 'confirmed'],
         additionalProperties: false,
       },
     },
@@ -256,6 +275,7 @@ export function registerCancelBookingTool(
             idempotencyKey: context.idempotencyKey,
             executionMode: context.executionMode,
             bookingId: arguments_.bookingId as string,
+            expectedVersion: arguments_.expectedVersion as number,
             ...(arguments_.reason === undefined ? {} : { reason: arguments_.reason as string }),
             confirmed: true,
           },
