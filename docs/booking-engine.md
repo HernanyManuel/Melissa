@@ -22,9 +22,11 @@ Updates de horário/bloqueios seguem a mesma disciplina de lock; mudanças que a
 
 ## Cancelar/remarcar
 
-Comprovada relação customer/conversation nas tools; ter UUID não autoriza operação. Policies validadas pelo backend. Version/If-Match evita lost updates. Reschedule e cancelamento são idempotentes; audit preserva ator/motivo. Mover entre recursos adquire locks em ordem estável. Falha na nova ocupação faz rollback da mudança inteira.
+Comprovada relação customer/conversation nas tools; ter UUID não autoriza operação. Version/If-Match evita lost updates. Reschedule e cancelamento são idempotentes; audit preserva ator/motivo. Mover entre recursos adquire locks em ordem estável. Falha na nova ocupação faz rollback da mudança inteira.
 
-As tools de cancelamento/remarcação atuais usam `expectedVersion` obtida por `get_booking`; essa versão é apenas uma precondition de concorrência e nunca uma autorização. Tenant/customer/conversation continuam server-owned. A representação atual de `TenantConfiguration.cancellation/rescheduling` é texto livre e não é interpretada como policy executável; uma policy estruturada e validada server-side continua requisito antes de declarar P6 completo.
+As tools de cancelamento/remarcação usam `expectedVersion` obtida por `get_booking`; essa versão é apenas uma precondition de concorrência e nunca uma autorização. Tenant/customer/conversation continuam server-owned.
+
+Policies executáveis vivem em `booking_policies`, separadas do texto humano de `TenantConfiguration.cancellation/rescheduling`. A policy é tenant-scoped, RLS-protected e versionada, com `cancellation_enabled`, `rescheduling_enabled` e antecedência mínima independente para cada operação. Tenants sem configuração explícita recebem defaults determinísticos compatíveis (`enabled=true`, notice `0`) dentro da própria transação. Cancel/reschedule avaliam a policy com `CURRENT_TIMESTAMP` na mesma transação que bloqueia e altera a reserva; `policy_denied` não cria operation ledger, audit, outbox nem altera a reserva. Exact replay é resolvido antes da policy corrente, preservando exatamente o resultado já comprometido mesmo após uma alteração posterior da configuração. Texto livre nunca é interpretado como autorização.
 
 ## Calendário externo
 
@@ -36,4 +38,4 @@ Pending ocupa enquanto válido; se usado como hold deve ter expires_at, TTL conf
 
 Requests concorrentes no mesmo resource/slot → uma reserva. Slots adjacentes; buffers; default resource; tenant A/B; cancel+create; reschedule com falha preserva anterior; DST Europe/Lisbon/America/New_York; múltiplos intervalos; exceções; staff custom duration/price; calendar stale/revogado; mesma idempotency key retorna a mesma reserva, payload diferente conflita.
 
-Cobertura PostgreSQL incremental já inclui herança de business hours sem configuração individual, interseção de `staff_hours`, rejeição de criação/remarcação fora do horário individual e isolamento RLS da tabela. Isto não fecha ainda os casos P6 de policy estruturada, resource moves com lock order estável, resource blocks, antecedência/horizonte nem calendários externos.
+Cobertura PostgreSQL incremental inclui herança de business hours sem configuração individual, interseção de `staff_hours`, rejeição de criação/remarcação fora do horário individual, RLS de `staff_hours`, policy disable/minimum-notice sem side effects, replay depois de mudança de policy e RLS de `booking_policies`. A fronteira LLM/tool também preserva `policy_denied` como resultado funcional estruturado. Ainda faltam resource blocks, antecedência/horizonte para criação/disponibilidade, resource moves com lock order estável e calendários externos.
