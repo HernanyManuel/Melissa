@@ -115,13 +115,26 @@ test(
       assert.equal(second.syncVersion, 2n);
       assert.deepEqual(provider.seenSyncTokens, [null, 'checkpoint-1']);
 
-      const [checkpoint] = await admin.$queryRaw<Array<{ token: string | null; version: bigint }>>`
-        SELECT sync_token AS token, sync_version AS version
+      const [checkpoint] = await admin.$queryRaw<
+        Array<{
+          token: string | null;
+          version: bigint;
+          coverageStartsAt: Date | null;
+          coverageEndsAt: Date | null;
+        }>
+      >`
+        SELECT
+          sync_token AS token,
+          sync_version AS version,
+          coverage_starts_at AS "coverageStartsAt",
+          coverage_ends_at AS "coverageEndsAt"
         FROM calendar_connections
         WHERE tenant_id=${tenantId}::uuid AND id=${connectionId}::uuid
       `;
       assert.equal(checkpoint?.token, 'checkpoint-2');
       assert.equal(checkpoint?.version, 2n);
+      assert.equal(checkpoint?.coverageStartsAt?.toISOString(), startsAt.toISOString());
+      assert.equal(checkpoint?.coverageEndsAt?.toISOString(), endsAt.toISOString());
 
       const pause = provider.pauseNext();
       const stalePublish = service.syncBusy({ tenantId, connectionId, startsAt, endsAt });
@@ -132,6 +145,8 @@ test(
         connectionId,
         expectedSyncVersion: 2n,
         observedAt: new Date(),
+        coverageStartsAt: startsAt,
+        coverageEndsAt: endsAt,
         syncToken: 'winner-checkpoint',
         intervals: [
           {
@@ -151,6 +166,8 @@ test(
         endsAt,
       });
       assert.equal(snapshot.syncVersion, 3n);
+      assert.equal(snapshot.coverageStartsAt, startsAt.toISOString());
+      assert.equal(snapshot.coverageEndsAt, endsAt.toISOString());
       assert.deepEqual(snapshot.intervals, [
         { startsAt: '2030-01-01T10:00:00.000Z', endsAt: '2030-01-01T10:30:00.000Z' },
       ]);
