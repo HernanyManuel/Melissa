@@ -97,30 +97,41 @@ test(
   },
 );
 
-test('mock calendar provider validates exact instants and fails closed when unavailable', async () => {
-  const provider = new MockCalendarProvider();
-  await assert.rejects(
-    provider.busy({ connection, startsAt: '2030-01-01T10:00:00', endsAt: '2030-01-01T11:00:00Z' }),
-    (error) => error instanceof CalendarProviderInvalidRequest,
-  );
-  await assert.rejects(
-    provider.upsertBooking({
-      connection,
-      bookingId: 'booking-a',
-      operationKey: 'invalid-range',
-      startsAt: '2030-01-01T11:00:00Z',
-      endsAt: '2030-01-01T10:00:00Z',
-      timezone: 'UTC',
-    }),
-    (error) => error instanceof CalendarProviderInvalidRequest,
-  );
+test(
+  'mock calendar provider validates exact instants and fails closed when unavailable',
+  async () => {
+    const provider = new MockCalendarProvider();
+    await assert.rejects(
+      provider.busy({
+        connection,
+        startsAt: '2030-01-01T10:00:00',
+        endsAt: '2030-01-01T11:00:00Z',
+      }),
+      (error) => error instanceof CalendarProviderInvalidRequest,
+    );
+    await assert.rejects(
+      provider.upsertBooking({
+        connection,
+        bookingId: 'booking-a',
+        operationKey: 'invalid-range',
+        startsAt: '2030-01-01T11:00:00Z',
+        endsAt: '2030-01-01T10:00:00Z',
+        timezone: 'UTC',
+      }),
+      (error) => error instanceof CalendarProviderInvalidRequest,
+    );
 
-  provider.setAvailable(false);
-  await assert.rejects(
-    provider.busy({ connection, startsAt: '2030-01-01T10:00:00Z', endsAt: '2030-01-01T11:00:00Z' }),
-    (error) => error instanceof CalendarProviderUnavailable,
-  );
-});
+    provider.setAvailable(false);
+    await assert.rejects(
+      provider.busy({
+        connection,
+        startsAt: '2030-01-01T10:00:00Z',
+        endsAt: '2030-01-01T11:00:00Z',
+      }),
+      (error) => error instanceof CalendarProviderUnavailable,
+    );
+  },
+);
 
 test('calendar provider registry rejects duplicate and unknown providers', () => {
   const registry = new CalendarProviderRegistry();
