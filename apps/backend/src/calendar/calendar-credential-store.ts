@@ -2,10 +2,14 @@ import { Prisma } from '@prisma/client';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { isUUID } from 'class-validator';
 import { Dependencies } from '../dependencies';
-import { SecretResolver, SecretUnavailable, validateSecretReference } from '../secrets/secret-resolver';
+import {
+  SecretResolver,
+  SecretUnavailable,
+  validateSecretReference,
+} from '../secrets/secret-resolver';
 
-const REFERENCE =
-  /^secret:\/\/calendar-db\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
+// prettier-ignore
+const REFERENCE = /^secret:\/\/calendar-db\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
 const MAX_TOKEN_LENGTH = 4096;
 const MAX_SCOPES = 64;
 
@@ -41,11 +45,13 @@ interface StoredCredential {
   scopes: string[];
 }
 
+// prettier-ignore
 export function calendarCredentialReference(tenantId: string, connectionId: string): string {
   if (!isUUID(tenantId) || !isUUID(connectionId)) throw new SecretUnavailable();
   return `secret://calendar-db/${tenantId}/${connectionId}`;
 }
 
+// prettier-ignore
 export class CalendarCredentialStore implements SecretResolver {
   constructor(
     private readonly deps: Dependencies,
