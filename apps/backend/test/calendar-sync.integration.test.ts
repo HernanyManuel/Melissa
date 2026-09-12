@@ -25,6 +25,8 @@ test(
     const staffId = randomUUID();
     const otherStaffId = randomUUID();
     const observedAt = new Date('2030-01-01T10:00:00Z');
+    const coverageStartsAt = new Date('2030-01-01T09:00:00Z');
+    const coverageEndsAt = new Date('2030-01-01T14:00:00Z');
 
     try {
       await admin.tenant.create({
@@ -119,8 +121,8 @@ test(
       const neverSynced = await store.busySnapshot({
         tenantId,
         connectionId,
-        startsAt: new Date('2030-01-01T09:00:00Z'),
-        endsAt: new Date('2030-01-01T13:00:00Z'),
+        startsAt: coverageStartsAt,
+        endsAt: coverageEndsAt,
         now: observedAt,
       });
       assert.equal(neverSynced.reason, 'never_synced');
@@ -132,6 +134,8 @@ test(
         connectionId,
         expectedSyncVersion: 0n,
         observedAt,
+        coverageStartsAt,
+        coverageEndsAt,
         syncToken: 'opaque-sync-token-1',
         intervals: [
           {
@@ -157,9 +161,22 @@ test(
       assert.equal(fresh.fresh, true);
       assert.equal(fresh.syncVersion, 1n);
       assert.equal(fresh.observedAt, observedAt.toISOString());
+      assert.equal(fresh.coverageStartsAt, coverageStartsAt.toISOString());
+      assert.equal(fresh.coverageEndsAt, coverageEndsAt.toISOString());
       assert.deepEqual(fresh.intervals, [
         { startsAt: '2030-01-01T09:30:00.000Z', endsAt: '2030-01-01T10:30:00.000Z' },
       ]);
+
+      const outsideCoverage = await store.busySnapshot({
+        tenantId,
+        connectionId,
+        startsAt: new Date('2030-01-01T08:59:59Z'),
+        endsAt: new Date('2030-01-01T11:00:00Z'),
+        now: new Date('2030-01-01T10:00:30Z'),
+      });
+      assert.equal(outsideCoverage.reason, 'out_of_coverage');
+      assert.equal(outsideCoverage.fresh, false);
+      assert.deepEqual(outsideCoverage.intervals, []);
 
       await assert.rejects(
         store.replaceBusySnapshot({
@@ -167,6 +184,8 @@ test(
           connectionId,
           expectedSyncVersion: 0n,
           observedAt: new Date('2030-01-01T10:00:45Z'),
+          coverageStartsAt,
+          coverageEndsAt,
           syncToken: 'opaque-sync-token-stale',
           intervals: [],
         }),
@@ -176,8 +195,8 @@ test(
       const stale = await store.busySnapshot({
         tenantId,
         connectionId,
-        startsAt: new Date('2030-01-01T09:00:00Z'),
-        endsAt: new Date('2030-01-01T14:00:00Z'),
+        startsAt: coverageStartsAt,
+        endsAt: coverageEndsAt,
         now: new Date('2030-01-01T10:01:01Z'),
       });
       assert.equal(stale.reason, 'stale');
@@ -188,8 +207,8 @@ test(
         store.busySnapshot({
           tenantId: otherTenantId,
           connectionId,
-          startsAt: new Date('2030-01-01T09:00:00Z'),
-          endsAt: new Date('2030-01-01T14:00:00Z'),
+          startsAt: coverageStartsAt,
+          endsAt: coverageEndsAt,
           now: observedAt,
         }),
         (error) => error instanceof CalendarProviderConflict,
@@ -216,8 +235,8 @@ test(
       const disconnected = await store.busySnapshot({
         tenantId,
         connectionId,
-        startsAt: new Date('2030-01-01T09:00:00Z'),
-        endsAt: new Date('2030-01-01T14:00:00Z'),
+        startsAt: coverageStartsAt,
+        endsAt: coverageEndsAt,
         now: observedAt,
       });
       assert.equal(disconnected.reason, 'disconnected');
