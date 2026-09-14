@@ -167,7 +167,11 @@ test('Google OAuth fails closed before or after transport on invalid security bo
     'google-client-id',
     secretReference,
     1000,
-    async () => new Response('{}', { status: 200, headers: { 'content-length': '65537' } }),
+    async () =>
+      new Response('{}', {
+        status: 200,
+        headers: { 'content-length': '65537' },
+      }),
   );
   await assert.rejects(
     () =>
