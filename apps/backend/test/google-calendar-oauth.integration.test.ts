@@ -202,12 +202,13 @@ test(
       assert.equal(reauthenticated.lastSuccessAt, null);
       assert.equal(reauthenticated.coverageStartsAt, null);
       assert.equal(reauthenticated.coverageEndsAt, null);
-      assert.equal(
-        await admin.calendarBusyInterval.count({
-          where: { tenantId: fixture.tenantId, connectionId: first.connectionId },
-        }),
-        0,
-      );
+      const [busyCount] = await admin.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(*)::bigint AS count
+        FROM calendar_busy_intervals
+        WHERE tenant_id=${fixture.tenantId}::uuid
+          AND connection_id=${first.connectionId}::uuid
+      `;
+      assert.equal(busyCount?.count, 0n);
 
       const actions = await admin.auditEvent.findMany({
         where: { tenantId: fixture.tenantId, action: 'calendar.google_connected' },
@@ -234,12 +235,13 @@ test(
         failingCredentials,
       );
       await assert.rejects(failingService.complete(rollbackState.state, 'rollback-code'));
-      assert.equal(
-        await admin.calendarConnection.count({
-          where: { tenantId: rollbackFixture.tenantId, provider: 'google' },
-        }),
-        0,
-      );
+      const [connectionCount] = await admin.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(*)::bigint AS count
+        FROM calendar_connections
+        WHERE tenant_id=${rollbackFixture.tenantId}::uuid
+          AND provider='google'
+      `;
+      assert.equal(connectionCount?.count, 0n);
     } finally {
       await deps.onModuleDestroy();
       await admin.$disconnect();
