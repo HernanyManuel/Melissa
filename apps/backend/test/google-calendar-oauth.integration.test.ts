@@ -21,7 +21,8 @@ const secretReference = 'secret://config/google-client-secret';
 const encryptionKey = Buffer.alloc(32, 29);
 const keyring: CalendarCredentialKeyring = {
   current: { id: 'calendar-v1', key: encryptionKey },
-  resolve: (keyId) => (keyId === 'calendar-v1' ? Buffer.from(encryptionKey) : null),
+  resolve: (keyId) =>
+    keyId === 'calendar-v1' ? Buffer.from(encryptionKey) : null,
 };
 
 class MemorySecrets implements SecretResolver {
@@ -67,6 +68,7 @@ async function createFixture(admin: PrismaClient) {
   return { tenantId, actor: { userId, sessionId } };
 }
 
+// prettier-ignore
 test(
   'Google Calendar OAuth completion is replay-safe, encrypted and transactionally reauthenticates',
   { timeout: 20000 },
