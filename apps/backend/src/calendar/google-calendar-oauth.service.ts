@@ -1,6 +1,5 @@
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import { Dependencies } from '../dependencies';
 import { TenantService } from '../tenancy/tenant.service';
 import {
   CalendarCredentialStore,
@@ -20,7 +19,6 @@ export interface GoogleCalendarOAuthCompletion {
 
 export class GoogleCalendarOAuthService {
   constructor(
-    private readonly deps: Dependencies,
     private readonly tenants: TenantService,
     private readonly states: CalendarOAuthStateService,
     private readonly tokens: GoogleOAuthTokenClient,
