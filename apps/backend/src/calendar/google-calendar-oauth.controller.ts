@@ -21,10 +21,7 @@ export class GoogleCalendarOAuthController {
   @Post('tenants/:tenantId/calendar/google/oauth/start')
   @ApiBearerAuth()
   @UseGuards(AuthGuard)
-  start(
-    @Req() req: AuthRequest,
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
-  ) {
+  start(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenantId: string) {
     return this.flow.begin(req.actor, tenantId);
   }
 
