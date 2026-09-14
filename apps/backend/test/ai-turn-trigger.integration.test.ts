@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { PrismaClient } from '@prisma/client';
+import { Queue } from 'bullmq';
 import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 import { InboundProcessor } from '../src/messaging/inbound-processor';
+import { queueConnection } from '../src/queue-connection';
 
 interface TurnIntentRow {
   id: string;
@@ -25,6 +27,10 @@ test(
     const config = parseConfig(process.env);
     const deps = new Dependencies(config);
     const admin = new PrismaClient({ datasources: { db: { url: migrationUrl } } });
+    const inboundQueue = new Queue('incoming-messages', {
+      connection: queueConnection(config.REDIS_URL),
+    });
+    const blockerJobIds: string[] = [];
     const tenantId = randomUUID();
     const channelId = randomUUID();
     const customerId = randomUUID();
@@ -35,6 +41,19 @@ test(
 
     const createInbound = async (batchId: string, text: string) => {
       const id = randomUUID();
+      const blockerJobId = `${id}-0`;
+      await inboundQueue.add(
+        'mock-inbound',
+        { id },
+        {
+          jobId: blockerJobId,
+          delay: 60 * 60 * 1000,
+          attempts: 1,
+          removeOnComplete: true,
+          removeOnFail: true,
+        },
+      );
+      blockerJobIds.push(blockerJobId);
       await admin.externalEvent.create({
         data: {
           id,
@@ -172,6 +191,11 @@ test(
         WHERE tenant_id=${tenantId}::uuid AND batch_id=${pausedBatch.id}::uuid`;
       assert.equal(paused?.count, 0n);
     } finally {
+      for (const jobId of blockerJobIds) {
+        const blocker = await inboundQueue.getJob(jobId);
+        await blocker?.remove().catch(() => undefined);
+      }
+      await inboundQueue.close();
       await deps.onModuleDestroy();
       await admin.$disconnect();
     }
