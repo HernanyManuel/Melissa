@@ -65,6 +65,20 @@ export class CalendarCredentialStore implements SecretResolver {
     connectionId: string;
     credential: CalendarCredential;
   }): Promise<string> {
+    return this.deps.db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
+      return this.putInTransaction(tx, input);
+    });
+  }
+
+  async putInTransaction(
+    tx: Prisma.TransactionClient,
+    input: {
+      tenantId: string;
+      connectionId: string;
+      credential: CalendarCredential;
+    },
+  ): Promise<string> {
     const reference = calendarCredentialReference(input.tenantId, input.connectionId);
     const credential = this.normalizeCredential(input.credential);
     const plaintext = Buffer.from(JSON.stringify(credential), 'utf8');
@@ -78,36 +92,33 @@ export class CalendarCredentialStore implements SecretResolver {
     const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
     const tag = cipher.getAuthTag();
 
-    await this.deps.db.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
-      const connection = await tx.$queryRaw<Array<{ provider: string }>>(Prisma.sql`
-        SELECT provider
-        FROM calendar_connections
-        WHERE tenant_id=${input.tenantId}::uuid AND id=${input.connectionId}::uuid
-        FOR UPDATE
-      `);
-      if (connection.length !== 1 || connection[0]?.provider !== 'google')
-        throw new SecretUnavailable();
-      await tx.$executeRaw(Prisma.sql`
-        INSERT INTO calendar_credentials (
-          tenant_id, connection_id, key_id, nonce, ciphertext, tag, updated_at
-        ) VALUES (
-          ${input.tenantId}::uuid, ${input.connectionId}::uuid, ${key.id},
-          ${nonce}, ${ciphertext}, ${tag}, CURRENT_TIMESTAMP
-        )
-        ON CONFLICT (tenant_id, connection_id) DO UPDATE SET
-          key_id=EXCLUDED.key_id,
-          nonce=EXCLUDED.nonce,
-          ciphertext=EXCLUDED.ciphertext,
-          tag=EXCLUDED.tag,
-          updated_at=CURRENT_TIMESTAMP
-      `);
-      await tx.$executeRaw(Prisma.sql`
-        UPDATE calendar_connections
-        SET credential_ref=${reference}, updated_at=CURRENT_TIMESTAMP
-        WHERE tenant_id=${input.tenantId}::uuid AND id=${input.connectionId}::uuid
-      `);
-    });
+    const connection = await tx.$queryRaw<Array<{ provider: string }>>(Prisma.sql`
+      SELECT provider
+      FROM calendar_connections
+      WHERE tenant_id=${input.tenantId}::uuid AND id=${input.connectionId}::uuid
+      FOR UPDATE
+    `);
+    if (connection.length !== 1 || connection[0]?.provider !== 'google')
+      throw new SecretUnavailable();
+    await tx.$executeRaw(Prisma.sql`
+      INSERT INTO calendar_credentials (
+        tenant_id, connection_id, key_id, nonce, ciphertext, tag, updated_at
+      ) VALUES (
+        ${input.tenantId}::uuid, ${input.connectionId}::uuid, ${key.id},
+        ${nonce}, ${ciphertext}, ${tag}, CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (tenant_id, connection_id) DO UPDATE SET
+        key_id=EXCLUDED.key_id,
+        nonce=EXCLUDED.nonce,
+        ciphertext=EXCLUDED.ciphertext,
+        tag=EXCLUDED.tag,
+        updated_at=CURRENT_TIMESTAMP
+    `);
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE calendar_connections
+      SET credential_ref=${reference}, updated_at=CURRENT_TIMESTAMP
+      WHERE tenant_id=${input.tenantId}::uuid AND id=${input.connectionId}::uuid
+    `);
     return reference;
   }
 
