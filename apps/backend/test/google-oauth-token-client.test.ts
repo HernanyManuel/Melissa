@@ -23,76 +23,68 @@ const verifier = 'a'.repeat(43);
 const redirectUri = 'https://app.example.test/calendar/google/callback';
 const secretReference = 'secret://config/google-client-secret';
 
-test(
-  'Google OAuth builds an offline authorization request with S256 PKCE',
-  () => {
-    const client = new GoogleOAuthAuthorizationClient('google-client-id', [
-      'https://www.googleapis.com/auth/calendar.events',
-      'https://www.googleapis.com/auth/calendar.readonly',
-    ]);
-    const url = new URL(
-      client.build({
-        state: 's'.repeat(43),
-        codeChallenge: 'c'.repeat(43),
-        codeChallengeMethod: 'S256',
-        redirectUri,
-        expiresAt: '2030-01-01T00:10:00.000Z',
-      }),
-    );
+test('Google OAuth builds an offline authorization request with S256 PKCE', () => {
+  const client = new GoogleOAuthAuthorizationClient('google-client-id', [
+    'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/calendar.readonly',
+  ]);
+  const url = new URL(
+    client.build({
+      state: 's'.repeat(43),
+      codeChallenge: 'c'.repeat(43),
+      codeChallengeMethod: 'S256',
+      redirectUri,
+      expiresAt: '2030-01-01T00:10:00.000Z',
+    }),
+  );
 
-    assert.equal(
-      url.origin + url.pathname,
-      'https://accounts.google.com/o/oauth2/v2/auth',
-    );
-    assert.equal(url.searchParams.get('client_id'), 'google-client-id');
-    assert.equal(url.searchParams.get('redirect_uri'), redirectUri);
-    assert.equal(url.searchParams.get('response_type'), 'code');
-    assert.equal(
-      url.searchParams.get('scope'),
-      'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
-    );
-    assert.equal(url.searchParams.get('state'), 's'.repeat(43));
-    assert.equal(url.searchParams.get('code_challenge'), 'c'.repeat(43));
-    assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
-    assert.equal(url.searchParams.get('access_type'), 'offline');
-    assert.equal(url.searchParams.get('include_granted_scopes'), 'true');
-    assert.equal(url.searchParams.get('prompt'), 'consent');
-    assert.equal(url.searchParams.has('client_secret'), false);
-  },
-);
+  assert.equal(url.origin + url.pathname, 'https://accounts.google.com/o/oauth2/v2/auth');
+  assert.equal(url.searchParams.get('client_id'), 'google-client-id');
+  assert.equal(url.searchParams.get('redirect_uri'), redirectUri);
+  assert.equal(url.searchParams.get('response_type'), 'code');
+  assert.equal(
+    url.searchParams.get('scope'),
+    'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
+  );
+  assert.equal(url.searchParams.get('state'), 's'.repeat(43));
+  assert.equal(url.searchParams.get('code_challenge'), 'c'.repeat(43));
+  assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
+  assert.equal(url.searchParams.get('access_type'), 'offline');
+  assert.equal(url.searchParams.get('include_granted_scopes'), 'true');
+  assert.equal(url.searchParams.get('prompt'), 'consent');
+  assert.equal(url.searchParams.has('client_secret'), false);
+});
 
-test(
-  'Google OAuth authorization request fails closed on invalid state boundaries',
-  () => {
-    const client = new GoogleOAuthAuthorizationClient('google-client-id', [
-      'https://www.googleapis.com/auth/calendar.events',
-    ]);
-    assert.throws(() =>
-      client.build({
-        state: 'short',
-        codeChallenge: 'c'.repeat(43),
-        codeChallengeMethod: 'S256',
-        redirectUri,
-        expiresAt: '2030-01-01T00:10:00.000Z',
-      }),
-    );
-    assert.throws(() =>
-      client.build({
-        state: 's'.repeat(43),
-        codeChallenge: 'c'.repeat(43),
-        codeChallengeMethod: 'S256',
-        redirectUri: 'https://user:pass@app.example.test/calendar/google/callback',
-        expiresAt: '2030-01-01T00:10:00.000Z',
-      }),
-    );
-    assert.throws(() =>
+test('Google OAuth authorization request fails closed on invalid state boundaries', () => {
+  const client = new GoogleOAuthAuthorizationClient('google-client-id', [
+    'https://www.googleapis.com/auth/calendar.events',
+  ]);
+  assert.throws(() =>
+    client.build({
+      state: 'short',
+      codeChallenge: 'c'.repeat(43),
+      codeChallengeMethod: 'S256',
+      redirectUri,
+      expiresAt: '2030-01-01T00:10:00.000Z',
+    }),
+  );
+  assert.throws(() =>
+    client.build({
+      state: 's'.repeat(43),
+      codeChallenge: 'c'.repeat(43),
+      codeChallengeMethod: 'S256',
+      redirectUri: 'https://user:pass@app.example.test/calendar/google/callback',
+      expiresAt: '2030-01-01T00:10:00.000Z',
+    }),
+  );
+  assert.throws(
+    () =>
       new GoogleOAuthAuthorizationClient('google-client-id', [
         'https://www.googleapis.com/auth/calendar.events',
         'https://www.googleapis.com/auth/calendar.events',
       ]),
-    );
-  },
-);
+  );
+});
 
 test('Google OAuth exchanges an authorization code with server-owned secret and PKCE', async () => {
   const secrets = new MemorySecrets();
