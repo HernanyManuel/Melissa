@@ -82,10 +82,13 @@ test('Google OAuth maps invalid_grant separately without exposing provider detai
     secretReference,
     1000,
     async () =>
-      new Response(JSON.stringify({ error: 'invalid_grant', error_description: 'sensitive detail' }), {
-        status: 400,
-        headers: { 'content-type': 'application/json' },
-      }),
+      new Response(
+        JSON.stringify({ error: 'invalid_grant', error_description: 'sensitive detail' }),
+        {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
   );
 
   await assert.rejects(
