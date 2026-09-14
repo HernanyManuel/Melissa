@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { CalendarOAuthStateService } from '../src/calendar/calendar-oauth-state.service';
 import { GoogleCalendarOAuthController } from '../src/calendar/google-calendar-oauth.controller';
+import { parseGoogleCalendarOAuthConfig } from '../src/calendar/google-calendar-oauth-config';
 import { GoogleCalendarOAuthFlow } from '../src/calendar/google-calendar-oauth-flow';
+import { GoogleCalendarOAuthRuntime } from '../src/calendar/google-calendar-oauth-runtime';
 import { GoogleCalendarOAuthService } from '../src/calendar/google-calendar-oauth.service';
 import { GoogleOAuthAuthorizationClient } from '../src/calendar/google-oauth-authorization-client';
 import { AuthRequest } from '../src/identity/auth.guard';
@@ -21,6 +23,34 @@ const start = {
   redirectUri: callbackUri,
   expiresAt: '2030-01-01T00:10:00.000Z',
 };
+
+test('Google Calendar OAuth configuration is disabled by default and fails closed when partial', () => {
+  assert.deepEqual(parseGoogleCalendarOAuthConfig({}), {
+    enabled: false,
+    clientId: null,
+    clientSecretReference: null,
+    callbackUri: null,
+    credentialKeyId: null,
+    credentialKeyReference: null,
+  });
+  assert.throws(() =>
+    parseGoogleCalendarOAuthConfig({ GOOGLE_CALENDAR_CLIENT_ID: 'client-id' }),
+  );
+  assert.throws(() =>
+    parseGoogleCalendarOAuthConfig({ GOOGLE_CALENDAR_OAUTH_ENABLED: 'true' }),
+  );
+  assert.equal(
+    parseGoogleCalendarOAuthConfig({
+      GOOGLE_CALENDAR_OAUTH_ENABLED: 'true',
+      GOOGLE_CALENDAR_CLIENT_ID: 'client-id',
+      GOOGLE_CALENDAR_CLIENT_SECRET_REF: 'secret://calendar/google-client-secret',
+      GOOGLE_CALENDAR_CALLBACK_URI: callbackUri,
+      GOOGLE_CALENDAR_CREDENTIAL_KEY_ID: 'calendar-v1',
+      GOOGLE_CALENDAR_CREDENTIAL_KEY_REF: 'secret://calendar/credential-key',
+    }).callbackUri,
+    callbackUri,
+  );
+});
 
 test('Google Calendar OAuth start uses only the configured server callback', async () => {
   let seenActor: unknown;
@@ -82,10 +112,19 @@ test('Google Calendar OAuth rejection consumes state and returns only a generic 
   assert.deepEqual(consumed, ['s'.repeat(43)]);
 });
 
+test('disabled Google Calendar OAuth runtime fails closed without resolving secrets', async () => {
+  const runtime = new GoogleCalendarOAuthRuntime(null);
+  await assert.rejects(() => runtime.begin(actor, tenantId), ServiceUnavailableException);
+  await assert.rejects(
+    () => runtime.complete('s'.repeat(43), 'authorization-code'),
+    ServiceUnavailableException,
+  );
+});
+
 test('Google Calendar OAuth controller keeps callback authority in state', async () => {
   const completed: Array<{ state: string; code: string }> = [];
   const rejected: string[] = [];
-  const flow = {
+  const oauth = {
     begin: async () => ({ authorizationUrl: 'https://accounts.google.com/', expiresAt: 'later' }),
     complete: async (state: string, code: string) => {
       completed.push({ state, code });
@@ -95,8 +134,8 @@ test('Google Calendar OAuth controller keeps callback authority in state', async
       rejected.push(state);
       throw new BadRequestException('Google OAuth authorization failed');
     },
-  } as unknown as GoogleCalendarOAuthFlow;
-  const controller = new GoogleCalendarOAuthController(flow);
+  } as unknown as GoogleCalendarOAuthRuntime;
+  const controller = new GoogleCalendarOAuthController(oauth);
   const req = { actor } as AuthRequest;
 
   await controller.start(req, tenantId);
