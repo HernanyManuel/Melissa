@@ -21,8 +21,7 @@ const secretReference = 'secret://config/google-client-secret';
 const encryptionKey = Buffer.alloc(32, 29);
 const keyring: CalendarCredentialKeyring = {
   current: { id: 'calendar-v1', key: encryptionKey },
-  resolve: (keyId) =>
-    keyId === 'calendar-v1' ? Buffer.from(encryptionKey) : null,
+  resolve: (keyId) => (keyId === 'calendar-v1' ? Buffer.from(encryptionKey) : null),
 };
 
 class MemorySecrets implements SecretResolver {
