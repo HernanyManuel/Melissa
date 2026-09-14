@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import { createCalendarCredentialKeyring } from '../src/calendar/calendar-credential-keyring';
 import { CalendarOAuthStateService } from '../src/calendar/calendar-oauth-state.service';
 import { GoogleCalendarOAuthController } from '../src/calendar/google-calendar-oauth.controller';
 import { parseGoogleCalendarOAuthConfig } from '../src/calendar/google-calendar-oauth-config';
@@ -9,6 +10,7 @@ import { GoogleCalendarOAuthRuntime } from '../src/calendar/google-calendar-oaut
 import { GoogleCalendarOAuthService } from '../src/calendar/google-calendar-oauth.service';
 import { GoogleOAuthAuthorizationClient } from '../src/calendar/google-oauth-authorization-client';
 import { AuthRequest } from '../src/identity/auth.guard';
+import { SecretResolver } from '../src/secrets/secret-resolver';
 
 const actor = {
   userId: '11111111-1111-4111-8111-111111111111',
@@ -49,6 +51,32 @@ test('Google Calendar OAuth configuration is disabled by default and fails close
       GOOGLE_CALENDAR_CREDENTIAL_KEY_REF: 'secret://calendar/credential-key',
     }).callbackUri,
     callbackUri,
+  );
+});
+
+test('calendar credential keyring loads only canonical 32-byte secret material', async () => {
+  const reference = 'secret://calendar/credential-key';
+  const material = Buffer.alloc(32, 41).toString('base64');
+  const resolver = {
+    resolve: async (seen: string) => {
+      assert.equal(seen, reference);
+      return material;
+    },
+  } as SecretResolver;
+  const keyring = await createCalendarCredentialKeyring(resolver, 'calendar-v1', reference);
+  assert.equal(keyring.current.id, 'calendar-v1');
+  assert(keyring.current.key.equals(Buffer.alloc(32, 41)));
+  assert(keyring.resolve('calendar-v1')?.equals(Buffer.alloc(32, 41)));
+  assert.equal(keyring.resolve('calendar-v0'), null);
+
+  await assert.rejects(
+    () =>
+      createCalendarCredentialKeyring(
+        { resolve: async () => 'not-canonical-base64' },
+        'calendar-v1',
+        reference,
+      ),
+    /unavailable/,
   );
 });
 
