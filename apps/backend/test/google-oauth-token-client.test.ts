@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import {
-  GoogleOAuthAuthorizationClient,
-} from '../src/calendar/google-oauth-authorization-client';
+import { GoogleOAuthAuthorizationClient } from '../src/calendar/google-oauth-authorization-client';
 import {
   GoogleOAuthInvalidGrant,
   GoogleOAuthTokenClient,
