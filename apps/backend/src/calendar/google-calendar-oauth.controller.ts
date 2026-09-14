@@ -11,18 +11,18 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
-import { GoogleCalendarOAuthFlow } from './google-calendar-oauth-flow';
+import { GoogleCalendarOAuthRuntime } from './google-calendar-oauth-runtime';
 
 @ApiTags('Calendar OAuth')
 @Controller('api/v1')
 export class GoogleCalendarOAuthController {
-  constructor(private readonly flow: GoogleCalendarOAuthFlow) {}
+  constructor(private readonly oauth: GoogleCalendarOAuthRuntime) {}
 
   @Post('tenants/:tenantId/calendar/google/oauth/start')
   @ApiBearerAuth()
   @UseGuards(AuthGuard)
   start(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenantId: string) {
-    return this.flow.begin(req.actor, tenantId);
+    return this.oauth.begin(req.actor, tenantId);
   }
 
   @Get('calendar/google/oauth/callback')
@@ -32,7 +32,7 @@ export class GoogleCalendarOAuthController {
     @Query('error') providerError?: string,
   ) {
     if (!state) throw new BadRequestException();
-    if (providerError || !code) return this.flow.reject(state);
-    return this.flow.complete(state, code);
+    if (providerError || !code) return this.oauth.reject(state);
+    return this.oauth.complete(state, code);
   }
 }
