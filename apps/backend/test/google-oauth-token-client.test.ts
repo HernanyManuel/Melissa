@@ -139,6 +139,47 @@ test('Google OAuth exchanges an authorization code with server-owned secret and 
   });
 });
 
+test('Google OAuth refresh keeps refresh-token authority server-side', async () => {
+  const secrets = new MemorySecrets();
+  let seenInit: RequestInit | undefined;
+  const now = new Date('2030-01-01T00:00:00Z');
+  const client = new GoogleOAuthTokenClient(
+    secrets,
+    'google-client-id',
+    secretReference,
+    1000,
+    async (_url, init) => {
+      seenInit = init;
+      return new Response(
+        JSON.stringify({
+          access_token: 'refreshed-google-access-token',
+          expires_in: 3600,
+          scope: 'https://www.googleapis.com/auth/calendar.events',
+          token_type: 'Bearer',
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    },
+    () => now,
+  );
+
+  const result = await client.refresh('synthetic-google-refresh-token');
+  const body = new URLSearchParams(String(seenInit?.body));
+  assert.equal(body.get('client_id'), 'google-client-id');
+  assert.equal(body.get('client_secret'), 'synthetic-google-client-secret');
+  assert.equal(body.get('refresh_token'), 'synthetic-google-refresh-token');
+  assert.equal(body.get('grant_type'), 'refresh_token');
+  assert.equal(body.has('code'), false);
+  assert.equal(body.has('redirect_uri'), false);
+  assert.deepEqual(secrets.references, [secretReference]);
+  assert.deepEqual(result, {
+    accessToken: 'refreshed-google-access-token',
+    refreshToken: null,
+    accessTokenExpiresAt: new Date('2030-01-01T01:00:00Z'),
+    scopes: ['https://www.googleapis.com/auth/calendar.events'],
+  });
+});
+
 test('Google OAuth maps invalid_grant separately without exposing provider details', async () => {
   const client = new GoogleOAuthTokenClient(
     new MemorySecrets(),
@@ -162,6 +203,11 @@ test('Google OAuth maps invalid_grant separately without exposing provider detai
         redirectUri,
         pkceVerifier: verifier,
       }),
+    (error: unknown) =>
+      error instanceof GoogleOAuthInvalidGrant && !error.message.includes('sensitive detail'),
+  );
+  await assert.rejects(
+    () => client.refresh('revoked-google-refresh-token'),
     (error: unknown) =>
       error instanceof GoogleOAuthInvalidGrant && !error.message.includes('sensitive detail'),
   );
