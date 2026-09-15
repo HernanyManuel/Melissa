@@ -45,7 +45,8 @@ export async function createGoogleCalendarCredentialRuntime(
       try {
         return await tokens.refresh(refreshToken);
       } catch (error) {
-        if (error instanceof GoogleOAuthInvalidGrant) throw new CalendarCredentialReauthRequired();
+        if (error instanceof GoogleOAuthInvalidGrant)
+          throw new CalendarCredentialReauthRequired();
         throw error;
       }
     },
