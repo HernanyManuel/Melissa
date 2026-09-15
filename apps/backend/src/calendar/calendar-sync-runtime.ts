@@ -1,8 +1,8 @@
 import { Dependencies } from '../dependencies';
 import { SecretResolver } from '../secrets/secret-resolver';
 import { CalendarProviderRegistry } from './calendar-provider-registry';
-import { startCalendarSyncQueue } from './calendar-sync-queue';
 import { CalendarSyncService } from './calendar-sync-service';
+import { startCalendarSyncQueue } from './calendar-sync-queue';
 import { GoogleCalendarProvider } from './google-calendar-provider';
 
 export interface CalendarSyncRuntimeOptions {
