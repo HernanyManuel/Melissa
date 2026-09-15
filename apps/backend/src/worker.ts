@@ -21,6 +21,8 @@ import { createSecretResolver } from './secrets/secret-resolver-factory';
 import { startAIAutomaticOutboundRuntime } from './ai/ai-outbound-runtime';
 import { startAITurnRuntime } from './ai/ai-turn-runtime';
 import { startCalendarSyncRuntime } from './calendar/calendar-sync-runtime';
+import { parseGoogleCalendarOAuthConfig } from './calendar/google-calendar-oauth-config';
+import { createGoogleCalendarCredentialRuntime } from './calendar/google-calendar-credential-store-factory';
 
 // Isolated probe and durable consumers; no public product API on this process.
 async function bootstrap(): Promise<void> {
@@ -74,11 +76,12 @@ async function bootstrap(): Promise<void> {
   }
   let stopCalendarSync: () => Promise<void> = async () => undefined;
   if (config.CALENDAR_SYNC_WORKER_ENABLED === 'true') {
-    const secretResolver = await createSecretResolver(config);
-    if (!secretResolver) throw new Error('Incomplete calendar sync dependencies');
+    const oauth = parseGoogleCalendarOAuthConfig(process.env);
+    if (!oauth.enabled) throw new Error('Calendar sync requires Google Calendar OAuth');
+    const { credentials } = await createGoogleCalendarCredentialRuntime(config, deps, oauth);
     stopCalendarSync = await startCalendarSyncRuntime(deps, {
       redisUrl: config.REDIS_URL,
-      secretResolver,
+      secretResolver: credentials,
     });
   }
   let stopAITurns: () => Promise<void> = async () => undefined;
