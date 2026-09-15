@@ -7,6 +7,7 @@ import {
   SecretUnavailable,
   validateSecretReference,
 } from '../secrets/secret-resolver';
+import { GoogleOAuthInvalidGrant, GoogleOAuthTokenClient } from './google-oauth-token-client';
 
 // prettier-ignore
 const REFERENCE = /^secret:\/\/calendar-db\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
@@ -28,6 +29,10 @@ export interface CalendarCredential {
   refreshToken: string | null;
   accessTokenExpiresAt: Date;
   scopes: string[];
+}
+
+export interface CalendarCredentialRefresher {
+  refresh(refreshToken: string): Promise<CalendarCredential>;
 }
 
 interface EncryptedCredentialRow {
@@ -56,6 +61,8 @@ export class CalendarCredentialStore implements SecretResolver {
   constructor(
     private readonly deps: Dependencies,
     private readonly keys: CalendarCredentialKeyring,
+    private readonly refresher: CalendarCredentialRefresher | null = null,
+    private readonly now: () => Date = () => new Date(),
   ) {
     this.validateKey(keys.current);
   }
@@ -139,12 +146,54 @@ export class CalendarCredentialStore implements SecretResolver {
       return credential;
     });
     if (!row) throw new SecretUnavailable();
+    return this.decrypt(parsed.tenantId, parsed.connectionId, row);
+  }
 
+  async resolve(reference: string): Promise<string> {
+    const parsed = this.parseReference(reference);
+    const credential = await this.read(reference);
+    if (credential.accessTokenExpiresAt > this.now()) return credential.accessToken;
+    if (!credential.refreshToken || !this.refresher) throw new SecretUnavailable();
+
+    let refreshed: CalendarCredential;
+    try {
+      refreshed = await this.refresher.refresh(credential.refreshToken);
+    } catch (error) {
+      if (error instanceof GoogleOAuthInvalidGrant) await this.markReauthRequired(parsed);
+      throw new SecretUnavailable();
+    }
+
+    const replacement: CalendarCredential = {
+      accessToken: refreshed.accessToken,
+      refreshToken: refreshed.refreshToken ?? credential.refreshToken,
+      accessTokenExpiresAt: refreshed.accessTokenExpiresAt,
+      scopes: refreshed.scopes.length > 0 ? refreshed.scopes : credential.scopes,
+    };
+    await this.put({ ...parsed, credential: replacement });
+    return replacement.accessToken;
+  }
+
+  private async markReauthRequired(parsed: { tenantId: string; connectionId: string }): Promise<void> {
+    try {
+      await this.deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${parsed.tenantId}, true)`;
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE calendar_connections
+          SET status='reauth_required', updated_at=CURRENT_TIMESTAMP
+          WHERE tenant_id=${parsed.tenantId}::uuid AND id=${parsed.connectionId}::uuid
+        `);
+      });
+    } catch {
+      // Credential resolution must fail closed even if status bookkeeping is unavailable.
+    }
+  }
+
+  private decrypt(tenantId: string, connectionId: string, row: EncryptedCredentialRow): CalendarCredential {
     const key = this.keys.resolve(row.keyId);
     if (!key || key.byteLength !== 32) throw new SecretUnavailable();
     try {
       const decipher = createDecipheriv('aes-256-gcm', key, row.nonce);
-      decipher.setAAD(this.aad(parsed.tenantId, parsed.connectionId, row.keyId));
+      decipher.setAAD(this.aad(tenantId, connectionId, row.keyId));
       decipher.setAuthTag(row.tag);
       const plaintext = Buffer.concat([decipher.update(row.ciphertext), decipher.final()]);
       const decoded = JSON.parse(plaintext.toString('utf8')) as unknown;
@@ -152,12 +201,6 @@ export class CalendarCredentialStore implements SecretResolver {
     } catch {
       throw new SecretUnavailable();
     }
-  }
-
-  async resolve(reference: string): Promise<string> {
-    const credential = await this.read(reference);
-    if (credential.accessTokenExpiresAt <= new Date()) throw new SecretUnavailable();
-    return credential.accessToken;
   }
 
   private parseReference(reference: string): { tenantId: string; connectionId: string } {
