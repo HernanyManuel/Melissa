@@ -50,7 +50,9 @@ export async function createGoogleCalendarOAuthRuntime(
 ): Promise<GoogleCalendarOAuthRuntime> {
   const oauth = parseGoogleCalendarOAuthConfig(environment);
   if (!oauth.enabled) return new GoogleCalendarOAuthRuntime(null);
-  return new GoogleCalendarOAuthRuntime(await createEnabledFlow(config, deps, tenants, oauth));
+  return new GoogleCalendarOAuthRuntime(
+    await createEnabledFlow(config, deps, tenants, oauth),
+  );
 }
 
 async function createEnabledFlow(
@@ -78,7 +80,10 @@ async function createEnabledFlow(
   );
   const credentials = new CalendarCredentialStore(deps, keyring);
   const states = new CalendarOAuthStateService(deps, tenants, [oauth.callbackUri]);
-  const authorization = new GoogleOAuthAuthorizationClient(oauth.clientId, GOOGLE_CALENDAR_SCOPES);
+  const authorization = new GoogleOAuthAuthorizationClient(
+    oauth.clientId,
+    GOOGLE_CALENDAR_SCOPES,
+  );
   const tokens = new GoogleOAuthTokenClient(
     secrets,
     oauth.clientId,
