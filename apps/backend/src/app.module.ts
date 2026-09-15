@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { CONFIG, Configuration } from './config';
+import { Dependencies } from './dependencies';
 import { InfrastructureModule } from './infrastructure.module';
 import { AuthService } from './identity/auth.service';
 import { AuthGuard } from './identity/auth.guard';
@@ -9,6 +11,7 @@ import { TenantService } from './tenancy/tenant.service';
 import { TenantController } from './tenancy/tenant.controller';
 import { BusinessController } from './business/business.controller';
 import { BusinessService } from './business/business.service';
+import { BookingAdminService } from './business/booking-admin.service';
 import { CustomerController } from './customers/customer.controller';
 import { CustomerService } from './customers/customer.service';
 import { ChannelController } from './channels/channel.controller';
@@ -20,6 +23,12 @@ import { OutboundRateLimitGuard } from './messaging/outbound-rate-limit';
 import { MessagingController } from './messaging/messaging.controller';
 import { WhatsAppWebhookController } from './channels/whatsapp-http';
 import { QuarantineController, QuarantineService } from './channels/quarantine.controller';
+import { GoogleCalendarOAuthController } from './calendar/google-calendar-oauth.controller';
+import {
+  GoogleCalendarOAuthRuntime,
+  createGoogleCalendarOAuthRuntime,
+} from './calendar/google-calendar-oauth-runtime';
+
 @Module({
   imports: [InfrastructureModule],
   controllers: [
@@ -32,6 +41,7 @@ import { QuarantineController, QuarantineService } from './channels/quarantine.c
     OutboundController,
     WhatsAppWebhookController,
     QuarantineController,
+    GoogleCalendarOAuthController,
   ],
   providers: [
     AuthService,
@@ -40,12 +50,19 @@ import { QuarantineController, QuarantineService } from './channels/quarantine.c
     IdentityRateLimit,
     TenantService,
     BusinessService,
+    BookingAdminService,
     CustomerService,
     ChannelService,
     MessagingService,
     OutboundIntentService,
     OutboundRateLimitGuard,
     QuarantineService,
+    {
+      provide: GoogleCalendarOAuthRuntime,
+      inject: [CONFIG, Dependencies, TenantService],
+      useFactory: (config: Configuration, deps: Dependencies, tenants: TenantService) =>
+        createGoogleCalendarOAuthRuntime(config, deps, tenants),
+    },
   ],
 })
 export class AppModule {}

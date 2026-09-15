@@ -22,6 +22,7 @@ import { TenantService } from '../src/tenancy/tenant.service';
 import { waitReady } from './wait-ready';
 import { createOpenApi } from '../src/openapi';
 import { assertQuarantineOpenApi } from './quarantine-openapi';
+import { testAIAutomaticOutbox } from './ai-automatic-outbox.integration';
 
 test(
   'business onboarding persists validated tenant-scoped configuration',
@@ -764,6 +765,7 @@ test(
         (path, token) => call('GET', path, undefined, token),
       );
       await testOutboundIntents(tenantA.id, tenantB.id);
+      await testAIAutomaticOutbox(tenantA.id, tenantB.id);
       await testOutboundAcceptance(app.get(TenantService), tenantA.id, tenantB.id, {
         call,
         ownerToken: actorA.access_token,
