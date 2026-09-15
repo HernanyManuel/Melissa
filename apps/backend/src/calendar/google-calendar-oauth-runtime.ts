@@ -76,10 +76,10 @@ async function createEnabledFlow(
     oauth.credentialKeyId,
     oauth.credentialKeyReference,
   );
-  const credentials = new CalendarCredentialStore(deps, keyring);
+  const tokens = new GoogleOAuthTokenClient(secrets, oauth.clientId, oauth.clientSecretReference);
+  const credentials = new CalendarCredentialStore(deps, keyring, tokens);
   const states = new CalendarOAuthStateService(deps, tenants, [oauth.callbackUri]);
   const authorization = new GoogleOAuthAuthorizationClient(oauth.clientId, GOOGLE_CALENDAR_SCOPES);
-  const tokens = new GoogleOAuthTokenClient(secrets, oauth.clientId, oauth.clientSecretReference);
   const completion = new GoogleCalendarOAuthService(deps, tenants, states, tokens, credentials);
   return new GoogleCalendarOAuthFlow(states, authorization, completion, oauth.callbackUri);
 }
