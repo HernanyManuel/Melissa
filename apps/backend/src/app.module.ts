@@ -60,11 +60,8 @@ import {
     {
       provide: GoogleCalendarOAuthRuntime,
       inject: [CONFIG, Dependencies, TenantService],
-      useFactory: (
-        config: Configuration,
-        deps: Dependencies,
-        tenants: TenantService,
-      ) => createGoogleCalendarOAuthRuntime(config, deps, tenants),
+      useFactory: (config: Configuration, deps: Dependencies, tenants: TenantService) =>
+        createGoogleCalendarOAuthRuntime(config, deps, tenants),
     },
   ],
 })
