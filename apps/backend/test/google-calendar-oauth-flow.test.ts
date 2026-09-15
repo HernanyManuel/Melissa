@@ -26,6 +26,7 @@ const start = {
   expiresAt: '2030-01-01T00:10:00.000Z',
 };
 
+// prettier-ignore
 test('Google Calendar OAuth configuration is disabled by default and fails closed when partial', () => {
   assert.deepEqual(parseGoogleCalendarOAuthConfig({}), {
     enabled: false,
@@ -54,6 +55,7 @@ test('Google Calendar OAuth configuration is disabled by default and fails close
   );
 });
 
+// prettier-ignore
 test('calendar credential keyring loads only canonical 32-byte secret material', async () => {
   const reference = 'secret://calendar/credential-key';
   const material = Buffer.alloc(32, 41).toString('base64');
@@ -80,6 +82,7 @@ test('calendar credential keyring loads only canonical 32-byte secret material',
   );
 });
 
+// prettier-ignore
 test('Google Calendar OAuth start uses only the configured server callback', async () => {
   let seenActor: unknown;
   let seenTenant = '';
@@ -114,6 +117,7 @@ test('Google Calendar OAuth start uses only the configured server callback', asy
   assert.equal(seenRedirect, callbackUri);
 });
 
+// prettier-ignore
 test('Google Calendar OAuth rejection consumes state and returns only a generic failure', async () => {
   const consumed: string[] = [];
   const states = {
@@ -140,6 +144,7 @@ test('Google Calendar OAuth rejection consumes state and returns only a generic 
   assert.deepEqual(consumed, ['s'.repeat(43)]);
 });
 
+// prettier-ignore
 test('disabled Google Calendar OAuth runtime fails closed without resolving secrets', async () => {
   const runtime = new GoogleCalendarOAuthRuntime(null);
   await assert.rejects(() => runtime.begin(actor, tenantId), ServiceUnavailableException);
@@ -149,6 +154,7 @@ test('disabled Google Calendar OAuth runtime fails closed without resolving secr
   );
 });
 
+// prettier-ignore
 test('Google Calendar OAuth controller keeps callback authority in state', async () => {
   const completed: Array<{ state: string; code: string }> = [];
   const rejected: string[] = [];
