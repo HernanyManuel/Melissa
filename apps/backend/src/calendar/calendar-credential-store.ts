@@ -7,7 +7,6 @@ import {
   SecretUnavailable,
   validateSecretReference,
 } from '../secrets/secret-resolver';
-import { GoogleOAuthInvalidGrant } from './google-oauth-token-client';
 
 // prettier-ignore
 const REFERENCE = /^secret:\/\/calendar-db\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
@@ -29,6 +28,13 @@ export interface CalendarCredential {
   refreshToken: string | null;
   accessTokenExpiresAt: Date;
   scopes: string[];
+}
+
+export class CalendarCredentialReauthRequired extends Error {
+  constructor() {
+    super('Calendar credential requires reauthorization');
+    this.name = 'CalendarCredentialReauthRequired';
+  }
 }
 
 export interface CalendarCredentialRefresher {
@@ -159,7 +165,7 @@ export class CalendarCredentialStore implements SecretResolver {
     try {
       refreshed = await this.refresher.refresh(credential.refreshToken);
     } catch (error) {
-      if (error instanceof GoogleOAuthInvalidGrant) await this.markReauthRequired(parsed);
+      if (error instanceof CalendarCredentialReauthRequired) await this.markReauthRequired(parsed);
       throw new SecretUnavailable();
     }
 
