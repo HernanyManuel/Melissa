@@ -145,10 +145,10 @@ test('Google Calendar OAuth rejection consumes state and returns only a generic 
 });
 
 // prettier-ignore
-test('disabled Google Calendar OAuth runtime fails closed without resolving secrets', async () => {
+test('disabled Google Calendar OAuth runtime fails closed without resolving secrets', () => {
   const runtime = new GoogleCalendarOAuthRuntime(null);
-  await assert.rejects(() => runtime.begin(actor, tenantId), ServiceUnavailableException);
-  await assert.rejects(
+  assert.throws(() => runtime.begin(actor, tenantId), ServiceUnavailableException);
+  assert.throws(
     () => runtime.complete('s'.repeat(43), 'authorization-code'),
     ServiceUnavailableException,
   );
