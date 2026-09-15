@@ -7,10 +7,7 @@ import {
   CalendarCredentialStore,
 } from './calendar-credential-store';
 import { GoogleCalendarOAuthConfig } from './google-calendar-oauth-config';
-import {
-  GoogleOAuthInvalidGrant,
-  GoogleOAuthTokenClient,
-} from './google-oauth-token-client';
+import { GoogleOAuthInvalidGrant, GoogleOAuthTokenClient } from './google-oauth-token-client';
 
 export interface GoogleCalendarCredentialRuntime {
   credentials: CalendarCredentialStore;
