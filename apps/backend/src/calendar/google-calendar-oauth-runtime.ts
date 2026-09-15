@@ -2,11 +2,9 @@ import { ServiceUnavailableException } from '@nestjs/common';
 import { Configuration } from '../config';
 import { Dependencies } from '../dependencies';
 import { Actor } from '../identity/auth.service';
-import { createSecretResolver } from '../secrets/secret-resolver-factory';
 import { TenantService } from '../tenancy/tenant.service';
-import { createCalendarCredentialKeyring } from './calendar-credential-keyring';
-import { CalendarCredentialStore } from './calendar-credential-store';
 import { CalendarOAuthStateService } from './calendar-oauth-state.service';
+import { createGoogleCalendarCredentialRuntime } from './google-calendar-credential-store-factory';
 import {
   GoogleCalendarOAuthConfig,
   parseGoogleCalendarOAuthConfig,
@@ -14,7 +12,6 @@ import {
 import { GoogleCalendarOAuthFlow } from './google-calendar-oauth-flow';
 import { GoogleCalendarOAuthService } from './google-calendar-oauth.service';
 import { GoogleOAuthAuthorizationClient } from './google-oauth-authorization-client';
-import { GoogleOAuthTokenClient } from './google-oauth-token-client';
 
 const GOOGLE_CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
@@ -59,25 +56,9 @@ async function createEnabledFlow(
   tenants: TenantService,
   oauth: GoogleCalendarOAuthConfig,
 ): Promise<GoogleCalendarOAuthFlow> {
-  if (
-    config.SECRET_PROVIDER !== 'mounted-file' ||
-    !oauth.clientId ||
-    !oauth.clientSecretReference ||
-    !oauth.callbackUri ||
-    !oauth.credentialKeyId ||
-    !oauth.credentialKeyReference
-  )
-    throw new Error('Google Calendar OAuth requires mounted server-side secrets');
-
-  const secrets = await createSecretResolver(config);
-  if (!secrets) throw new Error('Google Calendar OAuth secret resolver is unavailable');
-  const keyring = await createCalendarCredentialKeyring(
-    secrets,
-    oauth.credentialKeyId,
-    oauth.credentialKeyReference,
-  );
-  const tokens = new GoogleOAuthTokenClient(secrets, oauth.clientId, oauth.clientSecretReference);
-  const credentials = new CalendarCredentialStore(deps, keyring, tokens);
+  if (!oauth.clientId || !oauth.callbackUri)
+    throw new Error('Google Calendar OAuth requires complete server-side configuration');
+  const { credentials, tokens } = await createGoogleCalendarCredentialRuntime(config, deps, oauth);
   const states = new CalendarOAuthStateService(deps, tenants, [oauth.callbackUri]);
   const authorization = new GoogleOAuthAuthorizationClient(oauth.clientId, GOOGLE_CALENDAR_SCOPES);
   const completion = new GoogleCalendarOAuthService(deps, tenants, states, tokens, credentials);
