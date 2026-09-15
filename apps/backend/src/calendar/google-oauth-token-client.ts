@@ -50,7 +50,22 @@ export class GoogleOAuthTokenClient {
     const code = this.text(input.code, 1, 4096);
     const redirectUri = this.redirect(input.redirectUri);
     if (!PKCE_VERIFIER.test(input.pkceVerifier)) throw new GoogleOAuthUnavailable();
+    return this.requestTokens({
+      code,
+      code_verifier: input.pkceVerifier,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+    });
+  }
 
+  async refresh(refreshToken: string): Promise<GoogleOAuthTokens> {
+    return this.requestTokens({
+      refresh_token: this.text(refreshToken, 16, 4096),
+      grant_type: 'refresh_token',
+    });
+  }
+
+  private async requestTokens(parameters: Record<string, string>): Promise<GoogleOAuthTokens> {
     let clientSecret: string;
     try {
       clientSecret = this.text(
@@ -65,10 +80,7 @@ export class GoogleOAuthTokenClient {
     const body = new URLSearchParams({
       client_id: this.clientId,
       client_secret: clientSecret,
-      code,
-      code_verifier: input.pkceVerifier,
-      grant_type: 'authorization_code',
-      redirect_uri: redirectUri,
+      ...parameters,
     });
 
     let response: Response;
