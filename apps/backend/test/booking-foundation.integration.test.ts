@@ -87,7 +87,7 @@ test(
       await admin.scheduleException.create({
         data: {
           tenantId,
-          date: new Date('2026-09-16T00:00:00Z'),
+          date: new Date('2037-09-16T00:00:00Z'),
           closed: true,
           reason: 'Closed fixture',
         },
@@ -109,7 +109,7 @@ test(
           ) VALUES (
             ${tenantId}::uuid, ${firstId}::uuid, ${customerId}::uuid, ${serviceId}::uuid,
             ${resourceId}::uuid, 'manual', 'confirmed',
-            ${new Date('2026-09-15T09:00:00Z')}, ${new Date('2026-09-15T09:30:00Z')}, 0, 15
+            ${new Date('2037-09-15T09:00:00Z')}, ${new Date('2037-09-15T09:30:00Z')}, 0, 15
           )
         `;
       });
@@ -124,7 +124,7 @@ test(
             ) VALUES (
               ${tenantId}::uuid, ${customerId}::uuid, ${serviceId}::uuid,
               ${resourceId}::uuid, 'manual', 'pending',
-              ${new Date('2026-09-15T09:40:00Z')}, ${new Date('2026-09-15T10:10:00Z')}, 0, 0
+              ${new Date('2037-09-15T09:40:00Z')}, ${new Date('2037-09-15T10:10:00Z')}, 0, 0
             )
           `;
         }),
@@ -139,7 +139,7 @@ test(
           ) VALUES (
             ${tenantId}::uuid, ${customerId}::uuid, ${serviceId}::uuid,
             ${resourceId}::uuid, 'manual', 'pending',
-            ${new Date('2026-09-15T09:45:00Z')}, ${new Date('2026-09-15T10:15:00Z')}, 0, 0
+            ${new Date('2037-09-15T09:45:00Z')}, ${new Date('2037-09-15T10:15:00Z')}, 0, 0
           )
         `;
         await tx.$executeRaw`
@@ -149,14 +149,14 @@ test(
           ) VALUES (
             ${tenantId}::uuid, ${customerId}::uuid, ${serviceId}::uuid,
             ${resourceId}::uuid, 'manual', 'cancelled',
-            ${new Date('2026-09-15T09:10:00Z')}, ${new Date('2026-09-15T09:20:00Z')}, 0, 0,
-            ${new Date('2026-09-15T08:00:00Z')}
+            ${new Date('2037-09-15T09:10:00Z')}, ${new Date('2037-09-15T09:20:00Z')}, 0, 0,
+            ${new Date('2037-09-15T08:00:00Z')}
           )
         `;
       });
 
       const defaultAvailability = await engine.availableSlots(
-        { tenantId, serviceId, date: '2026-09-15' },
+        { tenantId, serviceId, date: '2037-09-15' },
         new AbortController().signal,
       );
       assert.equal(defaultAvailability.timezone, 'Europe/Lisbon');
@@ -164,20 +164,20 @@ test(
       assert.equal(defaultAvailability.staffId, null);
       assert.deepEqual(
         defaultAvailability.slots.map((slot) => slot.startsAt),
-        ['2026-09-15T08:00:00.000Z', '2026-09-15T08:15:00.000Z'],
+        ['2037-09-15T08:00:00.000Z', '2037-09-15T08:15:00.000Z'],
       );
 
       const staffAvailability = await engine.availableSlots(
-        { tenantId, serviceId, date: '2026-09-15', staffId },
+        { tenantId, serviceId, date: '2037-09-15', staffId },
         new AbortController().signal,
       );
       assert.equal(staffAvailability.staffId, staffId);
       assert.notEqual(staffAvailability.resourceId, resourceId);
-      assert.equal(staffAvailability.slots[0]?.startsAt, '2026-09-15T08:00:00.000Z');
-      assert.equal(staffAvailability.slots[0]?.endsAt, '2026-09-15T08:45:00.000Z');
+      assert.equal(staffAvailability.slots[0]?.startsAt, '2037-09-15T08:00:00.000Z');
+      assert.equal(staffAvailability.slots[0]?.endsAt, '2037-09-15T08:45:00.000Z');
 
       const closedAvailability = await engine.availableSlots(
-        { tenantId, serviceId, date: '2026-09-16' },
+        { tenantId, serviceId, date: '2037-09-16' },
         new AbortController().signal,
       );
       assert.deepEqual(closedAvailability.slots, []);
