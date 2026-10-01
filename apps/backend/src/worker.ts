@@ -21,6 +21,7 @@ import { createSecretResolver } from './secrets/secret-resolver-factory';
 import { startAIAutomaticOutboundRuntime } from './ai/ai-outbound-runtime';
 import { startAITurnRuntime } from './ai/ai-turn-runtime';
 import { startCalendarSyncRuntime } from './calendar/calendar-sync-runtime';
+import { startCalendarSyncDispatcher } from './calendar/calendar-sync-dispatcher';
 import { parseGoogleCalendarOAuthConfig } from './calendar/google-calendar-oauth-config';
 import { createGoogleCalendarCredentialRuntime } from './calendar/google-calendar-credential-store-factory';
 
@@ -75,6 +76,7 @@ async function bootstrap(): Promise<void> {
     });
   }
   let stopCalendarSync: () => Promise<void> = async () => undefined;
+  let stopCalendarSyncDispatcher: () => Promise<void> = async () => undefined;
   if (config.CALENDAR_SYNC_WORKER_ENABLED === 'true') {
     const oauth = parseGoogleCalendarOAuthConfig(process.env);
     if (!oauth.enabled) throw new Error('Calendar sync requires Google Calendar OAuth');
@@ -83,6 +85,7 @@ async function bootstrap(): Promise<void> {
       redisUrl: config.REDIS_URL,
       secretResolver: credentials,
     });
+    stopCalendarSyncDispatcher = await startCalendarSyncDispatcher(deps.db, config.REDIS_URL);
   }
   let stopAITurns: () => Promise<void> = async () => undefined;
   if (config.AI_TURN_WORKER_ENABLED === 'true')
@@ -95,6 +98,7 @@ async function bootstrap(): Promise<void> {
     stopping = true;
     await stopRetention();
     await stopAITurns();
+    await stopCalendarSyncDispatcher();
     await stopCalendarSync();
     await stopAIOutbound();
     await stopMedia();
