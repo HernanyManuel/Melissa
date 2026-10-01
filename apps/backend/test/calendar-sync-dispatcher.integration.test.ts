@@ -34,16 +34,14 @@ test('calendar sync discovery exposes only connected tenant and connection ids',
     const discovered = await discoverConnectedCalendars(admin);
     const ours = discovered.filter((item) => item.tenantId === tenantA || item.tenantId === tenantB);
     ours.sort(
-      (a, b) =>
-        a.tenantId.localeCompare(b.tenantId) || a.connectionId.localeCompare(b.connectionId),
+      (a, b) => a.tenantId.localeCompare(b.tenantId) || a.connectionId.localeCompare(b.connectionId),
     );
     const expected = [
       { tenantId: tenantA, connectionId: connectedA },
       { tenantId: tenantB, connectionId: connectedB },
     ];
     expected.sort(
-      (a, b) =>
-        a.tenantId.localeCompare(b.tenantId) || a.connectionId.localeCompare(b.connectionId),
+      (a, b) => a.tenantId.localeCompare(b.tenantId) || a.connectionId.localeCompare(b.connectionId),
     );
     assert.deepEqual(ours, expected);
     assert(!ours.some((item) => item.connectionId === reauth));
