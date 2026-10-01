@@ -26,8 +26,9 @@ export async function createGoogleCalendarCredentialRuntime(
     !oauth.clientSecretReference ||
     !oauth.credentialKeyId ||
     !oauth.credentialKeyReference
-  )
+  ) {
     throw new Error('Google Calendar credentials require mounted server-side secrets');
+  }
 
   const secrets = await createSecretResolver(config);
   if (!secrets) throw new Error('Google Calendar credential secret resolver is unavailable');
