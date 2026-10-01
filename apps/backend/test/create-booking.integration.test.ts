@@ -108,15 +108,15 @@ test(
           idempotencyKey: firstKey,
           executionMode: 'live',
           serviceId,
-          startsAt: '2026-09-15T09:00:00+01:00',
+          startsAt: '2037-09-15T09:00:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
       );
       assert.equal(first.status, 'created');
       if (first.status !== 'created') assert.fail('booking should be created');
-      assert.equal(first.startsAt, '2026-09-15T08:00:00.000Z');
-      assert.equal(first.endsAt, '2026-09-15T08:30:00.000Z');
+      assert.equal(first.startsAt, '2037-09-15T08:00:00.000Z');
+      assert.equal(first.endsAt, '2037-09-15T08:30:00.000Z');
       assert.equal(first.timezone, 'Europe/Lisbon');
       assert.equal(first.duplicate, false);
 
@@ -166,7 +166,7 @@ test(
           idempotencyKey: firstKey,
           executionMode: 'live',
           serviceId,
-          startsAt: '2026-09-15T09:00:00+01:00',
+          startsAt: '2037-09-15T09:00:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
@@ -191,7 +191,7 @@ test(
             idempotencyKey: firstKey,
             executionMode: 'live',
             serviceId,
-            startsAt: '2026-09-15T09:30:00+01:00',
+            startsAt: '2037-09-15T09:30:00+01:00',
             confirmed: true,
           },
           new AbortController().signal,
@@ -209,7 +209,7 @@ test(
           idempotencyKey: `${turnId}:booking_conflict`,
           executionMode: 'live',
           serviceId,
-          startsAt: '2026-09-15T09:00:00+01:00',
+          startsAt: '2037-09-15T09:00:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
@@ -226,7 +226,7 @@ test(
           idempotencyKey: `${turnId}:off_grid`,
           executionMode: 'live',
           serviceId,
-          startsAt: '2026-09-15T09:07:00+01:00',
+          startsAt: '2037-09-15T09:07:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
@@ -244,7 +244,7 @@ test(
             idempotencyKey: `${turnId}:stale`,
             executionMode: 'live',
             serviceId,
-            startsAt: '2026-09-15T09:45:00+01:00',
+            startsAt: '2037-09-15T09:45:00+01:00',
             confirmed: true,
           },
           new AbortController().signal,
@@ -262,7 +262,7 @@ test(
             idempotencyKey: `${turnId}:sandbox`,
             executionMode: 'sandbox',
             serviceId,
-            startsAt: '2026-09-15T09:45:00+01:00',
+            startsAt: '2037-09-15T09:45:00+01:00',
             confirmed: true,
           },
           new AbortController().signal,
