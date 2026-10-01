@@ -105,8 +105,8 @@ test(
         ) VALUES (
           ${tenantId}::uuid, ${connectionId}::uuid, 'mock', 'mock:booking-gate',
           'connected', 1, CURRENT_TIMESTAMP, 60,
-          '2026-09-15T07:00:00Z'::timestamptz,
-          '2026-09-15T12:00:00Z'::timestamptz
+          '2037-09-15T07:00:00Z'::timestamptz,
+          '2037-09-15T12:00:00Z'::timestamptz
         )
       `;
       await admin.$executeRaw`
@@ -114,19 +114,19 @@ test(
           tenant_id, connection_id, id, starts_at, ends_at, sync_version, observed_at
         ) VALUES (
           ${tenantId}::uuid, ${connectionId}::uuid, ${busyId}::uuid,
-          '2026-09-15T09:00:00Z'::timestamptz,
-          '2026-09-15T09:30:00Z'::timestamptz,
+          '2037-09-15T09:00:00Z'::timestamptz,
+          '2037-09-15T09:30:00Z'::timestamptz,
           1, CURRENT_TIMESTAMP
         )
       `;
 
       const availability = await engine.availableSlots(
-        { tenantId, serviceId, date: '2026-09-15' },
+        { tenantId, serviceId, date: '2037-09-15' },
         new AbortController().signal,
       );
       assert.equal(availability.staffId, null);
-      assert(availability.slots.some((slot) => slot.startsAt === '2026-09-15T08:00:00.000Z'));
-      assert(!availability.slots.some((slot) => slot.startsAt === '2026-09-15T09:00:00.000Z'));
+      assert(availability.slots.some((slot) => slot.startsAt === '2037-09-15T08:00:00.000Z'));
+      assert(!availability.slots.some((slot) => slot.startsAt === '2037-09-15T09:00:00.000Z'));
 
       const blockedCreate = await engine.createBooking(
         {
@@ -138,7 +138,7 @@ test(
           idempotencyKey: `${turnId}:external-busy`,
           executionMode: 'live',
           serviceId,
-          startsAt: '2026-09-15T10:00:00+01:00',
+          startsAt: '2037-09-15T10:00:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
@@ -155,7 +155,7 @@ test(
           idempotencyKey: `${turnId}:external-free`,
           executionMode: 'live',
           serviceId,
-          startsAt: '2026-09-15T09:00:00+01:00',
+          startsAt: '2037-09-15T09:00:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
@@ -174,7 +174,7 @@ test(
           executionMode: 'live',
           bookingId: created.bookingId,
           expectedVersion: 1,
-          startsAt: '2026-09-15T10:00:00+01:00',
+          startsAt: '2037-09-15T10:00:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
@@ -183,7 +183,7 @@ test(
 
       await admin.$executeRaw`
         UPDATE calendar_connections
-        SET coverage_ends_at='2026-09-15T09:15:00Z'::timestamptz,
+        SET coverage_ends_at='2037-09-15T09:15:00Z'::timestamptz,
           last_success_at=CURRENT_TIMESTAMP,
           updated_at=CURRENT_TIMESTAMP
         WHERE tenant_id=${tenantId}::uuid AND id=${connectionId}::uuid
@@ -199,7 +199,7 @@ test(
           idempotencyKey: `${turnId}:external-out-of-coverage`,
           executionMode: 'live',
           serviceId,
-          startsAt: '2026-09-15T10:30:00+01:00',
+          startsAt: '2037-09-15T10:30:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
@@ -217,7 +217,7 @@ test(
           executionMode: 'live',
           bookingId: created.bookingId,
           expectedVersion: 1,
-          startsAt: '2026-09-15T10:30:00+01:00',
+          startsAt: '2037-09-15T10:30:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
@@ -226,14 +226,14 @@ test(
 
       await admin.$executeRaw`
         UPDATE calendar_connections
-        SET coverage_ends_at='2026-09-15T12:00:00Z'::timestamptz,
+        SET coverage_ends_at='2037-09-15T12:00:00Z'::timestamptz,
           last_success_at=CURRENT_TIMESTAMP - interval '61 seconds',
           updated_at=CURRENT_TIMESTAMP
         WHERE tenant_id=${tenantId}::uuid AND id=${connectionId}::uuid
       `;
 
       const staleAvailability = await engine.availableSlots(
-        { tenantId, serviceId, date: '2026-09-15' },
+        { tenantId, serviceId, date: '2037-09-15' },
         new AbortController().signal,
       );
       assert.deepEqual(staleAvailability.slots, []);
@@ -248,7 +248,7 @@ test(
           idempotencyKey: `${turnId}:external-stale`,
           executionMode: 'live',
           serviceId,
-          startsAt: '2026-09-15T11:00:00+01:00',
+          startsAt: '2037-09-15T11:00:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
@@ -266,7 +266,7 @@ test(
           executionMode: 'live',
           bookingId: created.bookingId,
           expectedVersion: 1,
-          startsAt: '2026-09-15T11:00:00+01:00',
+          startsAt: '2037-09-15T11:00:00+01:00',
           confirmed: true,
         },
         new AbortController().signal,
