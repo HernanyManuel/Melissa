@@ -14,9 +14,10 @@ interface ConnectedCalendar {
 
 export function calendarSyncWindow(now: Date): { startsAt: string; endsAt: string } {
   if (Number.isNaN(now.getTime())) throw new Error('Invalid calendar sync clock');
+  const bucket = Math.floor(now.getTime() / DISPATCH_INTERVAL_MS) * DISPATCH_INTERVAL_MS;
   return {
-    startsAt: new Date(now.getTime() - PAST_COVERAGE_MS).toISOString(),
-    endsAt: new Date(now.getTime() + FUTURE_COVERAGE_MS).toISOString(),
+    startsAt: new Date(bucket - PAST_COVERAGE_MS).toISOString(),
+    endsAt: new Date(bucket + FUTURE_COVERAGE_MS).toISOString(),
   };
 }
 
