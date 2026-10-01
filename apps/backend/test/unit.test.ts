@@ -27,6 +27,7 @@ import './google-calendar-provider.test';
 import './google-oauth-token-client.test';
 import './google-calendar-oauth-flow.test';
 import './calendar-sync-queue.test';
+import './calendar-sync-dispatcher.test';
 import './calendar-sync-runtime.test';
 import './ai-context-builder.test';
 import './conversation-state.test';
