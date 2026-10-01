@@ -15,3 +15,5 @@ overrides:
   multer: 2.3.0
   lodash: 4.18.1
   '@prisma/config>deepmerge-ts': 8.0.0
+  'brace-expansion@<2': 1.1.20
+  'brace-expansion@>=2 <3': 2.1.6
