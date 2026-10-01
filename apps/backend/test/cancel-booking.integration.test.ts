@@ -121,12 +121,12 @@ test('cancel_booking is fenced, versioned, customer-scoped, atomic and replay-sa
       ) VALUES
         (${tenantId}::uuid, ${bookingId}::uuid, ${customerId}::uuid, ${serviceId}::uuid,
           ${resourceId}::uuid, 'manual', 'confirmed',
-          '2026-09-18T08:00:00Z'::timestamptz, '2026-09-18T08:30:00Z'::timestamptz,
+          '2037-09-18T08:00:00Z'::timestamptz, '2037-09-18T08:30:00Z'::timestamptz,
           0, 0, NULL),
         (${tenantId}::uuid, ${alreadyCancelledId}::uuid, ${customerId}::uuid,
           ${serviceId}::uuid, ${resourceId}::uuid, 'manual', 'cancelled',
-          '2026-09-18T09:00:00Z'::timestamptz, '2026-09-18T09:30:00Z'::timestamptz,
-          0, 0, '2026-09-11T12:00:00Z'::timestamptz)
+          '2037-09-18T09:00:00Z'::timestamptz, '2037-09-18T09:30:00Z'::timestamptz,
+          0, 0, '2037-09-11T12:00:00Z'::timestamptz)
     `;
 
     const first = await canceller.cancel(
