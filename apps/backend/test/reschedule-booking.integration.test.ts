@@ -124,10 +124,10 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
       ) VALUES
         (${tenantId}::uuid, ${bookingId}::uuid, ${customerId}::uuid, ${serviceId}::uuid,
           ${resourceId}::uuid, 'manual', 'confirmed',
-          '2026-09-18T08:00:00Z'::timestamptz, '2026-09-18T08:30:00Z'::timestamptz, 0, 0),
+          '2037-09-18T08:00:00Z'::timestamptz, '2037-09-18T08:30:00Z'::timestamptz, 0, 0),
         (${tenantId}::uuid, ${blockerId}::uuid, ${customerId}::uuid, ${serviceId}::uuid,
           ${resourceId}::uuid, 'manual', 'confirmed',
-          '2026-09-18T10:00:00Z'::timestamptz, '2026-09-18T10:30:00Z'::timestamptz, 0, 0)
+          '2037-09-18T10:00:00Z'::timestamptz, '2037-09-18T10:30:00Z'::timestamptz, 0, 0)
     `;
 
     const first = await rescheduler.reschedule(
@@ -141,7 +141,7 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
         executionMode: 'live',
         bookingId,
         expectedVersion: 1,
-        startsAt: '2026-09-18T09:00:00Z',
+        startsAt: '2037-09-18T09:00:00Z',
         confirmed: true,
       },
       new AbortController().signal,
@@ -149,8 +149,8 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
     assert.deepEqual(first, {
       status: 'rescheduled',
       bookingId,
-      startsAt: '2026-09-18T09:00:00.000Z',
-      endsAt: '2026-09-18T09:30:00.000Z',
+      startsAt: '2037-09-18T09:00:00.000Z',
+      endsAt: '2037-09-18T09:30:00.000Z',
       timezone: 'Europe/Lisbon',
       duplicate: false,
     });
@@ -166,7 +166,7 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
         executionMode: 'live',
         bookingId,
         expectedVersion: 1,
-        startsAt: '2026-09-18T09:00:00Z',
+        startsAt: '2037-09-18T09:00:00Z',
         confirmed: true,
       },
       new AbortController().signal,
@@ -185,7 +185,7 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
           executionMode: 'live',
           bookingId,
           expectedVersion: 1,
-          startsAt: '2026-09-18T11:00:00Z',
+          startsAt: '2037-09-18T11:00:00Z',
           confirmed: true,
         },
         new AbortController().signal,
@@ -204,7 +204,7 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
         executionMode: 'live',
         bookingId,
         expectedVersion: 1,
-        startsAt: '2026-09-18T11:00:00Z',
+        startsAt: '2037-09-18T11:00:00Z',
         confirmed: true,
       },
       new AbortController().signal,
@@ -222,7 +222,7 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
         executionMode: 'live',
         bookingId,
         expectedVersion: 2,
-        startsAt: '2026-09-18T11:00:00Z',
+        startsAt: '2037-09-18T11:00:00Z',
         confirmed: true,
       },
       new AbortController().signal,
@@ -240,7 +240,7 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
         executionMode: 'live',
         bookingId,
         expectedVersion: 2,
-        startsAt: '2026-09-18T10:00:00Z',
+        startsAt: '2037-09-18T10:00:00Z',
         confirmed: true,
       },
       new AbortController().signal,
@@ -258,7 +258,7 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
         executionMode: 'live',
         bookingId,
         expectedVersion: 2,
-        startsAt: '2026-09-18T11:00:00Z',
+        startsAt: '2037-09-18T11:00:00Z',
         confirmed: true,
       },
       new AbortController().signal,
@@ -277,7 +277,7 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
         executionMode: 'live',
         bookingId,
         expectedVersion: 1,
-        startsAt: '2026-09-18T09:00:00Z',
+        startsAt: '2037-09-18T09:00:00Z',
         confirmed: true,
       },
       new AbortController().signal,
@@ -291,8 +291,8 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
       FROM bookings
       WHERE tenant_id=${tenantId}::uuid AND id=${bookingId}::uuid
     `;
-    assert.equal(booking?.starts_at.toISOString(), '2026-09-18T11:00:00.000Z');
-    assert.equal(booking?.ends_at.toISOString(), '2026-09-18T11:30:00.000Z');
+    assert.equal(booking?.starts_at.toISOString(), '2037-09-18T11:00:00.000Z');
+    assert.equal(booking?.ends_at.toISOString(), '2037-09-18T11:30:00.000Z');
     assert.equal(booking?.version, 3);
     assert.equal(
       await admin.$queryRaw<Array<{ count: bigint }>>`
@@ -326,7 +326,7 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
           executionMode: 'live',
           bookingId,
           expectedVersion: 3,
-          startsAt: '2026-09-18T09:00:00Z',
+          startsAt: '2037-09-18T09:00:00Z',
           confirmed: true,
         },
         new AbortController().signal,
@@ -345,7 +345,7 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
           executionMode: 'sandbox',
           bookingId,
           expectedVersion: 3,
-          startsAt: '2026-09-18T09:00:00Z',
+          startsAt: '2037-09-18T09:00:00Z',
           confirmed: true,
         },
         new AbortController().signal,
