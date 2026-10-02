@@ -221,3 +221,4 @@ test('queue connection preserves TLS, credentials and logical database', async (
   assert.throws(() => queueConnection('redis://localhost/not-a-db'), /Invalid Redis/);
   assert.throws(() => queueConnection('https://localhost'), /Invalid Redis/);
 });
+import './booking-calendar-processor.test';
