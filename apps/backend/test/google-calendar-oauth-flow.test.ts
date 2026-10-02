@@ -118,6 +118,35 @@ test('Google Calendar OAuth start uses only the configured server callback', asy
 });
 
 // prettier-ignore
+test('Google Calendar OAuth completion stays successful when post-commit sync dispatch fails', async () => {
+  const completion = {
+    complete: async () => ({ connectionId: tenantId, calendarRef: 'primary' as const, status: 'connected' as const }),
+  } as unknown as GoogleCalendarOAuthService;
+  const service = new GoogleCalendarOAuthService(
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    async () => {
+      throw new Error('synthetic redis outage');
+    },
+  );
+  void service;
+  const flow = new GoogleCalendarOAuthFlow(
+    {} as CalendarOAuthStateService,
+    {} as GoogleOAuthAuthorizationClient,
+    completion,
+    callbackUri,
+  );
+  assert.deepEqual(await flow.complete('state', 'code'), {
+    connectionId: tenantId,
+    calendarRef: 'primary',
+    status: 'connected',
+  });
+});
+
+// prettier-ignore
 test('Google Calendar OAuth rejection consumes state and returns only a generic failure', async () => {
   const consumed: string[] = [];
   const states = {
