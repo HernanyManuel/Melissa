@@ -24,6 +24,18 @@ interface ClaimRow extends BookingCalendarDispatchClaim {
   nextAttemptAt: Date;
 }
 
+interface BookingSnapshot {
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+}
+
+interface BookingSnapshotRow {
+  startsAt: Date;
+  endsAt: Date;
+  timezone: string;
+}
+
 export class BookingCalendarDispatchStore {
   constructor(private readonly deps: Dependencies) {}
 
@@ -98,11 +110,9 @@ export class BookingCalendarDispatchStore {
 
   async bookingSnapshot(
     claim: BookingCalendarDispatchClaim,
-  ): Promise<{ startsAt: string; endsAt: string; timezone: string } | null> {
+  ): Promise<BookingSnapshot | null> {
     return this.scoped(claim.tenantId, async (tx) => {
-      const [row] = await tx.$queryRaw<
-        Array<{ startsAt: Date; endsAt: Date; timezone: string }>
-      >`
+      const [row] = await tx.$queryRaw<BookingSnapshotRow[]>`
         SELECT starts_at AS "startsAt", ends_at AS "endsAt", timezone
         FROM bookings
         WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.bookingId}::uuid
