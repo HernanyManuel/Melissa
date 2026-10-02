@@ -13,7 +13,7 @@ import { GoogleCalendarOAuthFlow } from './google-calendar-oauth-flow';
 import { GoogleCalendarOAuthService } from './google-calendar-oauth.service';
 import { GoogleOAuthAuthorizationClient } from './google-oauth-authorization-client';
 import { calendarSyncWindow } from './calendar-sync-dispatcher';
-import { CalendarSyncEnqueuer } from './calendar-sync-enqueuer';
+import { enqueueCalendarSync } from './calendar-sync-enqueuer';
 
 const GOOGLE_CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
@@ -63,7 +63,6 @@ async function createEnabledFlow(
   const { credentials, tokens } = await createGoogleCalendarCredentialRuntime(config, deps, oauth);
   const states = new CalendarOAuthStateService(deps, tenants, [oauth.callbackUri]);
   const authorization = new GoogleOAuthAuthorizationClient(oauth.clientId, GOOGLE_CALENDAR_SCOPES);
-  const sync = new CalendarSyncEnqueuer(config.REDIS_URL);
   const completion = new GoogleCalendarOAuthService(
     deps,
     tenants,
@@ -71,7 +70,11 @@ async function createEnabledFlow(
     tokens,
     credentials,
     async (tenantId, connectionId) => {
-      await sync.enqueue({ tenantId, connectionId }, calendarSyncWindow(new Date()));
+      await enqueueCalendarSync(
+        config.REDIS_URL,
+        { tenantId, connectionId },
+        calendarSyncWindow(new Date()),
+      );
     },
   );
   return new GoogleCalendarOAuthFlow(states, authorization, completion, oauth.callbackUri);
