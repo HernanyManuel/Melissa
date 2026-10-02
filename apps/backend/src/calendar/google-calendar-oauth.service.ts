@@ -37,7 +37,11 @@ export class GoogleCalendarOAuthService {
     if (!credential.refreshToken) throw new GoogleOAuthUnavailable();
 
     const actor = { userId: consumed.userId, sessionId: consumed.sessionId };
-    const result = await this.tenants.scoped(actor, consumed.tenantId, 'integration:write', async (tx) => {
+    const result = await this.tenants.scoped(
+      actor,
+      consumed.tenantId,
+      'integration:write',
+      async (tx) => {
       const [existing] = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         SELECT id::text AS id
         FROM calendar_connections
@@ -97,8 +101,9 @@ export class GoogleCalendarOAuthService {
         connectionId,
       );
 
-      return { connectionId, calendarRef: 'primary', status: 'connected' } as const;
-    });
+        return { connectionId, calendarRef: 'primary', status: 'connected' } as const;
+      },
+    );
     try {
       await this.afterCommit(consumed.tenantId, result.connectionId);
     } catch {
