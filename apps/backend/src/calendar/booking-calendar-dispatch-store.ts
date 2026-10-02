@@ -14,7 +14,7 @@ export interface BookingCalendarDispatchClaim {
   bookingVersion: number;
   connectionId: string;
   calendarRef: string;
-  credentialRef: string;
+  credentialRef: string | null;
   attempt: number;
 }
 
