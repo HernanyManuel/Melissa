@@ -1,7 +1,6 @@
-import { Queue } from 'bullmq';
 import { PrismaClient } from '@prisma/client';
 import { log } from '../logging';
-import { queueConnection } from '../queue-connection';
+import { CalendarSyncEnqueuer } from './calendar-sync-enqueuer';
 
 const PAST_COVERAGE_MS = 24 * 60 * 60 * 1000;
 const FUTURE_COVERAGE_MS = 90 * 24 * 60 * 60 * 1000;
@@ -36,15 +35,7 @@ export async function startCalendarSyncDispatcher(
   redisUrl: string,
   now: () => Date = () => new Date(),
 ): Promise<() => Promise<void>> {
-  const queue = new Queue('calendar-sync', {
-    connection: {
-      ...queueConnection(redisUrl),
-      maxRetriesPerRequest: 1,
-      enableOfflineQueue: false,
-      commandTimeout: 3000,
-    },
-  });
-  queue.on('error', () => log.error({ event: 'calendar_sync_queue_error' }));
+  const enqueuer = new CalendarSyncEnqueuer(redisUrl);
 
   let stopping = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -54,17 +45,7 @@ export async function startCalendarSyncDispatcher(
       const window = calendarSyncWindow(now());
       for (const item of await discoverConnectedCalendars(db)) {
         if (stopping) break;
-        await queue.add(
-          'calendar-sync-busy',
-          { ...item, ...window },
-          {
-            jobId: `${item.connectionId}-${window.startsAt}-${window.endsAt}`,
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 1000 },
-            removeOnComplete: true,
-            removeOnFail: 100,
-          },
-        );
+        await enqueuer.enqueue(item, window);
       }
     } catch {
       log.warn({ event: 'calendar_sync_dispatch_retry' });
@@ -80,6 +61,6 @@ export async function startCalendarSyncDispatcher(
     stopping = true;
     if (timer) clearTimeout(timer);
     await running;
-    await queue.close();
+    await enqueuer.close();
   };
 }
