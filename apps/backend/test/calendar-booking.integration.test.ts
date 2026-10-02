@@ -189,6 +189,16 @@ test(
         WHERE tenant_id=${tenantId}::uuid AND id=${connectionId}::uuid
       `;
 
+      const uncoveredAvailability = await engine.availableSlots(
+        { tenantId, serviceId, date: '2037-09-15' },
+        new AbortController().signal,
+      );
+      assert(
+        !uncoveredAvailability.slots.some(
+          (slot) => slot.startsAt === '2037-09-15T09:30:00.000Z',
+        ),
+      );
+
       const uncoveredCreate = await engine.createBooking(
         {
           tenantId,
