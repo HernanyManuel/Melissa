@@ -28,7 +28,9 @@ export class BookingCalendarDispatchStore {
   constructor(private readonly deps: Dependencies) {}
 
   async due(limit = 100): Promise<BookingCalendarDispatchRoute[]> {
-    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('Invalid limit');
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new Error('Invalid limit');
+    }
     return this.deps.db.$queryRaw<BookingCalendarDispatchRoute[]>`
       SELECT id::text, attempts AS attempt
       FROM booking_calendar_dispatch
@@ -52,8 +54,10 @@ export class BookingCalendarDispatchStore {
       const [row] = await tx.$queryRaw<ClaimRow[]>`
         SELECT dispatch.id::text, dispatch.tenant_id::text AS "tenantId",
           outbox.booking_id::text AS "bookingId", outbox.event_type AS "eventType",
-          outbox.booking_version AS "bookingVersion", connection.id::text AS "connectionId", connection.provider,
-          connection.calendar_ref AS "calendarRef", connection.credential_ref AS "credentialRef",
+          outbox.booking_version AS "bookingVersion",
+          connection.id::text AS "connectionId", connection.provider,
+          connection.calendar_ref AS "calendarRef",
+          connection.credential_ref AS "credentialRef",
           dispatch.attempts AS attempt, dispatch.state,
           dispatch.next_attempt_at AS "nextAttemptAt"
         FROM booking_calendar_dispatch dispatch
