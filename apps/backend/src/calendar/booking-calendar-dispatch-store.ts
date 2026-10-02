@@ -40,7 +40,10 @@ export class BookingCalendarDispatchStore {
     `;
   }
 
-  async claim(id: string, attempt: number): Promise<BookingCalendarDispatchClaim | null> {
+  async claim(
+    id: string,
+    attempt: number,
+  ): Promise<BookingCalendarDispatchClaim | null> {
     const [route] = await this.deps.db.$queryRaw<Array<{ tenantId: string }>>`
       SELECT tenant_id::text AS "tenantId"
       FROM booking_calendar_dispatch
