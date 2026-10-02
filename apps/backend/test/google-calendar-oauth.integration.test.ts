@@ -232,6 +232,43 @@ test(
       assert.equal(actions.length, 2);
       assert(actions.every((entry) => entry.targetId === first.connectionId));
 
+      const dispatchFailureFixture = await createFixture(admin);
+      const dispatchFailureState = await states.begin(
+        dispatchFailureFixture.actor,
+        dispatchFailureFixture.tenantId,
+        callback,
+      );
+      const dispatchFailureService = new GoogleCalendarOAuthService(
+        deps,
+        tenants,
+        states,
+        tokens,
+        credentials,
+        async () => {
+          throw new Error('synthetic redis outage');
+        },
+      );
+      const dispatchFailure = await dispatchFailureService.complete(
+        dispatchFailureState.state,
+        'dispatch-failure-code',
+      );
+      assert.equal(dispatchFailure.status, 'connected');
+      const [persistedAfterDispatchFailure] = await admin.$queryRaw<
+        Array<{ status: string; credentialCount: bigint }>
+      >`
+        SELECT
+          cc.status,
+          COUNT(c.connection_id)::bigint AS "credentialCount"
+        FROM calendar_connections cc
+        LEFT JOIN calendar_credentials c
+          ON c.tenant_id=cc.tenant_id AND c.connection_id=cc.id
+        WHERE cc.tenant_id=${dispatchFailureFixture.tenantId}::uuid
+          AND cc.id=${dispatchFailure.connectionId}::uuid
+        GROUP BY cc.status
+      `;
+      assert.equal(persistedAfterDispatchFailure?.status, 'connected');
+      assert.equal(persistedAfterDispatchFailure?.credentialCount, 1n);
+
       const rollbackFixture = await createFixture(admin);
       const rollbackState = await states.begin(
         rollbackFixture.actor,
