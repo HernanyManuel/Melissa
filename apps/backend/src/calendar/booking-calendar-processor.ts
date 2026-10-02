@@ -9,7 +9,9 @@ import {
   BookingCalendarDispatchStore,
 } from './booking-calendar-dispatch-store';
 
-export type CalendarProviderResolver = (providerKey: string) => CalendarProvider | null;
+export interface CalendarProviderResolver {
+  (providerKey: string): CalendarProvider | null;
+}
 
 export class BookingCalendarProcessor {
   constructor(
@@ -26,9 +28,8 @@ export class BookingCalendarProcessor {
         throw new CalendarProviderUnavailable();
       }
       const connection = this.connection(claim);
-      const operationKey = [claim.bookingId, claim.eventType, claim.bookingVersion].join(
-        ':',
-      );
+      const operationParts = [claim.bookingId, claim.eventType, claim.bookingVersion];
+      const operationKey = operationParts.join(':');
       if (claim.eventType === 'cancelled') {
         await provider.cancelBooking({
           connection,
@@ -53,7 +54,9 @@ export class BookingCalendarProcessor {
     }
   }
 
-  private connection(claim: BookingCalendarDispatchClaim): CalendarConnectionRef {
+  private connection(
+    claim: BookingCalendarDispatchClaim,
+  ): CalendarConnectionRef {
     if (claim.provider === 'google' && !claim.credentialRef) {
       throw new CalendarProviderUnavailable();
     }
