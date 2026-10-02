@@ -121,6 +121,39 @@ test(
         outboxState: 'failed',
         attempts: 5,
       });
+
+      const acceptedOutboxId = randomUUID();
+      await admin.$executeRaw`
+        INSERT INTO booking_outbox
+          (tenant_id, id, booking_id, event_type, booking_version)
+        VALUES (
+          ${tenantId}::uuid, ${acceptedOutboxId}::uuid, ${bookingId}::uuid,
+          'rescheduled', 2
+        )
+      `;
+      await admin.$executeRaw`
+        INSERT INTO booking_calendar_dispatch (tenant_id, id)
+        VALUES (${tenantId}::uuid, ${acceptedOutboxId}::uuid)
+      `;
+      const acceptedClaim = await store.claim(acceptedOutboxId, 0);
+      assert(acceptedClaim);
+      await store.accept(acceptedClaim);
+
+      const [accepted] = await admin.$queryRaw<
+        Array<{ dispatchState: string; outboxState: string; processedAt: Date | null }>
+      >`
+        SELECT dispatch.state AS "dispatchState", outbox.state AS "outboxState",
+          outbox.processed_at AS "processedAt"
+        FROM booking_calendar_dispatch dispatch
+        JOIN booking_outbox outbox
+          ON outbox.tenant_id=dispatch.tenant_id AND outbox.id=dispatch.id
+        WHERE dispatch.tenant_id=${tenantId}::uuid
+          AND dispatch.id=${acceptedOutboxId}::uuid
+      `;
+      assert.equal(accepted?.dispatchState, 'processed');
+      assert.equal(accepted?.outboxState, 'processed');
+      assert(accepted?.processedAt instanceof Date);
+      assert.equal(await store.claim(acceptedOutboxId, 0), null);
     } finally {
       await admin.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
       await deps.db.$disconnect();
