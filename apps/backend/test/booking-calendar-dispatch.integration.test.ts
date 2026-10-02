@@ -18,6 +18,8 @@ test(
     const store = new BookingCalendarDispatchStore(deps);
     const tenantId = randomUUID();
     const bookingId = randomUUID();
+    const serviceId = randomUUID();
+    const resourceId = randomUUID();
     const outboxId = randomUUID();
 
     try {
@@ -40,13 +42,29 @@ test(
         SELECT id::text FROM customers WHERE tenant_id=${tenantId}::uuid LIMIT 1
       `;
       assert(customer);
+      await admin.businessService.create({
+        data: {
+          id: serviceId,
+          tenantId,
+          name: 'Calendar dispatch service',
+          slug: `calendar-dispatch-${serviceId}`,
+          price: '20.00',
+          currency: 'EUR',
+          durationMinutes: 60,
+        },
+      });
+      await admin.$executeRaw`
+        INSERT INTO booking_resources (tenant_id, id, kind, name)
+        VALUES (${tenantId}::uuid, ${resourceId}::uuid, 'default', 'Calendar fixture')
+      `;
       await admin.$executeRaw`
         INSERT INTO bookings (
-          tenant_id, id, customer_id, status, starts_at, ends_at, timezone, version
+          tenant_id, id, customer_id, service_id, resource_id, status,
+          starts_at, ends_at, version
         ) VALUES (
-          ${tenantId}::uuid, ${bookingId}::uuid, ${customer.id}::uuid, 'confirmed',
-          '2037-09-15T09:00:00Z'::timestamptz, '2037-09-15T10:00:00Z'::timestamptz,
-          'Europe/Lisbon', 1
+          ${tenantId}::uuid, ${bookingId}::uuid, ${customer.id}::uuid,
+          ${serviceId}::uuid, ${resourceId}::uuid, 'confirmed',
+          '2037-09-15T09:00:00Z'::timestamptz, '2037-09-15T10:00:00Z'::timestamptz, 1
         )
       `;
       await admin.$executeRaw`
