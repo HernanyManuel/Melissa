@@ -310,11 +310,16 @@ export class PrismaBookingRescheduler implements BookingRescheduler {
         if (!operations.length) throw new Error('Reschedule operation conflict');
 
         await tx.$executeRaw`
-          INSERT INTO booking_outbox (tenant_id, booking_id, event_type, booking_version)
-          VALUES (
-            ${input.tenantId}::uuid, ${input.bookingId}::uuid, 'rescheduled',
-            ${input.expectedVersion + 1}
+          WITH outbox AS (
+            INSERT INTO booking_outbox (tenant_id, booking_id, event_type, booking_version)
+            VALUES (
+              ${input.tenantId}::uuid, ${input.bookingId}::uuid, 'rescheduled',
+              ${input.expectedVersion + 1}
+            )
+            RETURNING id, tenant_id
           )
+          INSERT INTO booking_calendar_dispatch (id, tenant_id)
+          SELECT id, tenant_id FROM outbox
         `;
         await tx.auditEvent.create({
           data: {
