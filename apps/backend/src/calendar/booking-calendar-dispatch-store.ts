@@ -118,13 +118,12 @@ export class BookingCalendarDispatchStore {
         WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.bookingId}::uuid
           AND version=${claim.bookingVersion}
       `;
-      return row
-        ? {
-            startsAt: row.startsAt.toISOString(),
-            endsAt: row.endsAt.toISOString(),
-            timezone: row.timezone,
-          }
-        : null;
+      if (!row) return null;
+      return {
+        startsAt: row.startsAt.toISOString(),
+        endsAt: row.endsAt.toISOString(),
+        timezone: row.timezone,
+      };
     });
   }
 
