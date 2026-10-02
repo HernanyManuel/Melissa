@@ -65,6 +65,46 @@ export class BookingCalendarDispatchStore {
     });
   }
 
+  async accept(claim: BookingCalendarDispatchClaim): Promise<void> {
+    await this.scoped(claim.tenantId, async (tx) => {
+      const updated = await tx.$executeRaw`
+        UPDATE booking_calendar_dispatch
+        SET state='processed'
+        WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid
+          AND state='pending' AND attempts=${claim.attempt}
+      `;
+      if (updated !== 1) return;
+      await tx.$executeRaw`
+        UPDATE booking_outbox
+        SET state='processed', processed_at=CURRENT_TIMESTAMP
+        WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid
+          AND state='pending' AND attempts=${claim.attempt}
+      `;
+    });
+  }
+
+  async recordFailure(claim: BookingCalendarDispatchClaim): Promise<void> {
+    await this.scoped(claim.tenantId, async (tx) => {
+      const attempts = claim.attempt + 1;
+      const terminal = attempts >= 5;
+      const state = terminal ? 'failed' : 'pending';
+      const nextAttemptAt = new Date(Date.now() + Math.min(60_000, 1000 * 2 ** claim.attempt));
+      const updated = await tx.$executeRaw`
+        UPDATE booking_calendar_dispatch
+        SET attempts=${attempts}, state=${state}, next_attempt_at=${nextAttemptAt}
+        WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid
+          AND state='pending' AND attempts=${claim.attempt}
+      `;
+      if (updated !== 1) return;
+      await tx.$executeRaw`
+        UPDATE booking_outbox
+        SET attempts=${attempts}, state=${state}, next_attempt_at=${nextAttemptAt}
+        WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid
+          AND state='pending' AND attempts=${claim.attempt}
+      `;
+    });
+  }
+
   private scoped<T>(
     tenantId: string,
     run: (tx: Prisma.TransactionClient) => Promise<T>,
