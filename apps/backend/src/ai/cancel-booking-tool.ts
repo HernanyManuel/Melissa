@@ -240,12 +240,17 @@ export class PrismaBookingCanceller implements BookingCanceller {
       if (!operations.length) throw new Error('Cancellation operation conflict');
 
       await tx.$executeRaw`
-        INSERT INTO booking_outbox (tenant_id, booking_id, event_type, booking_version)
-        VALUES (
-          ${input.tenantId}::uuid, ${input.bookingId}::uuid, 'cancelled',
-          ${input.expectedVersion + 1}
+        WITH outbox AS (
+          INSERT INTO booking_outbox (tenant_id, booking_id, event_type, booking_version)
+          VALUES (
+            ${input.tenantId}::uuid, ${input.bookingId}::uuid, 'cancelled',
+            ${input.expectedVersion + 1}
+          )
+          ON CONFLICT DO NOTHING
+          RETURNING id, tenant_id
         )
-        ON CONFLICT DO NOTHING
+        INSERT INTO booking_calendar_dispatch (id, tenant_id)
+        SELECT id, tenant_id FROM outbox
       `;
       await tx.auditEvent.create({
         data: {
