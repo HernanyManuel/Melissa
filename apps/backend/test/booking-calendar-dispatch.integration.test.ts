@@ -114,6 +114,21 @@ test(
         attempt: 0,
       });
 
+      const ambiguousConnectionId = randomUUID();
+      await admin.$executeRaw`
+        INSERT INTO calendar_connections (
+          tenant_id, id, staff_id, provider, calendar_ref, status
+        ) VALUES (
+          ${tenantId}::uuid, ${ambiguousConnectionId}::uuid, ${staffId}::uuid,
+          'mock', 'mock:dispatch-ambiguous', 'connected'
+        )
+      `;
+      assert.equal(await store.claim(outboxId, 0), null);
+      await admin.$executeRaw`
+        UPDATE calendar_connections SET status='disconnected'
+        WHERE tenant_id=${tenantId}::uuid AND id=${ambiguousConnectionId}::uuid
+      `;
+
       await admin.$executeRaw`
         UPDATE booking_calendar_dispatch
         SET next_attempt_at=CURRENT_TIMESTAMP + interval '1 hour'
