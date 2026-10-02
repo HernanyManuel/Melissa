@@ -319,6 +319,18 @@ test('reschedule_booking is fenced, versioned, customer-scoped, conflict-safe an
       `,
       [{ bookingVersion: 2 }, { bookingVersion: 3 }],
     );
+    assert.deepEqual(
+      await admin.$queryRaw<Array<{ bookingVersion: number }>>`
+        SELECT outbox.booking_version AS "bookingVersion"
+        FROM booking_outbox outbox
+        JOIN booking_calendar_dispatch dispatch
+          ON dispatch.tenant_id=outbox.tenant_id AND dispatch.id=outbox.id
+        WHERE outbox.tenant_id=${tenantId}::uuid AND outbox.booking_id=${bookingId}::uuid
+          AND outbox.event_type='rescheduled'
+        ORDER BY outbox.booking_version
+      `,
+      [{ bookingVersion: 2 }, { bookingVersion: 3 }],
+    );
     assert.equal(
       await admin.auditEvent.count({ where: { tenantId, action: 'ai.booking_rescheduled' } }),
       2,
