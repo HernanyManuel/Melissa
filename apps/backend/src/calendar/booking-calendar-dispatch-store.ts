@@ -13,6 +13,7 @@ export interface BookingCalendarDispatchClaim {
   eventType: 'created' | 'cancelled' | 'rescheduled';
   bookingVersion: number;
   connectionId: string;
+  provider: string;
   calendarRef: string;
   credentialRef: string | null;
   attempt: number;
@@ -48,7 +49,7 @@ export class BookingCalendarDispatchStore {
       const [row] = await tx.$queryRaw<ClaimRow[]>`
         SELECT dispatch.id::text, dispatch.tenant_id::text AS "tenantId",
           outbox.booking_id::text AS "bookingId", outbox.event_type AS "eventType",
-          outbox.booking_version AS "bookingVersion", connection.id::text AS "connectionId",
+          outbox.booking_version AS "bookingVersion", connection.id::text AS "connectionId", connection.provider,
           connection.calendar_ref AS "calendarRef", connection.credential_ref AS "credentialRef",
           dispatch.attempts AS attempt, dispatch.state,
           dispatch.next_attempt_at AS "nextAttemptAt"
@@ -80,10 +81,33 @@ export class BookingCalendarDispatchStore {
         eventType: row.eventType,
         bookingVersion: row.bookingVersion,
         connectionId: row.connectionId,
+        provider: row.provider,
         calendarRef: row.calendarRef,
         credentialRef: row.credentialRef,
         attempt: row.attempt,
       };
+    });
+  }
+
+  async bookingSnapshot(
+    claim: BookingCalendarDispatchClaim,
+  ): Promise<{ startsAt: string; endsAt: string; timezone: string } | null> {
+    return this.scoped(claim.tenantId, async (tx) => {
+      const [row] = await tx.$queryRaw<
+        Array<{ startsAt: Date; endsAt: Date; timezone: string }>
+      >`
+        SELECT starts_at AS "startsAt", ends_at AS "endsAt", timezone
+        FROM bookings
+        WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.bookingId}::uuid
+          AND version=${claim.bookingVersion}
+      `;
+      return row
+        ? {
+            startsAt: row.startsAt.toISOString(),
+            endsAt: row.endsAt.toISOString(),
+            timezone: row.timezone,
+          }
+        : null;
     });
   }
 
