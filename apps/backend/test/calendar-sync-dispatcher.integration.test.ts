@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import { discoverConnectedCalendars } from '../src/calendar/calendar-sync-dispatcher';
 
+// prettier-ignore
 test('calendar sync discovery exposes only connected tenant and connection ids', async () => {
   const migrationUrl = process.env.MIGRATION_DATABASE_URL;
   assert(migrationUrl, 'calendar sync dispatcher integration requires MIGRATION_DATABASE_URL');
