@@ -7,7 +7,10 @@ import { BookingCalendarDispatchStore } from '../src/calendar/booking-calendar-d
 import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 
-test('booking calendar dispatch discovery is minimal and claim is tenant-scoped', { timeout: 15000 }, async () => {
+test(
+  'booking calendar dispatch discovery is minimal and claim is tenant-scoped',
+  { timeout: 15000 },
+  async () => {
   const migrationUrl = process.env.MIGRATION_DATABASE_URL;
   assert(migrationUrl, 'calendar dispatch integration requires MIGRATION_DATABASE_URL');
   const deps = new Dependencies(parseConfig(process.env));
@@ -19,7 +22,12 @@ test('booking calendar dispatch discovery is minimal and claim is tenant-scoped'
 
   try {
     await admin.tenant.create({
-      data: { id: tenantId, name: 'Calendar dispatch fixture', countryCode: 'PT', timezone: 'Europe/Lisbon' },
+      data: {
+        id: tenantId,
+        name: 'Calendar dispatch fixture',
+        countryCode: 'PT',
+        timezone: 'Europe/Lisbon',
+      },
     });
     await admin.$executeRaw`
       INSERT INTO customers (tenant_id, id, phone_e164)
@@ -68,7 +76,9 @@ test('booking calendar dispatch discovery is minimal and claim is tenant-scoped'
     assert.equal(await store.claim(outboxId, 0), null);
   } finally {
     await admin.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
-    await deps.close();
+    await deps.db.$disconnect();
+    await deps.redis.quit();
     await admin.$disconnect();
   }
-});
+  },
+);
