@@ -22,9 +22,13 @@ export class BookingCalendarProcessor {
     if (!claim) return false;
     try {
       const provider = this.providerFor(claim.provider);
-      if (!provider || provider.providerKey !== claim.provider) throw new CalendarProviderUnavailable();
+      if (!provider || provider.providerKey !== claim.provider) {
+        throw new CalendarProviderUnavailable();
+      }
       const connection = this.connection(claim);
-      const operationKey = [claim.bookingId, claim.eventType, claim.bookingVersion].join(':');
+      const operationKey = [claim.bookingId, claim.eventType, claim.bookingVersion].join(
+        ':',
+      );
       if (claim.eventType === 'cancelled') {
         await provider.cancelBooking({
           connection,
