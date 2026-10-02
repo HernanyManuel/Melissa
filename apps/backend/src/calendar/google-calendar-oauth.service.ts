@@ -19,6 +19,10 @@ export class GoogleCalendarOAuthService {
     private readonly states: CalendarOAuthStateService,
     private readonly tokens: GoogleOAuthTokenClient,
     private readonly credentials: CalendarCredentialStore,
+    private readonly afterCommit: (
+      tenantId: string,
+      connectionId: string,
+    ) => Promise<void> = async () => undefined,
   ) {
     void deps;
   }
@@ -33,7 +37,7 @@ export class GoogleCalendarOAuthService {
     if (!credential.refreshToken) throw new GoogleOAuthUnavailable();
 
     const actor = { userId: consumed.userId, sessionId: consumed.sessionId };
-    return this.tenants.scoped(actor, consumed.tenantId, 'integration:write', async (tx) => {
+    const result = await this.tenants.scoped(actor, consumed.tenantId, 'integration:write', async (tx) => {
       const [existing] = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         SELECT id::text AS id
         FROM calendar_connections
@@ -93,7 +97,13 @@ export class GoogleCalendarOAuthService {
         connectionId,
       );
 
-      return { connectionId, calendarRef: 'primary', status: 'connected' };
+      return { connectionId, calendarRef: 'primary', status: 'connected' } as const;
     });
+    try {
+      await this.afterCommit(consumed.tenantId, result.connectionId);
+    } catch {
+      // Periodic calendar sync dispatch recovers from transient queue failures.
+    }
+    return result;
   }
 }
