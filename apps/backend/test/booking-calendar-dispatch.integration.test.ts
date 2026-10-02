@@ -74,6 +74,53 @@ test(
       `;
       assert.deepEqual(await store.due(10), []);
       assert.equal(await store.claim(outboxId, 0), null);
+
+      await admin.$executeRaw`
+        UPDATE booking_calendar_dispatch
+        SET next_attempt_at=CURRENT_TIMESTAMP
+        WHERE tenant_id=${tenantId}::uuid AND id=${outboxId}::uuid
+      `;
+      const claim = await store.claim(outboxId, 0);
+      assert(claim);
+      await store.recordFailure(claim);
+      assert.equal(await store.claim(outboxId, 0), null);
+
+      const [retry] = await admin.$queryRaw<Array<{ attempts: number; state: string }>>`
+        SELECT attempts, state
+        FROM booking_calendar_dispatch
+        WHERE tenant_id=${tenantId}::uuid AND id=${outboxId}::uuid
+      `;
+      assert.deepEqual(retry, { attempts: 1, state: 'pending' });
+
+      await admin.$executeRaw`
+        UPDATE booking_calendar_dispatch
+        SET attempts=4, next_attempt_at=CURRENT_TIMESTAMP
+        WHERE tenant_id=${tenantId}::uuid AND id=${outboxId}::uuid
+      `;
+      await admin.$executeRaw`
+        UPDATE booking_outbox
+        SET attempts=4, next_attempt_at=CURRENT_TIMESTAMP
+        WHERE tenant_id=${tenantId}::uuid AND id=${outboxId}::uuid
+      `;
+      const terminalClaim = await store.claim(outboxId, 4);
+      assert(terminalClaim);
+      await store.recordFailure(terminalClaim);
+
+      const [terminal] = await admin.$queryRaw<
+        Array<{ dispatchState: string; outboxState: string; attempts: number }>
+      >`
+        SELECT dispatch.state AS "dispatchState", outbox.state AS "outboxState",
+          dispatch.attempts
+        FROM booking_calendar_dispatch dispatch
+        JOIN booking_outbox outbox
+          ON outbox.tenant_id=dispatch.tenant_id AND outbox.id=dispatch.id
+        WHERE dispatch.tenant_id=${tenantId}::uuid AND dispatch.id=${outboxId}::uuid
+      `;
+      assert.deepEqual(terminal, {
+        dispatchState: 'failed',
+        outboxState: 'failed',
+        attempts: 5,
+      });
     } finally {
       await admin.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
       await deps.db.$disconnect();
