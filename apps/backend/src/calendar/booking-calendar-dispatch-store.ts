@@ -12,6 +12,7 @@ export interface BookingCalendarDispatchClaim {
   bookingId: string;
   eventType: 'created' | 'cancelled' | 'rescheduled';
   bookingVersion: number;
+  connectionId: string;
   attempt: number;
 }
 
@@ -45,12 +46,27 @@ export class BookingCalendarDispatchStore {
       const [row] = await tx.$queryRaw<ClaimRow[]>`
         SELECT dispatch.id::text, dispatch.tenant_id::text AS "tenantId",
           outbox.booking_id::text AS "bookingId", outbox.event_type AS "eventType",
-          outbox.booking_version AS "bookingVersion", dispatch.attempts AS attempt,
-          dispatch.state, dispatch.next_attempt_at AS "nextAttemptAt"
+          outbox.booking_version AS "bookingVersion", connection.id::text AS "connectionId",
+          dispatch.attempts AS attempt, dispatch.state,
+          dispatch.next_attempt_at AS "nextAttemptAt"
         FROM booking_calendar_dispatch dispatch
         JOIN booking_outbox outbox
           ON outbox.tenant_id=dispatch.tenant_id AND outbox.id=dispatch.id
+        JOIN bookings booking
+          ON booking.tenant_id=outbox.tenant_id AND booking.id=outbox.booking_id
+        JOIN booking_resources resource
+          ON resource.tenant_id=booking.tenant_id AND resource.id=booking.resource_id
+          AND resource.kind='staff' AND resource.staff_id IS NOT NULL
+        JOIN calendar_connections connection
+          ON connection.tenant_id=resource.tenant_id AND connection.staff_id=resource.staff_id
+          AND connection.status='connected'
         WHERE dispatch.tenant_id=${route.tenantId}::uuid AND dispatch.id=${id}::uuid
+          AND NOT EXISTS (
+            SELECT 1 FROM calendar_connections other
+            WHERE other.tenant_id=connection.tenant_id
+              AND other.staff_id=connection.staff_id
+              AND other.status='connected' AND other.id<>connection.id
+          )
       `;
       if (!row || row.state !== 'pending' || row.attempt !== attempt) return null;
       if (row.nextAttemptAt > new Date()) return null;
@@ -60,6 +76,7 @@ export class BookingCalendarDispatchStore {
         bookingId: row.bookingId,
         eventType: row.eventType,
         bookingVersion: row.bookingVersion,
+        connectionId: row.connectionId,
         attempt: row.attempt,
       };
     });
