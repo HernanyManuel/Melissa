@@ -20,6 +20,8 @@ test(
     const bookingId = randomUUID();
     const serviceId = randomUUID();
     const resourceId = randomUUID();
+    const staffId = randomUUID();
+    const connectionId = randomUUID();
     const outboxId = randomUUID();
 
     try {
@@ -79,12 +81,36 @@ test(
 
       assert.deepEqual(await store.due(10), [{ id: outboxId, attempt: 0 }]);
       assert.equal(await store.claim(outboxId, 1), null);
+      assert.equal(await store.claim(outboxId, 0), null);
+
+      await admin.staff.create({
+        data: {
+          id: staffId,
+          tenantId,
+          name: 'Calendar dispatch staff',
+          timezone: 'Europe/Lisbon',
+        },
+      });
+      await admin.$executeRaw`
+        UPDATE booking_resources
+        SET kind='staff', staff_id=${staffId}::uuid
+        WHERE tenant_id=${tenantId}::uuid AND id=${resourceId}::uuid
+      `;
+      await admin.$executeRaw`
+        INSERT INTO calendar_connections (
+          tenant_id, id, staff_id, provider, calendar_ref, status
+        ) VALUES (
+          ${tenantId}::uuid, ${connectionId}::uuid, ${staffId}::uuid,
+          'mock', 'mock:dispatch', 'connected'
+        )
+      `;
       assert.deepEqual(await store.claim(outboxId, 0), {
         id: outboxId,
         tenantId,
         bookingId,
         eventType: 'created',
         bookingVersion: 1,
+        connectionId,
         attempt: 0,
       });
 
