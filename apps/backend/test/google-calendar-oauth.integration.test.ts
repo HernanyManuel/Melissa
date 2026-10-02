@@ -102,12 +102,22 @@ test(
         );
       },
     );
+    const committed: Array<{ tenantId: string; connectionId: string }> = [];
     const service = new GoogleCalendarOAuthService(
       deps,
       tenants,
       states,
       tokens,
       credentials,
+      async (tenantId, connectionId) => {
+        const [stored] = await admin.$queryRaw<Array<{ status: string }>>`
+          SELECT status
+          FROM calendar_connections
+          WHERE tenant_id=${tenantId}::uuid AND id=${connectionId}::uuid
+        `;
+        assert.equal(stored?.status, 'connected');
+        committed.push({ tenantId, connectionId });
+      },
     );
 
     try {
@@ -116,6 +126,7 @@ test(
       const first = await service.complete(firstState.state, 'first-code');
       assert.equal(first.calendarRef, 'primary');
       assert.equal(first.status, 'connected');
+      assert.deepEqual(committed, [{ tenantId: fixture.tenantId, connectionId: first.connectionId }]);
       await assert.rejects(service.complete(firstState.state, 'replayed-code'));
       assert.equal(exchanges, 1);
 
@@ -172,6 +183,10 @@ test(
       const secondState = await states.begin(fixture.actor, fixture.tenantId, callback);
       const second = await service.complete(secondState.state, 'second-code');
       assert.equal(second.connectionId, first.connectionId);
+      assert.deepEqual(committed, [
+        { tenantId: fixture.tenantId, connectionId: first.connectionId },
+        { tenantId: fixture.tenantId, connectionId: first.connectionId },
+      ]);
       const secondCredential = await credentials.read(reference);
       assert.equal(
         secondCredential.refreshToken,
