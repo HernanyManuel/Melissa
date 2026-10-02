@@ -383,8 +383,13 @@ export class BookingEngine {
 
       const bookingId = inserted[0]!.id;
       await tx.$executeRaw`
-        INSERT INTO booking_outbox (tenant_id, booking_id, event_type, booking_version)
-        VALUES (${input.tenantId}::uuid, ${bookingId}::uuid, 'created', 1)
+        WITH outbox AS (
+          INSERT INTO booking_outbox (tenant_id, booking_id, event_type, booking_version)
+          VALUES (${input.tenantId}::uuid, ${bookingId}::uuid, 'created', 1)
+          RETURNING id, tenant_id
+        )
+        INSERT INTO booking_calendar_dispatch (id, tenant_id)
+        SELECT id, tenant_id FROM outbox
       `;
       await tx.auditEvent.create({
         data: {
