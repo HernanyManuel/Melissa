@@ -13,6 +13,8 @@ export interface BookingCalendarDispatchClaim {
   eventType: 'created' | 'cancelled' | 'rescheduled';
   bookingVersion: number;
   connectionId: string;
+  calendarRef: string;
+  credentialRef: string;
   attempt: number;
 }
 
@@ -47,6 +49,7 @@ export class BookingCalendarDispatchStore {
         SELECT dispatch.id::text, dispatch.tenant_id::text AS "tenantId",
           outbox.booking_id::text AS "bookingId", outbox.event_type AS "eventType",
           outbox.booking_version AS "bookingVersion", connection.id::text AS "connectionId",
+          connection.calendar_ref AS "calendarRef", connection.credential_ref AS "credentialRef",
           dispatch.attempts AS attempt, dispatch.state,
           dispatch.next_attempt_at AS "nextAttemptAt"
         FROM booking_calendar_dispatch dispatch
@@ -77,6 +80,8 @@ export class BookingCalendarDispatchStore {
         eventType: row.eventType,
         bookingVersion: row.bookingVersion,
         connectionId: row.connectionId,
+        calendarRef: row.calendarRef,
+        credentialRef: row.credentialRef,
         attempt: row.attempt,
       };
     });
