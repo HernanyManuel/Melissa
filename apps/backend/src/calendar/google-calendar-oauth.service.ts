@@ -42,64 +42,64 @@ export class GoogleCalendarOAuthService {
       consumed.tenantId,
       'integration:write',
       async (tx) => {
-      const [existing] = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        SELECT id::text AS id
-        FROM calendar_connections
-        WHERE tenant_id=${consumed.tenantId}::uuid
-          AND provider='google'
-          AND calendar_ref='primary'
-        FOR UPDATE
-      `);
-      const connectionId = existing?.id ?? randomUUID();
-      const reference = calendarCredentialReference(consumed.tenantId, connectionId);
-
-      if (existing) {
-        await tx.$executeRaw(Prisma.sql`
-          DELETE FROM calendar_busy_intervals
+        const [existing] = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+          SELECT id::text AS id
+          FROM calendar_connections
           WHERE tenant_id=${consumed.tenantId}::uuid
-            AND connection_id=${connectionId}::uuid
+            AND provider='google'
+            AND calendar_ref='primary'
+          FOR UPDATE
         `);
-        await tx.$executeRaw(Prisma.sql`
-          UPDATE calendar_connections
-          SET
-            credential_ref=${reference},
-            status='connected',
-            sync_token=NULL,
-            sync_version=sync_version + 1,
-            last_success_at=NULL,
-            coverage_starts_at=NULL,
-            coverage_ends_at=NULL,
-            updated_at=CURRENT_TIMESTAMP
-          WHERE tenant_id=${consumed.tenantId}::uuid
-            AND id=${connectionId}::uuid
-        `);
-      } else {
-        await tx.$executeRaw(Prisma.sql`
-          INSERT INTO calendar_connections (
-            tenant_id, id, provider, calendar_ref, credential_ref, status
-          ) VALUES (
-            ${consumed.tenantId}::uuid,
-            ${connectionId}::uuid,
-            'google',
-            'primary',
-            ${reference},
-            'connected'
-          )
-        `);
-      }
+        const connectionId = existing?.id ?? randomUUID();
+        const reference = calendarCredentialReference(consumed.tenantId, connectionId);
 
-      await this.credentials.putInTransaction(tx, {
-        tenantId: consumed.tenantId,
-        connectionId,
-        credential,
-      });
-      await this.tenants.audit(
-        tx,
-        actor,
-        consumed.tenantId,
-        'calendar.google_connected',
-        connectionId,
-      );
+        if (existing) {
+          await tx.$executeRaw(Prisma.sql`
+            DELETE FROM calendar_busy_intervals
+            WHERE tenant_id=${consumed.tenantId}::uuid
+              AND connection_id=${connectionId}::uuid
+          `);
+          await tx.$executeRaw(Prisma.sql`
+            UPDATE calendar_connections
+            SET
+              credential_ref=${reference},
+              status='connected',
+              sync_token=NULL,
+              sync_version=sync_version + 1,
+              last_success_at=NULL,
+              coverage_starts_at=NULL,
+              coverage_ends_at=NULL,
+              updated_at=CURRENT_TIMESTAMP
+            WHERE tenant_id=${consumed.tenantId}::uuid
+              AND id=${connectionId}::uuid
+          `);
+        } else {
+          await tx.$executeRaw(Prisma.sql`
+            INSERT INTO calendar_connections (
+              tenant_id, id, provider, calendar_ref, credential_ref, status
+            ) VALUES (
+              ${consumed.tenantId}::uuid,
+              ${connectionId}::uuid,
+              'google',
+              'primary',
+              ${reference},
+              'connected'
+            )
+          `);
+        }
+
+        await this.credentials.putInTransaction(tx, {
+          tenantId: consumed.tenantId,
+          connectionId,
+          credential,
+        });
+        await this.tenants.audit(
+          tx,
+          actor,
+          consumed.tenantId,
+          'calendar.google_connected',
+          connectionId,
+        );
 
         return { connectionId, calendarRef: 'primary', status: 'connected' } as const;
       },
