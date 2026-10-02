@@ -218,6 +218,14 @@ export class BookingEngine {
                   AND connection.last_success_at <= CURRENT_TIMESTAMP
                   AND connection.last_success_at +
                     make_interval(secs => connection.freshness_limit_seconds) >= CURRENT_TIMESTAMP
+                  AND connection.coverage_starts_at IS NOT NULL
+                  AND connection.coverage_ends_at IS NOT NULL
+                  AND connection.coverage_starts_at <=
+                    candidates.starts_at -
+                      make_interval(mins => ${selection.bufferBeforeMinutes}::int)
+                  AND connection.coverage_ends_at >=
+                    candidates.starts_at +
+                      make_interval(mins => ${selection.durationMinutes + selection.bufferAfterMinutes}::int)
                 )
             )
             AND NOT EXISTS (
