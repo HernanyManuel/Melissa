@@ -112,7 +112,7 @@ test(
         bookingVersion: 1,
         connectionId,
         calendarRef: 'mock:dispatch',
-        credentialRef: '',
+        credentialRef: null;
         attempt: 0,
       });
 
