@@ -74,12 +74,13 @@ export class BookingCalendarDispatchStore {
           AND state='pending' AND attempts=${claim.attempt}
       `;
       if (updated !== 1) return;
-      await tx.$executeRaw`
+      const outboxUpdated = await tx.$executeRaw`
         UPDATE booking_outbox
         SET state='processed', processed_at=CURRENT_TIMESTAMP
         WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid
           AND state='pending' AND attempts=${claim.attempt}
       `;
+      if (outboxUpdated !== 1) throw new Error('Calendar outbox state mismatch');
     });
   }
 
@@ -96,12 +97,13 @@ export class BookingCalendarDispatchStore {
           AND state='pending' AND attempts=${claim.attempt}
       `;
       if (updated !== 1) return;
-      await tx.$executeRaw`
+      const outboxUpdated = await tx.$executeRaw`
         UPDATE booking_outbox
         SET attempts=${attempts}, state=${state}, next_attempt_at=${nextAttemptAt}
         WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid
           AND state='pending' AND attempts=${claim.attempt}
       `;
+      if (outboxUpdated !== 1) throw new Error('Calendar outbox state mismatch');
     });
   }
 
