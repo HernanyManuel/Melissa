@@ -234,7 +234,27 @@ test(
 
       await admin.$executeRaw`
         UPDATE calendar_connections
-        SET coverage_ends_at='2037-09-15T12:00:00Z'::timestamptz,
+        SET coverage_starts_at='2037-09-15T08:15:00Z'::timestamptz,
+          coverage_ends_at='2037-09-15T12:00:00Z'::timestamptz,
+          last_success_at=CURRENT_TIMESTAMP,
+          updated_at=CURRENT_TIMESTAMP
+        WHERE tenant_id=${tenantId}::uuid AND id=${connectionId}::uuid
+      `;
+
+      const lowerUncoveredAvailability = await engine.availableSlots(
+        { tenantId, serviceId, date: '2037-09-15' },
+        new AbortController().signal,
+      );
+      assert(
+        !lowerUncoveredAvailability.slots.some(
+          (slot) => slot.startsAt === '2037-09-15T08:00:00.000Z',
+        ),
+      );
+
+      await admin.$executeRaw`
+        UPDATE calendar_connections
+        SET coverage_starts_at='2037-09-15T07:00:00Z'::timestamptz,
+          coverage_ends_at='2037-09-15T12:00:00Z'::timestamptz,
           last_success_at=CURRENT_TIMESTAMP - interval '61 seconds',
           updated_at=CURRENT_TIMESTAMP
         WHERE tenant_id=${tenantId}::uuid AND id=${connectionId}::uuid
