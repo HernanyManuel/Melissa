@@ -111,8 +111,9 @@ test(
         eventType: 'created',
         bookingVersion: 1,
         connectionId,
+        provider: 'mock',
         calendarRef: 'mock:dispatch',
-        credentialRef: null;
+        credentialRef: null,
         attempt: 0,
       });
 
