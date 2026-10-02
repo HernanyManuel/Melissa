@@ -28,7 +28,11 @@ export class BookingCalendarProcessor {
         throw new CalendarProviderUnavailable();
       }
       const connection = this.connection(claim);
-      const operationParts = [claim.bookingId, claim.eventType, claim.bookingVersion];
+      const operationParts = [
+        claim.bookingId,
+        claim.eventType,
+        claim.bookingVersion,
+      ];
       const operationKey = operationParts.join(':');
       if (claim.eventType === 'cancelled') {
         await provider.cancelBooking({
