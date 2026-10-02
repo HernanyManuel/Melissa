@@ -12,6 +12,19 @@ export interface CalendarSyncWindow {
   endsAt: string;
 }
 
+export async function enqueueCalendarSync(
+  redisUrl: string,
+  target: CalendarSyncTarget,
+  window: CalendarSyncWindow,
+): Promise<void> {
+  const enqueuer = new CalendarSyncEnqueuer(redisUrl);
+  try {
+    await enqueuer.enqueue(target, window);
+  } finally {
+    await enqueuer.close();
+  }
+}
+
 export class CalendarSyncEnqueuer {
   private readonly queue: Queue;
 
