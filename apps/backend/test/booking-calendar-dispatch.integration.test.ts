@@ -30,8 +30,11 @@ test(
         },
       });
       await admin.$executeRaw`
-        INSERT INTO customers (tenant_id, id, display_name, phone_e164)
-        VALUES (${tenantId}::uuid, ${randomUUID()}::uuid, 'Calendar fixture', '+351910000001')
+        INSERT INTO customers (tenant_id, id, display_name, phone_e164, updated_at)
+        VALUES (
+          ${tenantId}::uuid, ${randomUUID()}::uuid, 'Calendar fixture',
+          '+351910000001', CURRENT_TIMESTAMP
+        )
       `;
       const [customer] = await admin.$queryRaw<Array<{ id: string }>>`
         SELECT id::text FROM customers WHERE tenant_id=${tenantId}::uuid LIMIT 1
