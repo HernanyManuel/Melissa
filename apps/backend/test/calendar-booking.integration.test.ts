@@ -194,9 +194,7 @@ test(
         new AbortController().signal,
       );
       assert(
-        !uncoveredAvailability.slots.some(
-          (slot) => slot.startsAt === '2037-09-15T09:30:00.000Z',
-        ),
+        !uncoveredAvailability.slots.some((slot) => slot.startsAt === '2037-09-15T09:30:00.000Z'),
       );
 
       const uncoveredCreate = await engine.createBooking(
