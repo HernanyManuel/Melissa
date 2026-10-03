@@ -21,10 +21,7 @@ export interface BookingCalendarReconciliationTarget {
 
 export interface BookingCalendarReconciliationStore {
   targets(limit: number): Promise<BookingCalendarReconciliationTarget[]>;
-  persist(
-    target: BookingCalendarReconciliationTarget,
-    event: CalendarExternalEvent,
-  ): Promise<void>;
+  persist(target: BookingCalendarReconciliationTarget, event: CalendarExternalEvent): Promise<void>;
 }
 
 export class BookingCalendarReconciler {
@@ -50,7 +47,8 @@ export class BookingCalendarReconciler {
       });
       let event: CalendarExternalEvent | null = null;
       if (target.cancelled) {
-        if (remote && remote.cancelled && remote.externalEventId === target.externalEventId) continue;
+        if (remote && remote.cancelled && remote.externalEventId === target.externalEventId)
+          continue;
         event = await provider.cancelBooking({
           connection: target.connection,
           bookingId: target.bookingId,
