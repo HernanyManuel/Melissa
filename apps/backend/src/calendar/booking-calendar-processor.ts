@@ -28,11 +28,7 @@ export class BookingCalendarProcessor {
         throw new CalendarProviderUnavailable();
       }
       const connection = this.connection(claim);
-      const operationParts = [
-        claim.bookingId,
-        claim.eventType,
-        claim.bookingVersion,
-      ];
+      const operationParts = [claim.bookingId, claim.eventType, claim.bookingVersion];
       const operationKey = operationParts.join(':');
       if (claim.eventType === 'cancelled') {
         await provider.cancelBooking({
@@ -58,9 +54,7 @@ export class BookingCalendarProcessor {
     }
   }
 
-  private connection(
-    claim: BookingCalendarDispatchClaim,
-  ): CalendarConnectionRef {
+  private connection(claim: BookingCalendarDispatchClaim): CalendarConnectionRef {
     if (claim.provider === 'google' && !claim.credentialRef) {
       throw new CalendarProviderUnavailable();
     }
