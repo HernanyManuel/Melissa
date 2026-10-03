@@ -135,6 +135,30 @@ test(
       assert.equal(provider.calls.length, 1);
       assert.equal(provider.calls[0]?.bookingId, bookingId);
       assert.equal(provider.calls[0]?.connection.connectionId, connectionId);
+      const [projection] = await admin.$queryRaw<
+        Array<{
+          externalEventId: string;
+          externalVersion: string;
+          cancelled: boolean;
+          bookingVersion: number;
+          reconciledAt: Date;
+        }>
+      >`
+        SELECT external_event_id AS "externalEventId",
+               external_version AS "externalVersion",
+               cancelled,
+               booking_version AS "bookingVersion",
+               reconciled_at AS "reconciledAt"
+        FROM booking_calendar_events
+        WHERE tenant_id=${tenantId}::uuid
+          AND connection_id=${connectionId}::uuid
+          AND booking_id=${bookingId}::uuid
+      `;
+      assert.equal(projection?.externalEventId, 'external-1');
+      assert.equal(projection?.externalVersion, '1');
+      assert.equal(projection?.cancelled, false);
+      assert.equal(projection?.bookingVersion, 1);
+      assert(projection?.reconciledAt instanceof Date);
     } finally {
       if (stop) await stop();
       await admin.tenant.deleteMany({ where: { id: tenantId } }).catch(() => undefined);
