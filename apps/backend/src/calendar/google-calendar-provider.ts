@@ -6,6 +6,7 @@ import {
   CalendarBusyRequest,
   CalendarBusyResult,
   CalendarExternalEvent,
+  CalendarManagedBooking,
   CalendarProvider,
   CalendarProviderConflict,
   CalendarProviderInvalidRequest,
@@ -107,6 +108,41 @@ export class GoogleCalendarProvider implements CalendarProvider {
     });
 
     return { observedAt: new Date().toISOString(), intervals, syncToken: null };
+  }
+
+  async booking(request: CalendarBookingCancellation): Promise<CalendarManagedBooking | null> {
+    const connectionId = nonEmpty(request.connection.connectionId);
+    const calendarRef = nonEmpty(request.connection.calendarRef);
+    const bookingId = nonEmpty(request.bookingId);
+    const id = eventId(connectionId, bookingId);
+    const token = await this.accessToken(request.connection.credentialRef);
+    const existing = await this.getEvent(calendarRef, id, token);
+    if (!existing) return null;
+    if (existing.status === 'cancelled') {
+      return {
+        externalEventId: id,
+        version: typeof existing.etag === 'string' ? existing.etag : 'cancelled',
+        cancelled: true,
+        startsAt: null,
+        endsAt: null,
+        timezone: null,
+      };
+    }
+    if (
+      typeof existing.etag !== 'string' ||
+      typeof existing.start?.dateTime !== 'string' ||
+      typeof existing.end?.dateTime !== 'string' ||
+      typeof existing.start?.timeZone !== 'string'
+    )
+      throw new CalendarProviderUnavailable();
+    return {
+      externalEventId: id,
+      version: existing.etag,
+      cancelled: false,
+      startsAt: exactInstant(existing.start.dateTime),
+      endsAt: exactInstant(existing.end.dateTime),
+      timezone: existing.start.timeZone,
+    };
   }
 
   async upsertBooking(request: CalendarBookingMutation): Promise<CalendarExternalEvent> {
