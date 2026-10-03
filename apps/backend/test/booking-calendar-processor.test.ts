@@ -21,10 +21,7 @@ const baseClaim: BookingCalendarDispatchClaim = {
   attempt: 0,
 };
 
-function harness(
-  claim: BookingCalendarDispatchClaim = baseClaim,
-  providerKey = claim.provider,
-) {
+function harness(claim: BookingCalendarDispatchClaim = baseClaim, providerKey = claim.provider) {
   const accepted: BookingCalendarDispatchClaim[] = [];
   const failed: BookingCalendarDispatchClaim[] = [];
   const calls: Array<{ kind: string; request: unknown }> = [];
