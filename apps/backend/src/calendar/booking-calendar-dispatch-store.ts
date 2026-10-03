@@ -123,10 +123,7 @@ export class BookingCalendarDispatchStore {
     });
   }
 
-  async accept(
-    claim: BookingCalendarDispatchClaim,
-    event: CalendarExternalEvent,
-  ): Promise<void> {
+  async accept(claim: BookingCalendarDispatchClaim, event: CalendarExternalEvent): Promise<void> {
     await this.scoped(claim.tenantId, async (tx) => {
       const updated = await tx.$executeRaw`
         UPDATE booking_calendar_dispatch
