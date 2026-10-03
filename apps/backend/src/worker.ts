@@ -17,8 +17,16 @@ import { startMediaIngestionQueue } from './storage/media-ingestion-queue';
 import { createStorageProvider } from './storage/storage-factory';
 import { createWhatsAppMediaSource } from './storage/whatsapp-media-factory';
 import { createMalwareScanner } from './storage/malware-scanner-factory';
+import { createSecretResolver } from './secrets/secret-resolver-factory';
+import { startAIAutomaticOutboundRuntime } from './ai/ai-outbound-runtime';
+import { startAITurnRuntime } from './ai/ai-turn-runtime';
+import { startBookingCalendarRuntime } from './calendar/booking-calendar-runtime';
+import { startCalendarSyncRuntime } from './calendar/calendar-sync-runtime';
+import { startCalendarSyncDispatcher } from './calendar/calendar-sync-dispatcher';
+import { parseGoogleCalendarOAuthConfig } from './calendar/google-calendar-oauth-config';
+import { createGoogleCalendarCredentialRuntime } from './calendar/google-calendar-credential-store-factory';
 
-// Isolated probe and durable inbound consumers; no public product API on this process.
+// Isolated probe and durable consumers; no public product API on this process.
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(InfrastructureModule, { logger: false });
   const config = app.get<Configuration>(CONFIG);
@@ -57,6 +65,34 @@ async function bootstrap(): Promise<void> {
       ),
     );
   }
+  let stopAIOutbound: () => Promise<void> = async () => undefined;
+  if (config.AI_OUTBOUND_WORKER_ENABLED === 'true') {
+    const secretResolver = await createSecretResolver(config);
+    if (!secretResolver || !config.WHATSAPP_MESSAGING_API_VERSION)
+      throw new Error('Incomplete automatic AI outbound dependencies');
+    stopAIOutbound = await startAIAutomaticOutboundRuntime(deps, {
+      redisUrl: config.REDIS_URL,
+      whatsappApiVersion: config.WHATSAPP_MESSAGING_API_VERSION,
+      secretResolver,
+    });
+  }
+  let stopCalendarSync: () => Promise<void> = async () => undefined;
+  let stopCalendarSyncDispatcher: () => Promise<void> = async () => undefined;
+  let stopBookingCalendar: () => Promise<void> = async () => undefined;
+  if (config.CALENDAR_SYNC_WORKER_ENABLED === 'true') {
+    const oauth = parseGoogleCalendarOAuthConfig(process.env);
+    if (!oauth.enabled) throw new Error('Calendar sync requires Google Calendar OAuth');
+    const { credentials } = await createGoogleCalendarCredentialRuntime(config, deps, oauth);
+    stopCalendarSync = await startCalendarSyncRuntime(deps, {
+      redisUrl: config.REDIS_URL,
+      secretResolver: credentials,
+    });
+    stopCalendarSyncDispatcher = await startCalendarSyncDispatcher(deps.db, config.REDIS_URL);
+    stopBookingCalendar = await startBookingCalendarRuntime(deps, config.REDIS_URL, credentials);
+  }
+  let stopAITurns: () => Promise<void> = async () => undefined;
+  if (config.AI_TURN_WORKER_ENABLED === 'true')
+    stopAITurns = await startAITurnRuntime(deps, config);
   const stopRetention = startQuarantineRetention(app.get(Dependencies).db);
   await app.listen(config.WORKER_PORT, '0.0.0.0');
   let stopping = false;
@@ -64,13 +100,18 @@ async function bootstrap(): Promise<void> {
     if (stopping) return;
     stopping = true;
     await stopRetention();
+    await stopAITurns();
+    await stopBookingCalendar();
+    await stopCalendarSyncDispatcher();
+    await stopCalendarSync();
+    await stopAIOutbound();
     await stopMedia();
     await stopOutbound();
     await stopInbound();
     await worker.close();
     await app.close();
   };
-  // Own shutdown order: stop consumption before closing shared dependencies.
+  // Own shutdown order: stop producers before consumers, then shared dependencies.
   process.once('SIGTERM', () => void stop());
   process.once('SIGINT', () => void stop());
   log.info({ event: 'worker_started' });
