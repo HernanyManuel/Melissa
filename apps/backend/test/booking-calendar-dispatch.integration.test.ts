@@ -202,7 +202,11 @@ test(
       `;
       const acceptedClaim = await store.claim(acceptedOutboxId, 0);
       assert(acceptedClaim);
-      await store.accept(acceptedClaim);
+      await store.accept(acceptedClaim, {
+        externalEventId: 'external-accepted',
+        version: 'etag-accepted',
+        cancelled: false,
+      });
 
       const [accepted] = await admin.$queryRaw<
         Array<{ dispatchState: string; outboxState: string; processedAt: Date | null }>
