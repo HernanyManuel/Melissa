@@ -120,7 +120,6 @@ export class PrismaBookingCalendarReconciliationStore
     });
   }
 
-
   async release(target: BookingCalendarReconciliationTarget): Promise<void> {
     await this.scoped(target.tenantId, async (tx) => {
       await tx.$executeRaw`
