@@ -261,7 +261,9 @@ test(
       const winner = claims[0];
       assert(winner);
       const loserRetry =
-        winner === firstClaim[0] ? await secondStore.targets(1) : await firstStore.targets(1);
+        winner === firstClaim[0]
+          ? await secondStore.targets(1)
+          : await firstStore.targets(1);
       assert.equal(
         loserRetry.some(
           (target) =>
