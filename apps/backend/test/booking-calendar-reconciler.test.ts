@@ -36,10 +36,12 @@ class Provider implements CalendarProvider {
   upserts: CalendarBookingMutation[] = [];
   cancellations: CalendarBookingCancellation[] = [];
   constructor(readonly remote: CalendarManagedBooking | null) {}
-  async busy(_request: CalendarBusyRequest): Promise<CalendarBusyResult> {
+  async busy(request: CalendarBusyRequest): Promise<CalendarBusyResult> {
+    void request;
     throw new Error('Unexpected busy');
   }
-  async booking(_request: CalendarBookingCancellation): Promise<CalendarManagedBooking | null> {
+  async booking(request: CalendarBookingCancellation): Promise<CalendarManagedBooking | null> {
+    void request;
     this.reads += 1;
     return this.remote;
   }
