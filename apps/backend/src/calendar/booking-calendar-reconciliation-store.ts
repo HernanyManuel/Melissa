@@ -41,7 +41,9 @@ export class PrismaBookingCalendarReconciliationStore
       if (targets.length >= limit) break;
       const leaseId = randomUUID();
       const leaseUntil = new Date(Date.now() + 30_000);
-      const rows = await this.scoped(tenantId, (tx) => tx.$queryRaw<TargetRow[]>`
+      const rows = await this.scoped(
+        tenantId,
+        (tx) => tx.$queryRaw<TargetRow[]>`
         WITH candidates AS (
           SELECT event.tenant_id, event.connection_id, event.booking_id
           FROM booking_calendar_events event
@@ -88,7 +90,8 @@ export class PrismaBookingCalendarReconciliationStore
         JOIN bookings booking
           ON booking.tenant_id=claimed.tenant_id AND booking.id=claimed.booking_id
         ORDER BY claimed.reconciled_at, claimed.booking_id
-      `);
+      `,
+      );
       targets.push(
         ...rows.map((row) => ({
           tenantId: row.tenantId,
