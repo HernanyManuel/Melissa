@@ -147,6 +147,8 @@ export class BookingCalendarDispatchStore {
           cancelled=EXCLUDED.cancelled,
           booking_version=EXCLUDED.booking_version,
           reconciled_at=EXCLUDED.reconciled_at,
+          reconcile_lease_id=NULL,
+          reconcile_lease_until=NULL,
           updated_at=CURRENT_TIMESTAMP
       `;
       const outboxUpdated = await tx.$executeRaw`
