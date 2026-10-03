@@ -12,9 +12,7 @@ import {
   CalendarExternalEvent,
   CalendarProvider,
 } from '../src/calendar/calendar-provider';
-import {
-  BookingCalendarDispatchStore,
-} from '../src/calendar/booking-calendar-dispatch-store';
+import { BookingCalendarDispatchStore } from '../src/calendar/booking-calendar-dispatch-store';
 import { PrismaBookingCalendarReconciliationStore } from '../src/calendar/booking-calendar-reconciliation-store';
 import { startBookingCalendarRuntime } from '../src/calendar/booking-calendar-runtime';
 import { parseConfig } from '../src/config';
