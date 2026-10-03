@@ -51,37 +51,37 @@ test(
     const provider = new RecordingProvider();
     const secrets = { resolve: async () => null };
     let stop: (() => Promise<void>) | undefined;
-  
+
     try {
       await admin.tenant.create({
         data: {
-        id: tenantId,
-        name: 'Booking calendar fixture',
-        countryCode: 'PT',
-        timezone: 'Europe/Lisbon',
-      },
+          id: tenantId,
+          name: 'Booking calendar fixture',
+          countryCode: 'PT',
+          timezone: 'Europe/Lisbon',
+        },
       });
       await admin.staff.create({
         data: { id: staffId, tenantId, name: 'Booking staff', timezone: 'Europe/Lisbon' },
       });
       await admin.customer.create({
         data: {
-        id: customerId,
-        tenantId,
-        displayName: 'Booking customer',
-        phoneE164: '+351910000001',
-      },
+          id: customerId,
+          tenantId,
+          displayName: 'Booking customer',
+          phoneE164: '+351910000001',
+        },
       });
       await admin.businessService.create({
         data: {
-        id: serviceId,
-        tenantId,
-        name: 'Booking service',
-        slug: `booking-${serviceId}`,
-        price: 10,
-        currency: 'EUR',
-        durationMinutes: 30,
-      },
+          id: serviceId,
+          tenantId,
+          name: 'Booking service',
+          slug: `booking-${serviceId}`,
+          price: 10,
+          currency: 'EUR',
+          durationMinutes: 30,
+        },
       });
       await admin.$executeRaw`
         INSERT INTO booking_resources (tenant_id, id, kind, staff_id, name)
@@ -109,7 +109,7 @@ test(
         INSERT INTO booking_calendar_dispatch (tenant_id, id)
         VALUES (${tenantId}::uuid, ${outboxId}::uuid)
       `;
-  
+
       stop = await startBookingCalendarRuntime(deps, config.REDIS_URL, secrets as never, {
         provider,
       });
@@ -133,11 +133,11 @@ test(
       assert.equal(provider.calls.length, 1);
       assert.equal(provider.calls[0]?.bookingId, bookingId);
       assert.equal(provider.calls[0]?.connection.connectionId, connectionId);
-      } finally {
-        if (stop) await stop();
-        await admin.tenant.deleteMany({ where: { id: tenantId } }).catch(() => undefined);
-        await deps.onModuleDestroy();
-        await admin.$disconnect();
-      }
+    } finally {
+      if (stop) await stop();
+      await admin.tenant.deleteMany({ where: { id: tenantId } }).catch(() => undefined);
+      await deps.onModuleDestroy();
+      await admin.$disconnect();
+    }
   },
 );
