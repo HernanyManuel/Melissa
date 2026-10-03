@@ -30,28 +30,36 @@ export class BookingCalendarProcessor {
       const connection = this.connection(claim);
       const operationParts = [claim.bookingId, claim.eventType, claim.bookingVersion];
       const operationKey = operationParts.join(':');
-      if (claim.eventType === 'cancelled') {
-        await provider.cancelBooking({
+      const event =
+        claim.eventType === 'cancelled'
+          ? await provider.cancelBooking({
           connection,
           bookingId: claim.bookingId,
-          operationKey,
-        });
-      } else {
-        const snapshot = await this.store.bookingSnapshot(claim);
-        if (!snapshot) throw new CalendarProviderUnavailable();
-        await provider.upsertBooking({
-          connection,
-          bookingId: claim.bookingId,
-          operationKey,
-          ...snapshot,
-        });
-      }
-      await this.store.accept(claim);
+              operationKey,
+            })
+          : await this.upsert(provider, claim, connection, operationKey);
+      await this.store.accept(claim, event);
       return true;
     } catch {
       await this.store.recordFailure(claim);
       return false;
     }
+  }
+
+  private async upsert(
+    provider: CalendarProvider,
+    claim: BookingCalendarDispatchClaim,
+    connection: CalendarConnectionRef,
+    operationKey: string,
+  ) {
+    const snapshot = await this.store.bookingSnapshot(claim);
+    if (!snapshot) throw new CalendarProviderUnavailable();
+    return provider.upsertBooking({
+      connection,
+      bookingId: claim.bookingId,
+      operationKey,
+      ...snapshot,
+    });
   }
 
   private connection(claim: BookingCalendarDispatchClaim): CalendarConnectionRef {
