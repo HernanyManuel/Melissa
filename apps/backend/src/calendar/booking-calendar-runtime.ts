@@ -21,6 +21,36 @@ interface DispatchJob {
   attempt: number;
 }
 
+interface SerialLoop {
+  stop(): Promise<void>;
+}
+
+export function startSerialLoop(
+  run: () => Promise<void>,
+  intervalMs: number,
+  onFailure: () => void,
+): SerialLoop {
+  let stopping = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let running: Promise<void> = Promise.resolve();
+  const cycle = async (): Promise<void> => {
+    try {
+      await run();
+    } catch {
+      onFailure();
+    }
+    if (!stopping) timer = setTimeout(() => void (running = cycle()), intervalMs);
+  };
+  running = cycle();
+  return {
+    async stop(): Promise<void> {
+      stopping = true;
+      if (timer) clearTimeout(timer);
+      await running;
+    },
+  };
+}
+
 export function isDispatchJob(name: string, data: unknown): data is DispatchJob {
   if (
     name !== 'booking-calendar-dispatch' ||
@@ -102,28 +132,17 @@ export async function startBookingCalendarRuntime(
   };
   running = dispatch();
 
-  let reconciliationTimer: ReturnType<typeof setTimeout> | undefined;
-  let reconciliationRunning: Promise<void> = Promise.resolve();
-  const reconcile = async (): Promise<void> => {
-    try {
-      await reconciler.reconcile(100);
-    } catch {
-      log.warn({ event: 'booking_calendar_reconciliation_retry' });
-    }
-    if (!stopping)
-      reconciliationTimer = setTimeout(
-        () => void (reconciliationRunning = reconcile()),
-        RECONCILIATION_INTERVAL_MS,
-      );
-  };
-  reconciliationRunning = reconcile();
+  const reconciliation = startSerialLoop(
+    () => reconciler.reconcile(100).then(() => undefined),
+    RECONCILIATION_INTERVAL_MS,
+    () => log.warn({ event: 'booking_calendar_reconciliation_retry' }),
+  );
 
   return async () => {
     stopping = true;
     if (timer) clearTimeout(timer);
-    if (reconciliationTimer) clearTimeout(reconciliationTimer);
     await running;
-    await reconciliationRunning;
+    await reconciliation.stop();
     await queue.close();
     await worker.close();
   };
