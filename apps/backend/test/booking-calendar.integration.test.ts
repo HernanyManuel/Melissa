@@ -19,17 +19,22 @@ import { Dependencies } from '../src/dependencies';
 class RecordingProvider implements CalendarProvider {
   readonly providerKey = 'mock';
   readonly calls: CalendarBookingMutation[] = [];
+  readonly cancellations: CalendarBookingCancellation[] = [];
   async busy(request: CalendarBusyRequest): Promise<CalendarBusyResult> {
     void request;
     throw new Error('Unexpected busy call');
   }
   async upsertBooking(request: CalendarBookingMutation): Promise<CalendarExternalEvent> {
     this.calls.push(request);
-    return { externalEventId: 'external-1', version: '1', cancelled: false };
+    return {
+      externalEventId: 'external-1',
+      version: String(this.calls.length),
+      cancelled: false,
+    };
   }
   async cancelBooking(request: CalendarBookingCancellation): Promise<CalendarExternalEvent> {
-    void request;
-    throw new Error('Unexpected cancellation');
+    this.cancellations.push(request);
+    return { externalEventId: 'external-1', version: '3', cancelled: true };
   }
 }
 
@@ -159,6 +164,73 @@ test(
       assert.equal(projection?.cancelled, false);
       assert.equal(projection?.bookingVersion, 1);
       assert(projection?.reconciledAt instanceof Date);
+
+      const rescheduleId = randomUUID();
+      await admin.$executeRaw`
+        UPDATE bookings
+        SET starts_at='2030-01-01T11:00:00Z',
+            ends_at='2030-01-01T11:30:00Z',
+            occupied_start_at='2030-01-01T11:00:00Z',
+            occupied_end_at='2030-01-01T11:30:00Z',
+            version=2
+        WHERE tenant_id=${tenantId}::uuid AND id=${bookingId}::uuid
+      `;
+      await admin.$executeRaw`
+        INSERT INTO booking_outbox (tenant_id, id, booking_id, event_type, booking_version)
+        VALUES (${tenantId}::uuid, ${rescheduleId}::uuid, ${bookingId}::uuid, 'rescheduled', 2)
+      `;
+      await admin.$executeRaw`
+        INSERT INTO booking_calendar_dispatch (tenant_id, id)
+        VALUES (${tenantId}::uuid, ${rescheduleId}::uuid)
+      `;
+      for (let attempt = 0; attempt < 50 && provider.calls.length < 2; attempt++) await delay(100);
+      assert.equal(provider.calls.length, 2);
+      assert.equal(provider.calls[1]?.startsAt, '2030-01-01T11:00:00.000Z');
+      const [rescheduled] = await admin.$queryRaw<
+        Array<{ externalVersion: string; cancelled: boolean; bookingVersion: number }>
+      >`
+        SELECT external_version AS "externalVersion", cancelled, booking_version AS "bookingVersion"
+        FROM booking_calendar_events
+        WHERE tenant_id=${tenantId}::uuid
+          AND connection_id=${connectionId}::uuid
+          AND booking_id=${bookingId}::uuid
+      `;
+      assert.equal(rescheduled?.externalVersion, '2');
+      assert.equal(rescheduled?.cancelled, false);
+      assert.equal(rescheduled?.bookingVersion, 2);
+
+      const cancelId = randomUUID();
+      await admin.$executeRaw`
+        UPDATE bookings SET status='cancelled', version=3
+        WHERE tenant_id=${tenantId}::uuid AND id=${bookingId}::uuid
+      `;
+      await admin.$executeRaw`
+        INSERT INTO booking_outbox (tenant_id, id, booking_id, event_type, booking_version)
+        VALUES (${tenantId}::uuid, ${cancelId}::uuid, ${bookingId}::uuid, 'cancelled', 3)
+      `;
+      await admin.$executeRaw`
+        INSERT INTO booking_calendar_dispatch (tenant_id, id)
+        VALUES (${tenantId}::uuid, ${cancelId}::uuid)
+      `;
+      for (let attempt = 0; attempt < 50 && provider.cancellations.length < 1; attempt++)
+        await delay(100);
+      assert.equal(provider.cancellations.length, 1);
+      const [cancelled] = await admin.$queryRaw<
+        Array<{ externalEventId: string; externalVersion: string; cancelled: boolean; bookingVersion: number }>
+      >`
+        SELECT external_event_id AS "externalEventId",
+               external_version AS "externalVersion",
+               cancelled,
+               booking_version AS "bookingVersion"
+        FROM booking_calendar_events
+        WHERE tenant_id=${tenantId}::uuid
+          AND connection_id=${connectionId}::uuid
+          AND booking_id=${bookingId}::uuid
+      `;
+      assert.equal(cancelled?.externalEventId, 'external-1');
+      assert.equal(cancelled?.externalVersion, '3');
+      assert.equal(cancelled?.cancelled, true);
+      assert.equal(cancelled?.bookingVersion, 3);
     } finally {
       if (stop) await stop();
       await admin.tenant.deleteMany({ where: { id: tenantId } }).catch(() => undefined);
