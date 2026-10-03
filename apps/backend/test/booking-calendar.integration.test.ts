@@ -19,14 +19,16 @@ import { Dependencies } from '../src/dependencies';
 class RecordingProvider implements CalendarProvider {
   readonly providerKey = 'mock';
   readonly calls: CalendarBookingMutation[] = [];
-  async busy(_request: CalendarBusyRequest): Promise<CalendarBusyResult> {
+  async busy(request: CalendarBusyRequest): Promise<CalendarBusyResult> {
+    void request;
     throw new Error('Unexpected busy call');
   }
   async upsertBooking(request: CalendarBookingMutation): Promise<CalendarExternalEvent> {
     this.calls.push(request);
     return { externalEventId: 'external-1', version: '1', cancelled: false };
   }
-  async cancelBooking(_request: CalendarBookingCancellation): Promise<CalendarExternalEvent> {
+  async cancelBooking(request: CalendarBookingCancellation): Promise<CalendarExternalEvent> {
+    void request;
     throw new Error('Unexpected cancellation');
   }
 }
