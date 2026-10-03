@@ -127,3 +127,23 @@ test('booking calendar processor contains sensitive provider errors and records 
   assert.equal(h.accepted.length, 0);
   assert.equal(h.failed.length, 1);
 });
+
+test('booking calendar processor rejects provider-key mismatch', async () => {
+  const h = harness();
+  h.provider.providerKey = 'other';
+  const processor = new BookingCalendarProcessor(h.store as never, () => h.provider);
+  assert.equal(await processor.process(route), false);
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.accepted.length, 0);
+  assert.equal(h.failed.length, 1);
+});
+
+test('booking calendar processor retries stale booking snapshots without external writes', async () => {
+  const h = harness();
+  h.store.bookingSnapshot = async () => null;
+  const processor = new BookingCalendarProcessor(h.store as never, () => h.provider);
+  assert.equal(await processor.process(route), false);
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.accepted.length, 0);
+  assert.equal(h.failed.length, 1);
+});
