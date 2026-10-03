@@ -21,13 +21,20 @@ const baseClaim: BookingCalendarDispatchClaim = {
   attempt: 0,
 };
 
-function harness(claim: BookingCalendarDispatchClaim = baseClaim) {
+function harness(
+  claim: BookingCalendarDispatchClaim = baseClaim,
+  providerKey = claim.provider,
+) {
   const accepted: BookingCalendarDispatchClaim[] = [];
   const failed: BookingCalendarDispatchClaim[] = [];
   const calls: Array<{ kind: string; request: unknown }> = [];
   const store = {
     claim: async () => claim,
-    bookingSnapshot: async () => ({
+    bookingSnapshot: async (): Promise<{
+      startsAt: string;
+      endsAt: string;
+      timezone: string;
+    } | null> => ({
       startsAt: '2030-01-01T10:00:00.000Z',
       endsAt: '2030-01-01T10:30:00.000Z',
       timezone: 'Europe/Lisbon',
@@ -40,7 +47,7 @@ function harness(claim: BookingCalendarDispatchClaim = baseClaim) {
     },
   };
   const provider: CalendarProvider = {
-    providerKey: claim.provider,
+    providerKey,
     busy: async () => ({ observedAt: '', intervals: [], syncToken: null }),
     upsertBooking: async (request) => {
       calls.push({ kind: 'upsert', request });
@@ -129,8 +136,7 @@ test('booking calendar processor contains sensitive provider errors and records 
 });
 
 test('booking calendar processor rejects provider-key mismatch', async () => {
-  const h = harness();
-  h.provider.providerKey = 'other';
+  const h = harness(baseClaim, 'other');
   const processor = new BookingCalendarProcessor(h.store as never, () => h.provider);
   assert.equal(await processor.process(route), false);
   assert.equal(h.calls.length, 0);
