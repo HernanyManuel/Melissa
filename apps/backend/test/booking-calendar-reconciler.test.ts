@@ -29,7 +29,8 @@ class Store implements BookingCalendarReconciliationStore {
   ): Promise<void> {
     this.persisted.push(event);
   }
-  async release(_target: BookingCalendarReconciliationTarget): Promise<void> {
+  async release(target: BookingCalendarReconciliationTarget): Promise<void> {
+    void target;
     this.released += 1;
   }
 }
