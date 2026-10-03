@@ -52,7 +52,7 @@ export interface CalendarManagedBooking extends CalendarExternalEvent {
 export interface CalendarProvider {
   readonly providerKey: string;
   busy(request: CalendarBusyRequest): Promise<CalendarBusyResult>;
-  booking(request: CalendarBookingCancellation): Promise<CalendarManagedBooking | null>;
+  booking?(request: CalendarBookingCancellation): Promise<CalendarManagedBooking | null>;
   upsertBooking(request: CalendarBookingMutation): Promise<CalendarExternalEvent>;
   cancelBooking(request: CalendarBookingCancellation): Promise<CalendarExternalEvent>;
 }
