@@ -201,7 +201,11 @@ test(
 
       const cancelId = randomUUID();
       await admin.$executeRaw`
-        UPDATE bookings SET status='cancelled', version=3
+        UPDATE bookings
+        SET status='cancelled',
+            cancelled_at=CURRENT_TIMESTAMP,
+            cancellation_reason='integration reconciliation',
+            version=3
         WHERE tenant_id=${tenantId}::uuid AND id=${bookingId}::uuid
       `;
       await admin.$executeRaw`
