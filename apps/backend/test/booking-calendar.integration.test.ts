@@ -12,7 +12,9 @@ import {
   CalendarExternalEvent,
   CalendarProvider,
 } from '../src/calendar/calendar-provider';
-import { BookingCalendarDispatchStore } from '../src/calendar/booking-calendar-dispatch-store';
+import {
+  BookingCalendarDispatchStore,
+} from '../src/calendar/booking-calendar-dispatch-store';
 import { PrismaBookingCalendarReconciliationStore } from '../src/calendar/booking-calendar-reconciliation-store';
 import { startBookingCalendarRuntime } from '../src/calendar/booking-calendar-runtime';
 import { parseConfig } from '../src/config';
@@ -260,7 +262,8 @@ test(
       assert.equal(claims.length, 1);
       const winner = claims[0];
       assert(winner);
-      const loserRetry = winner === firstClaim[0] ? await secondStore.targets(1) : await firstStore.targets(1);
+      const loserRetry =
+        winner === firstClaim[0] ? await secondStore.targets(1) : await firstStore.targets(1);
       assert.equal(
         loserRetry.some(
           (target) =>
