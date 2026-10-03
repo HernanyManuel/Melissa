@@ -18,6 +18,7 @@ import { CalendarProviderRegistry } from '../src/calendar/calendar-provider-regi
 
 class Store implements BookingCalendarReconciliationStore {
   persisted: CalendarExternalEvent[] = [];
+  released = 0;
   constructor(readonly target: BookingCalendarReconciliationTarget) {}
   async targets(): Promise<BookingCalendarReconciliationTarget[]> {
     return [this.target];
@@ -27,6 +28,9 @@ class Store implements BookingCalendarReconciliationStore {
     event: CalendarExternalEvent,
   ): Promise<void> {
     this.persisted.push(event);
+  }
+  async release(_target: BookingCalendarReconciliationTarget): Promise<void> {
+    this.released += 1;
   }
 }
 
@@ -72,6 +76,7 @@ function target(cancelled = false): BookingCalendarReconciliationTarget {
     startsAt: '2030-01-01T10:00:00.000Z',
     endsAt: '2030-01-01T10:30:00.000Z',
     timezone: 'Europe/Lisbon',
+    leaseId: '11111111-1111-4111-8111-111111111111',
   };
 }
 
@@ -136,4 +141,19 @@ test('booking reconciliation cancels an externally resurrected cancelled booking
   assert.equal(repaired, 1);
   assert.equal(provider.cancellations.length, 1);
   assert.equal(store.persisted[0]?.cancelled, true);
+});
+
+test('booking reconciliation releases the lease when state is already convergent', async () => {
+  const { store, provider, repaired } = await run({
+    externalEventId: 'external-1',
+    version: 'etag-1',
+    cancelled: false,
+    startsAt: '2030-01-01T10:00:00.000Z',
+    endsAt: '2030-01-01T10:30:00.000Z',
+    timezone: 'Europe/Lisbon',
+  });
+  assert.equal(repaired, 0);
+  assert.equal(provider.upserts.length, 0);
+  assert.equal(store.persisted.length, 0);
+  assert.equal(store.released, 1);
 });
