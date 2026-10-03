@@ -12,6 +12,7 @@ import {
   CalendarExternalEvent,
   CalendarProvider,
 } from '../src/calendar/calendar-provider';
+import { BookingCalendarDispatchStore } from '../src/calendar/booking-calendar-dispatch-store';
 import { PrismaBookingCalendarReconciliationStore } from '../src/calendar/booking-calendar-reconciliation-store';
 import { startBookingCalendarRuntime } from '../src/calendar/booking-calendar-runtime';
 import { parseConfig } from '../src/config';
@@ -267,7 +268,79 @@ test(
         ),
         false,
       );
-      await (winner === firstClaim[0] ? firstStore : secondStore).release(winner);
+      const staleStore = winner === firstClaim[0] ? firstStore : secondStore;
+      const newerDispatchId = randomUUID();
+      await admin.$executeRaw`
+        UPDATE bookings
+        SET version=4
+        WHERE tenant_id=${tenantId}::uuid AND id=${bookingId}::uuid
+      `;
+      await admin.$executeRaw`
+        INSERT INTO booking_outbox (tenant_id, id, booking_id, event_type, booking_version)
+        VALUES (${tenantId}::uuid, ${newerDispatchId}::uuid, ${bookingId}::uuid, 'cancelled', 4)
+      `;
+      await admin.$executeRaw`
+        INSERT INTO booking_calendar_dispatch (tenant_id, id)
+        VALUES (${tenantId}::uuid, ${newerDispatchId}::uuid)
+      `;
+
+      const dispatchStore = new BookingCalendarDispatchStore(deps);
+      const newerClaim = await dispatchStore.claim(newerDispatchId, 0);
+      assert(newerClaim);
+      await dispatchStore.accept(newerClaim, {
+        externalEventId: 'external-1',
+        version: '4',
+        cancelled: true,
+      });
+
+      const [afterDispatch] = await admin.$queryRaw<
+        Array<{
+          externalVersion: string;
+          bookingVersion: number;
+          reconcileLeaseId: string | null;
+        }>
+      >`
+        SELECT external_version AS "externalVersion",
+               booking_version AS "bookingVersion",
+               reconcile_lease_id::text AS "reconcileLeaseId"
+        FROM booking_calendar_events
+        WHERE tenant_id=${tenantId}::uuid
+          AND connection_id=${connectionId}::uuid
+          AND booking_id=${bookingId}::uuid
+      `;
+      assert.equal(afterDispatch?.externalVersion, '4');
+      assert.equal(afterDispatch?.bookingVersion, 4);
+      assert.equal(afterDispatch?.reconcileLeaseId, null);
+
+      await staleStore.persist(winner, {
+        externalEventId: 'stale-external',
+        version: 'stale',
+        cancelled: false,
+      });
+      const [afterStalePersist] = await admin.$queryRaw<
+        Array<{
+          externalEventId: string;
+          externalVersion: string;
+          cancelled: boolean;
+          bookingVersion: number;
+          reconcileLeaseId: string | null;
+        }>
+      >`
+        SELECT external_event_id AS "externalEventId",
+               external_version AS "externalVersion",
+               cancelled,
+               booking_version AS "bookingVersion",
+               reconcile_lease_id::text AS "reconcileLeaseId"
+        FROM booking_calendar_events
+        WHERE tenant_id=${tenantId}::uuid
+          AND connection_id=${connectionId}::uuid
+          AND booking_id=${bookingId}::uuid
+      `;
+      assert.equal(afterStalePersist?.externalEventId, 'external-1');
+      assert.equal(afterStalePersist?.externalVersion, '4');
+      assert.equal(afterStalePersist?.cancelled, true);
+      assert.equal(afterStalePersist?.bookingVersion, 4);
+      assert.equal(afterStalePersist?.reconcileLeaseId, null);
     } finally {
       if (stop) await stop();
       await admin.tenant.deleteMany({ where: { id: tenantId } }).catch(() => undefined);
