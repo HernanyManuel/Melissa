@@ -52,10 +52,7 @@ export class BookingCalendarDispatchStore {
     `;
   }
 
-  async claim(
-    id: string,
-    attempt: number,
-  ): Promise<BookingCalendarDispatchClaim | null> {
+  async claim(id: string, attempt: number): Promise<BookingCalendarDispatchClaim | null> {
     const [route] = await this.deps.db.$queryRaw<Array<{ tenantId: string }>>`
       SELECT tenant_id::text AS "tenantId"
       FROM booking_calendar_dispatch
@@ -108,9 +105,7 @@ export class BookingCalendarDispatchStore {
     });
   }
 
-  async bookingSnapshot(
-    claim: BookingCalendarDispatchClaim,
-  ): Promise<BookingSnapshot | null> {
+  async bookingSnapshot(claim: BookingCalendarDispatchClaim): Promise<BookingSnapshot | null> {
     return this.scoped(claim.tenantId, async (tx) => {
       const [row] = await tx.$queryRaw<BookingSnapshotRow[]>`
         SELECT starts_at AS "startsAt", ends_at AS "endsAt", timezone
@@ -151,9 +146,7 @@ export class BookingCalendarDispatchStore {
       const attempts = claim.attempt + 1;
       const terminal = attempts >= 5;
       const state = terminal ? 'failed' : 'pending';
-      const nextAttemptAt = new Date(
-        Date.now() + Math.min(60_000, 1000 * 2 ** claim.attempt),
-      );
+      const nextAttemptAt = new Date(Date.now() + Math.min(60_000, 1000 * 2 ** claim.attempt));
       const updated = await tx.$executeRaw`
         UPDATE booking_calendar_dispatch
         SET attempts=${attempts}, state=${state}, next_attempt_at=${nextAttemptAt}
