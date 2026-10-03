@@ -17,8 +17,13 @@ interface DispatchJob {
   attempt: number;
 }
 
-function isDispatchJob(name: string, data: unknown): data is DispatchJob {
-  if (name !== 'booking-calendar-dispatch' || !data || typeof data !== 'object' || Array.isArray(data))
+export function isDispatchJob(name: string, data: unknown): data is DispatchJob {
+  if (
+    name !== 'booking-calendar-dispatch' ||
+    !data ||
+    typeof data !== 'object' ||
+    Array.isArray(data)
+  )
     return false;
   const value = data as Record<string, unknown>;
   return (
@@ -53,7 +58,12 @@ export async function startBookingCalendarRuntime(
       if (!isDispatchJob(job.name, job.data)) throw new Error('Invalid booking calendar job');
       await processor.process(job.data);
     },
-    { connection: queueConnection(redisUrl), concurrency: 2, lockDuration: 60000, maxStalledCount: 1 },
+    {
+      connection: queueConnection(redisUrl),
+      concurrency: 2,
+      lockDuration: 60000,
+      maxStalledCount: 1,
+    },
   );
   worker.on('error', () => log.error({ event: 'booking_calendar_worker_error' }));
   worker.on('failed', () => log.warn({ event: 'booking_calendar_job_failed' }));
