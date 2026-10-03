@@ -31,7 +31,10 @@ class RecordingProvider implements CalendarProvider {
   }
 }
 
-test('booking calendar runtime delivers an opaque dispatch exactly once', { timeout: 15000 }, async () => {
+test(
+  'booking calendar runtime delivers an opaque dispatch exactly once',
+  { timeout: 15000 },
+  async () => {
   const migrationUrl = process.env.MIGRATION_DATABASE_URL;
   assert(migrationUrl, 'booking calendar integration requires MIGRATION_DATABASE_URL');
   const config = parseConfig(process.env);
@@ -51,16 +54,34 @@ test('booking calendar runtime delivers an opaque dispatch exactly once', { time
 
   try {
     await admin.tenant.create({
-      data: { id: tenantId, name: 'Booking calendar fixture', countryCode: 'PT', timezone: 'Europe/Lisbon' },
+      data: {
+      id: tenantId,
+      name: 'Booking calendar fixture',
+      countryCode: 'PT',
+      timezone: 'Europe/Lisbon',
+    },
     });
     await admin.staff.create({
       data: { id: staffId, tenantId, name: 'Booking staff', timezone: 'Europe/Lisbon' },
     });
     await admin.customer.create({
-      data: { id: customerId, tenantId, displayName: 'Booking customer', phoneE164: '+351910000001' },
+      data: {
+      id: customerId,
+      tenantId,
+      displayName: 'Booking customer',
+      phoneE164: '+351910000001',
+    },
     });
     await admin.businessService.create({
-      data: { id: serviceId, tenantId, name: 'Booking service', slug: `booking-${serviceId}`, price: 10, currency: 'EUR', durationMinutes: 30 },
+      data: {
+      id: serviceId,
+      tenantId,
+      name: 'Booking service',
+      slug: `booking-${serviceId}`,
+      price: 10,
+      currency: 'EUR',
+      durationMinutes: 30,
+    },
     });
     await admin.$executeRaw`
       INSERT INTO booking_resources (tenant_id, id, kind, staff_id, name)
@@ -89,7 +110,9 @@ test('booking calendar runtime delivers an opaque dispatch exactly once', { time
       VALUES (${tenantId}::uuid, ${outboxId}::uuid)
     `;
 
-    stop = await startBookingCalendarRuntime(deps, config.REDIS_URL, secrets as never, { provider });
+    stop = await startBookingCalendarRuntime(deps, config.REDIS_URL, secrets as never, {
+      provider,
+    });
     for (let attempt = 0; attempt < 50; attempt++) {
       const [row] = await admin.$queryRaw<Array<{ state: string; processedAt: Date | null }>>`
         SELECT state, processed_at AS "processedAt"
@@ -110,10 +133,11 @@ test('booking calendar runtime delivers an opaque dispatch exactly once', { time
     assert.equal(provider.calls.length, 1);
     assert.equal(provider.calls[0]?.bookingId, bookingId);
     assert.equal(provider.calls[0]?.connection.connectionId, connectionId);
-  } finally {
-    if (stop) await stop();
-    await admin.tenant.deleteMany({ where: { id: tenantId } }).catch(() => undefined);
-    await deps.onModuleDestroy();
-    await admin.$disconnect();
-  }
-});
+    } finally {
+      if (stop) await stop();
+      await admin.tenant.deleteMany({ where: { id: tenantId } }).catch(() => undefined);
+      await deps.onModuleDestroy();
+      await admin.$disconnect();
+    }
+  },
+);
