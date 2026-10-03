@@ -43,9 +43,16 @@ export interface CalendarExternalEvent {
   cancelled: boolean;
 }
 
+export interface CalendarManagedBooking extends CalendarExternalEvent {
+  startsAt: string | null;
+  endsAt: string | null;
+  timezone: string | null;
+}
+
 export interface CalendarProvider {
   readonly providerKey: string;
   busy(request: CalendarBusyRequest): Promise<CalendarBusyResult>;
+  booking(request: CalendarBookingCancellation): Promise<CalendarManagedBooking | null>;
   upsertBooking(request: CalendarBookingMutation): Promise<CalendarExternalEvent>;
   cancelBooking(request: CalendarBookingCancellation): Promise<CalendarExternalEvent>;
 }
