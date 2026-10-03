@@ -34,7 +34,9 @@ export class BookingCalendarReconciler {
   ) {}
 
   async reconcile(limit = 100): Promise<number> {
-    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('Invalid limit');
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new Error('Invalid limit');
+    }
     const targets = await this.store.targets(limit);
     let repaired = 0;
     for (const target of targets) {
