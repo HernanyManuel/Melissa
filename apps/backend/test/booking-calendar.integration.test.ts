@@ -243,6 +243,9 @@ test(
       assert.equal(cancelled?.cancelled, true);
       assert.equal(cancelled?.bookingVersion, 3);
 
+      await stop?.();
+      stop = undefined;
+
       await admin.$executeRaw`
         UPDATE calendar_connections
         SET credential_ref='secret://calendar/integration'
