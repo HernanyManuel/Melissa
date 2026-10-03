@@ -49,8 +49,6 @@ export class PrismaBookingCalendarReconciliationStore
         UPDATE booking_calendar_events event
         SET reconcile_lease_id=${leaseId}::uuid,
             reconcile_lease_until=${leaseUntil},
-            reconcile_lease_id=NULL,
-            reconcile_lease_until=NULL,
             updated_at=CURRENT_TIMESTAMP
         FROM candidates
         WHERE event.tenant_id=candidates.tenant_id
@@ -111,6 +109,8 @@ export class PrismaBookingCalendarReconciliationStore
             cancelled=${event.cancelled},
             booking_version=${target.bookingVersion},
             reconciled_at=CURRENT_TIMESTAMP,
+            reconcile_lease_id=NULL,
+            reconcile_lease_until=NULL,
             updated_at=CURRENT_TIMESTAMP
         WHERE tenant_id=${target.tenantId}::uuid
           AND connection_id=${target.connection.connectionId}::uuid
