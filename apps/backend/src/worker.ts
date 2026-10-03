@@ -88,11 +88,7 @@ async function bootstrap(): Promise<void> {
       secretResolver: credentials,
     });
     stopCalendarSyncDispatcher = await startCalendarSyncDispatcher(deps.db, config.REDIS_URL);
-    stopBookingCalendar = await startBookingCalendarRuntime(
-      deps,
-      config.REDIS_URL,
-      credentials,
-    );
+    stopBookingCalendar = await startBookingCalendarRuntime(deps, config.REDIS_URL, credentials);
   }
   let stopAITurns: () => Promise<void> = async () => undefined;
   if (config.AI_TURN_WORKER_ENABLED === 'true')
