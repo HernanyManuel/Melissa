@@ -216,7 +216,12 @@ test(
         await delay(100);
       assert.equal(provider.cancellations.length, 1);
       const [cancelled] = await admin.$queryRaw<
-        Array<{ externalEventId: string; externalVersion: string; cancelled: boolean; bookingVersion: number }>
+        Array<{
+          externalEventId: string;
+          externalVersion: string;
+          cancelled: boolean;
+          bookingVersion: number;
+        }>
       >`
         SELECT external_event_id AS "externalEventId",
                external_version AS "externalVersion",
