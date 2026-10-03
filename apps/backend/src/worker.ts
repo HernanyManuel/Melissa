@@ -20,6 +20,7 @@ import { createMalwareScanner } from './storage/malware-scanner-factory';
 import { createSecretResolver } from './secrets/secret-resolver-factory';
 import { startAIAutomaticOutboundRuntime } from './ai/ai-outbound-runtime';
 import { startAITurnRuntime } from './ai/ai-turn-runtime';
+import { startBookingCalendarRuntime } from './calendar/booking-calendar-runtime';
 import { startCalendarSyncRuntime } from './calendar/calendar-sync-runtime';
 import { startCalendarSyncDispatcher } from './calendar/calendar-sync-dispatcher';
 import { parseGoogleCalendarOAuthConfig } from './calendar/google-calendar-oauth-config';
