@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { Dependencies } from '../dependencies';
+import { CalendarExternalEvent } from './calendar-provider';
 
 export interface BookingCalendarDispatchRoute {
   id: string;
@@ -122,7 +123,10 @@ export class BookingCalendarDispatchStore {
     });
   }
 
-  async accept(claim: BookingCalendarDispatchClaim): Promise<void> {
+  async accept(
+    claim: BookingCalendarDispatchClaim,
+    event: CalendarExternalEvent,
+  ): Promise<void> {
     await this.scoped(claim.tenantId, async (tx) => {
       const updated = await tx.$executeRaw`
         UPDATE booking_calendar_dispatch
@@ -131,6 +135,23 @@ export class BookingCalendarDispatchStore {
           AND state='pending' AND attempts=${claim.attempt}
       `;
       if (updated !== 1) return;
+      await tx.$executeRaw`
+        INSERT INTO booking_calendar_events (
+          tenant_id, connection_id, booking_id, external_event_id, external_version,
+          cancelled, booking_version, reconciled_at
+        ) VALUES (
+          ${claim.tenantId}::uuid, ${claim.connectionId}::uuid, ${claim.bookingId}::uuid,
+          ${event.externalEventId}, ${event.version}, ${event.cancelled},
+          ${claim.bookingVersion}, CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (tenant_id, connection_id, booking_id) DO UPDATE SET
+          external_event_id=EXCLUDED.external_event_id,
+          external_version=EXCLUDED.external_version,
+          cancelled=EXCLUDED.cancelled,
+          booking_version=EXCLUDED.booking_version,
+          reconciled_at=EXCLUDED.reconciled_at,
+          updated_at=CURRENT_TIMESTAMP
+      `;
       const outboxUpdated = await tx.$executeRaw`
         UPDATE booking_outbox
         SET state='processed', processed_at=CURRENT_TIMESTAMP
