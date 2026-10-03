@@ -5,6 +5,8 @@ import { log } from '../logging';
 import { queueConnection } from '../queue-connection';
 import { BookingCalendarDispatchStore } from './booking-calendar-dispatch-store';
 import { BookingCalendarProcessor } from './booking-calendar-processor';
+import { BookingCalendarReconciler } from './booking-calendar-reconciler';
+import { PrismaBookingCalendarReconciliationStore } from './booking-calendar-reconciliation-store';
 import { CalendarProvider } from './calendar-provider';
 import { CalendarProviderRegistry } from './calendar-provider-registry';
 import { GoogleCalendarProvider } from './google-calendar-provider';
@@ -12,6 +14,7 @@ import { SecretResolver } from '../secrets/secret-resolver';
 
 const QUEUE = 'booking-calendar-dispatch';
 const INTERVAL_MS = 1000;
+const RECONCILIATION_INTERVAL_MS = 60_000;
 
 interface DispatchJob {
   id: string;
@@ -57,6 +60,10 @@ export async function startBookingCalendarRuntime(
       return null;
     }
   });
+  const reconciler = new BookingCalendarReconciler(
+    new PrismaBookingCalendarReconciliationStore(deps),
+    providers,
+  );
   const queue = new Queue<DispatchJob>(QUEUE, { connection: queueConnection(redisUrl) });
   const worker = new Worker<DispatchJob>(
     QUEUE,
@@ -95,10 +102,28 @@ export async function startBookingCalendarRuntime(
   };
   running = dispatch();
 
+  let reconciliationTimer: ReturnType<typeof setTimeout> | undefined;
+  let reconciliationRunning: Promise<void> = Promise.resolve();
+  const reconcile = async (): Promise<void> => {
+    try {
+      await reconciler.reconcile(100);
+    } catch {
+      log.warn({ event: 'booking_calendar_reconciliation_retry' });
+    }
+    if (!stopping)
+      reconciliationTimer = setTimeout(
+        () => void (reconciliationRunning = reconcile()),
+        RECONCILIATION_INTERVAL_MS,
+      );
+  };
+  reconciliationRunning = reconcile();
+
   return async () => {
     stopping = true;
     if (timer) clearTimeout(timer);
+    if (reconciliationTimer) clearTimeout(reconciliationTimer);
     await running;
+    await reconciliationRunning;
     await queue.close();
     await worker.close();
   };
