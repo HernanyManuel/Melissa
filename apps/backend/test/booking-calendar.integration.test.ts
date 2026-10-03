@@ -282,7 +282,7 @@ test(
       `;
       await admin.$executeRaw`
         INSERT INTO booking_outbox (tenant_id, id, booking_id, event_type, booking_version)
-        VALUES (${tenantId}::uuid, ${newerDispatchId}::uuid, ${bookingId}::uuid, 'cancelled', 4)
+        VALUES (${tenantId}::uuid, ${newerDispatchId}::uuid, ${bookingId}::uuid, 'rescheduled', 4)
       `;
       await admin.$executeRaw`
         INSERT INTO booking_calendar_dispatch (tenant_id, id)
