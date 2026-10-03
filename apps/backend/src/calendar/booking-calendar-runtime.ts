@@ -5,6 +5,7 @@ import { log } from '../logging';
 import { queueConnection } from '../queue-connection';
 import { BookingCalendarDispatchStore } from './booking-calendar-dispatch-store';
 import { BookingCalendarProcessor } from './booking-calendar-processor';
+import { CalendarProvider } from './calendar-provider';
 import { CalendarProviderRegistry } from './calendar-provider-registry';
 import { GoogleCalendarProvider } from './google-calendar-provider';
 import { SecretResolver } from '../secrets/secret-resolver';
@@ -36,14 +37,19 @@ export function isDispatchJob(name: string, data: unknown): data is DispatchJob 
   );
 }
 
+export interface BookingCalendarRuntimeOptions {
+  provider?: CalendarProvider;
+}
+
 export async function startBookingCalendarRuntime(
   deps: Dependencies,
   redisUrl: string,
   secrets: SecretResolver,
+  options: BookingCalendarRuntimeOptions = {},
 ): Promise<() => Promise<void>> {
   const store = new BookingCalendarDispatchStore(deps);
   const providers = new CalendarProviderRegistry();
-  providers.register(new GoogleCalendarProvider(secrets));
+  providers.register(options.provider ?? new GoogleCalendarProvider(secrets));
   const processor = new BookingCalendarProcessor(store, (key) => {
     try {
       return providers.get(key);
