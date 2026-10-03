@@ -12,6 +12,7 @@ import {
   CalendarExternalEvent,
   CalendarProvider,
 } from '../src/calendar/calendar-provider';
+import { PrismaBookingCalendarReconciliationStore } from '../src/calendar/booking-calendar-reconciliation-store';
 import { startBookingCalendarRuntime } from '../src/calendar/booking-calendar-runtime';
 import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
@@ -240,6 +241,33 @@ test(
       assert.equal(cancelled?.externalVersion, '3');
       assert.equal(cancelled?.cancelled, true);
       assert.equal(cancelled?.bookingVersion, 3);
+
+      await admin.$executeRaw`
+        UPDATE calendar_connections
+        SET credential_ref='secret://calendar/integration'
+        WHERE tenant_id=${tenantId}::uuid AND id=${connectionId}::uuid
+      `;
+      const firstStore = new PrismaBookingCalendarReconciliationStore(deps);
+      const secondStore = new PrismaBookingCalendarReconciliationStore(deps);
+      const [firstClaim, secondClaim] = await Promise.all([
+        firstStore.targets(1),
+        secondStore.targets(1),
+      ]);
+      const claims = [...firstClaim, ...secondClaim].filter(
+        (target) => target.bookingId === bookingId && target.connection.connectionId === connectionId,
+      );
+      assert.equal(claims.length, 1);
+      const winner = claims[0];
+      assert(winner);
+      const loserRetry = winner === firstClaim[0] ? await secondStore.targets(1) : await firstStore.targets(1);
+      assert.equal(
+        loserRetry.some(
+          (target) =>
+            target.bookingId === bookingId && target.connection.connectionId === connectionId,
+        ),
+        false,
+      );
+      await (winner === firstClaim[0] ? firstStore : secondStore).release(winner);
     } finally {
       if (stop) await stop();
       await admin.tenant.deleteMany({ where: { id: tenantId } }).catch(() => undefined);
