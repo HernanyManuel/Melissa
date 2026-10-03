@@ -33,7 +33,7 @@ export class PrismaBookingCalendarReconciliationStore
     const tenants = await this.deps.db.$queryRaw<Array<{ tenantId: string }>>`
       SELECT DISTINCT tenant_id::text AS "tenantId"
       FROM booking_calendar_dispatch
-      ORDER BY tenant_id
+      ORDER BY tenant_id::text
       LIMIT 500
     `;
     const targets: BookingCalendarReconciliationTarget[] = [];
