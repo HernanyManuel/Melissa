@@ -24,12 +24,14 @@ export function isAITurnJob(name: string, data: unknown): data is { id: string; 
   );
 }
 
-export async function reconcileAbandonedAITurns(
-  deps: Pick<Dependencies, 'db'>,
-): Promise<void> {
-  const abandoned = await deps.db.$queryRaw<
-    Array<{ tenantId: string; id: string; dispatchState: string }>
-  >`
+type AbandonedAITurn = {
+  tenantId: string;
+  id: string;
+  dispatchState: string;
+};
+
+export async function reconcileAbandonedAITurns(deps: Pick<Dependencies, 'db'>): Promise<void> {
+  const abandoned = await deps.db.$queryRaw<AbandonedAITurn[]>`
     SELECT tenant_id AS "tenantId", id, dispatch_state AS "dispatchState"
     FROM discover_abandoned_ai_turns(100)`;
   for (const turn of abandoned) {
