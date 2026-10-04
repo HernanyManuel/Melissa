@@ -188,7 +188,8 @@ export class AITurnLedger {
       result.stateVersion !== input.stateVersion
     )
       throw new InvalidAITurn();
-    return result.status === 'running' ? 'running' : 'finished';
+    if (result.status !== 'running') return 'finished';
+    return input.leaseId !== undefined && result.leaseId === input.leaseId ? 'started' : 'running';
   }
 
   async finish(input: AITurnFinish): Promise<'finished' | 'already_finished' | 'stale'> {
