@@ -33,7 +33,6 @@ export async function testWhatsAppStatuses(
       t.customer_id AS "customerId"
     FROM ai_turns t
     WHERE t.tenant_id=${scope.tenantId}::uuid
-    ORDER BY t.created_at DESC
     LIMIT 1`;
   assert(fixture);
   await admin.$executeRaw`
