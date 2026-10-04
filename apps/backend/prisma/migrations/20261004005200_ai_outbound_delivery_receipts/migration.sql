@@ -4,6 +4,7 @@ SET LOCAL statement_timeout = '60s';
 
 CREATE TABLE ai_outbound_delivery_receipts (
   tenant_id UUID NOT NULL,
+  dispatch_id UUID NOT NULL,
   provider_message_id VARCHAR(512) NOT NULL,
   status VARCHAR(24) NOT NULL,
   status_rank SMALLINT NOT NULL,
@@ -12,8 +13,8 @@ CREATE TABLE ai_outbound_delivery_receipts (
   CONSTRAINT ai_outbound_delivery_receipts_pkey
     PRIMARY KEY (tenant_id, provider_message_id),
   CONSTRAINT ai_outbound_delivery_receipts_dispatch_fkey
-    FOREIGN KEY (tenant_id, provider_message_id)
-    REFERENCES ai_outbound_dispatch(tenant_id, provider_message_id)
+    FOREIGN KEY (dispatch_id)
+    REFERENCES ai_outbound_dispatch(id)
     ON DELETE CASCADE,
   CONSTRAINT ai_outbound_delivery_receipts_status_check
     CHECK (status IN ('sent', 'delivered', 'read', 'failed')),
@@ -34,7 +35,7 @@ CREATE POLICY ai_outbound_delivery_receipts_tenant_scope
   WITH CHECK (tenant_id::text=current_setting('app.tenant_id', true));
 
 GRANT SELECT ON ai_outbound_delivery_receipts TO melissa_runtime;
-GRANT INSERT (tenant_id, provider_message_id, status, status_rank, provider_timestamp)
+GRANT INSERT (tenant_id, dispatch_id, provider_message_id, status, status_rank, provider_timestamp)
   ON ai_outbound_delivery_receipts TO melissa_runtime;
 GRANT UPDATE (status, status_rank, provider_timestamp, updated_at)
   ON ai_outbound_delivery_receipts TO melissa_runtime;
