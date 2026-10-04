@@ -3,7 +3,6 @@ import { createHmac, randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
 import { PrismaAITurnLedgerRepository } from '../src/ai/ai-turn-ledger';
-import { PrismaAIAutomaticOutboundStore } from '../src/ai/ai-outbound-dispatcher';
 
 type AIDeliveryReceiptRow = {
   status: string;
@@ -78,13 +77,14 @@ export async function testWhatsAppStatuses(
   const outbound = await admin.aiOutboundIntent.findFirstOrThrow({
     where: { tenantId: scope.tenantId, turnId },
   });
-  const store = new PrismaAIAutomaticOutboundStore(deps);
-  const claim = await store.claim(outbound.id, 0);
-  assert(claim);
-  await store.accept(claim, {
-    providerMessageId: externalId,
-    acceptedAt: new Date(),
-  });
+  await admin.$executeRaw`
+    UPDATE ai_outbound_dispatch
+    SET state='accepted',
+        provider_message_id=${externalId},
+        accepted_at=CURRENT_TIMESTAMP
+    WHERE tenant_id=${scope.tenantId}::uuid
+      AND id=${outbound.id}::uuid
+      AND state='pending'`;
   const payload = (status: string, timestamp = String(now), recipient = '351900000099') =>
     Buffer.from(
       JSON.stringify({
