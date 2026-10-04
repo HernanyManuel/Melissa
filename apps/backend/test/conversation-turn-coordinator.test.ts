@@ -110,12 +110,17 @@ test('turn coordinator records completion usage before returning content', async
     rounds: 1,
     toolCalls: 0,
   });
-  assert.deepEqual(finishes, [
+  assert.equal(finishes.length, 1);
+  assert(finishes[0]?.leaseId);
+  assert.match(finishes[0].leaseId, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(
+    { ...finishes[0], leaseId: undefined },
     {
       tenantId: ids.tenantId,
       turnId: ids.turnId,
       providerKey: 'mock',
       modelKey: 'configured-model',
+      leaseId: undefined,
       outcome: 'completed',
       rounds: 1,
       toolCalls: 0,
@@ -124,7 +129,7 @@ test('turn coordinator records completion usage before returning content', async
       outputTokens: 6,
       deliveryText: 'Olá, como posso ajudar?',
     },
-  ]);
+  );
 });
 
 test('turn coordinator persists explicit handoff without delivery text', async () => {
