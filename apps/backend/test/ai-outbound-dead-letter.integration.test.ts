@@ -135,7 +135,7 @@ test(
       const acceptedAt = new Date();
       await store.accept(acceptedClaim, { providerMessageId, acceptedAt });
       const [acceptedDispatch] = await admin.$queryRaw<
-        { state: string; providerMessageId: string; acceptedAt: Date }[]
+        Array<{ state: string; providerMessageId: string; acceptedAt: Date }>
       >`
         SELECT state, provider_message_id AS "providerMessageId",
           accepted_at AS "acceptedAt"
@@ -193,7 +193,7 @@ test(
         'unknown',
       );
       const [deliveryReceipt] = await admin.$queryRaw<
-        { status: string; statusRank: number; providerTimestamp: Date }[]
+        Array<{ status: string; statusRank: number; providerTimestamp: Date }>
       >`
         SELECT status, status_rank AS "statusRank",
           provider_timestamp AS "providerTimestamp"
