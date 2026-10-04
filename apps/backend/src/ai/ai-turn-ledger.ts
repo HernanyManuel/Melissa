@@ -13,6 +13,7 @@ export interface AITurnStart {
   customerId: string;
   modeEpoch: bigint;
   stateVersion: bigint;
+  leaseId?: string;
 }
 
 export interface AITurnFinish {
@@ -27,6 +28,7 @@ export interface AITurnFinish {
   inputTokens: number;
   outputTokens: number;
   deliveryText?: string;
+  leaseId?: string;
 }
 
 export interface AITurnRecord {
@@ -35,6 +37,7 @@ export interface AITurnRecord {
   modeEpoch: bigint;
   stateVersion: bigint;
   status: 'running' | AITurnOutcome;
+  leaseId?: string | null;
 }
 
 export interface AITurnLedgerRepository {
@@ -67,10 +70,13 @@ export class PrismaAITurnLedgerRepository implements AITurnLedgerRepository {
     return this.scoped(input.tenantId, async (tx) => {
       const inserted = await tx.$queryRaw<{ id: string }[]>`
         INSERT INTO ai_turns (
-          tenant_id, id, conversation_id, customer_id, mode_epoch, state_version
+          tenant_id, id, conversation_id, customer_id, mode_epoch, state_version,
+          execution_lease_id, execution_lease_expires_at
         ) VALUES (
           ${input.tenantId}::uuid, ${input.turnId}::uuid, ${input.conversationId}::uuid,
-          ${input.customerId}::uuid, ${input.modeEpoch}, ${input.stateVersion}
+          ${input.customerId}::uuid, ${input.modeEpoch}, ${input.stateVersion},
+          ${input.leaseId ?? null}::uuid,
+          CASE WHEN ${input.leaseId ?? null}::uuid IS NULL THEN NULL ELSE now() + interval '5 minutes' END
         ) ON CONFLICT (tenant_id, id) DO NOTHING RETURNING id`;
       if (inserted.length === 1) return 'started';
       const [existing] = await tx.$queryRaw<
@@ -80,11 +86,24 @@ export class PrismaAITurnLedgerRepository implements AITurnLedgerRepository {
           modeEpoch: bigint;
           stateVersion: bigint;
           status: AITurnRecord['status'];
+          leaseId: string | null;
         }[]
       >`SELECT conversation_id AS "conversationId", customer_id AS "customerId",
-          mode_epoch AS "modeEpoch", state_version AS "stateVersion", status
+          mode_epoch AS "modeEpoch", state_version AS "stateVersion", status,
+          execution_lease_id::text AS "leaseId"
         FROM ai_turns WHERE tenant_id=${input.tenantId}::uuid AND id=${input.turnId}::uuid`;
       if (!existing) throw new InvalidAITurn();
+      if (existing.status === 'running' && input.leaseId) {
+        const [reclaimed] = await tx.$queryRaw<Array<{ leaseId: string }>>`
+          UPDATE ai_turns
+          SET execution_lease_id=${input.leaseId}::uuid,
+              execution_lease_expires_at=now() + interval '5 minutes'
+          WHERE tenant_id=${input.tenantId}::uuid AND id=${input.turnId}::uuid
+            AND status='running'
+            AND (execution_lease_id=${input.leaseId}::uuid OR execution_lease_expires_at <= now())
+          RETURNING execution_lease_id::text AS "leaseId"`;
+        if (reclaimed) return { ...existing, leaseId: reclaimed.leaseId };
+      }
       return existing;
     });
   }
@@ -110,6 +129,15 @@ export class PrismaAITurnLedgerRepository implements AITurnLedgerRepository {
         WHERE t.tenant_id=${input.tenantId}::uuid AND t.id=${input.turnId}::uuid
         FOR UPDATE OF t, c`;
       if (!turn || turn.status !== 'running') return 'already_finished';
+      if (input.leaseId) {
+        const [lease] = await tx.$queryRaw<Array<{ owned: boolean }>>`
+          SELECT execution_lease_id=${input.leaseId}::uuid
+            AND execution_lease_expires_at > now() AS owned
+          FROM ai_turns
+          WHERE tenant_id=${input.tenantId}::uuid AND id=${input.turnId}::uuid
+          ${Prisma.raw(input.leaseId ? `AND execution_lease_id='${input.leaseId}'::uuid` : '')}`;
+        if (!lease?.owned) return 'stale';
+      }
       const deliveryStale =
         input.deliveryText !== undefined &&
         (turn.currentMode !== 'AI_ACTIVE' || turn.currentModeEpoch !== turn.modeEpoch);
@@ -175,7 +203,8 @@ export class AITurnLedger {
         isUUID(id),
       ) ||
       input.modeEpoch < 0n ||
-      input.stateVersion < 0n
+      input.stateVersion < 0n ||
+      (input.leaseId !== undefined && !isUUID(input.leaseId))
     )
       throw new InvalidAITurn();
   }
@@ -185,6 +214,7 @@ export class AITurnLedger {
     if (
       !isUUID(input.tenantId) ||
       !isUUID(input.turnId) ||
+      (input.leaseId !== undefined && !isUUID(input.leaseId)) ||
       !Number.isInteger(input.rounds) ||
       input.rounds < 0 ||
       input.rounds > 4 ||
