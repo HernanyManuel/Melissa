@@ -405,12 +405,32 @@ model AiUsageEvent {
   inputTokens  Int      @map("input_tokens")
   outputTokens Int      @map("output_tokens")
   outcome      String   @db.VarChar(24)
+  pricingId    String?  @map("pricing_id") @db.Uuid
+  currency     String?  @db.VarChar(3)
+  inputPriceMicrosPerMillion  BigInt? @map("input_price_micros_per_million")
+  outputPriceMicrosPerMillion BigInt? @map("output_price_micros_per_million")
+  costMicros   BigInt?   @map("cost_micros")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@id([tenantId, id])
   @@unique([tenantId, turnId])
   @@index([tenantId, createdAt, id])
   @@map("ai_usage_events")
+}
+
+model AiModelPrice {
+  id                         String   @default(uuid()) @db.Uuid
+  providerKey                String   @map("provider_key") @db.VarChar(64)
+  modelKey                   String   @map("model_key") @db.VarChar(128)
+  currency                   String   @db.VarChar(3)
+  inputPriceMicrosPerMillion BigInt   @map("input_price_micros_per_million")
+  outputPriceMicrosPerMillion BigInt  @map("output_price_micros_per_million")
+  effectiveFrom              DateTime @map("effective_from") @db.Timestamptz(6)
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([providerKey, modelKey, effectiveFrom])
+  @@index([providerKey, modelKey, effectiveFrom])
+  @@map("ai_model_prices")
 }
 
 model AiOutboundIntent {
