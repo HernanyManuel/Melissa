@@ -393,7 +393,9 @@ test(
       assert.equal(runtimeVisible, 1);
       const hiddenFromOtherTenant = await deps.db.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.tenant_id', ${randomUUID()}, true)`;
-        return tx.aiOutboundDeadLetter.count({ where: { dispatchId: outbound.id } });
+        return tx.aiOutboundDeadLetter.count({
+          where: { dispatchId: outbound.id },
+        });
       });
       assert.equal(hiddenFromOtherTenant, 0);
 
