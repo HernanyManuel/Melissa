@@ -391,7 +391,9 @@ test(
       const activeDispatch = await admin.aiTurnDispatch.findFirstOrThrow({
         where: { tenantId, id: activeId },
       });
-      assert(activeDispatch.nextAttemptAt > new Date(Date.now() + 30 * 60 * 1000));
+      assert(
+        activeDispatch.nextAttemptAt > new Date(Date.now() + 30 * 60 * 1000),
+      );
 
       const terminalId = await createIntent(customerId);
       const terminalLeaseId = randomUUID();
