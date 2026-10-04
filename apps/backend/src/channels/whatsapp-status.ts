@@ -66,6 +66,29 @@ export async function persistWhatsAppStatus(
       occurredAt,
     },
   });
+  const statusRank = { sent: 10, delivered: 20, read: 30, failed: 40 }[event.status];
+  const dispatch = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM ai_outbound_dispatch
+    WHERE tenant_id=${tenantId}::uuid
+      AND provider_message_id=${event.messageId}
+      AND state='accepted'
+    LIMIT 1`;
+  if (dispatch[0]) {
+    await tx.$executeRaw`
+      INSERT INTO ai_outbound_delivery_receipts (
+        tenant_id, dispatch_id, provider_message_id, status, status_rank,
+        provider_timestamp
+      ) VALUES (
+        ${tenantId}::uuid, ${dispatch[0].id}::uuid, ${event.messageId},
+        ${event.status}, ${statusRank}, ${occurredAt}
+      )
+      ON CONFLICT (tenant_id, provider_message_id) DO UPDATE
+      SET status=EXCLUDED.status,
+          status_rank=EXCLUDED.status_rank,
+          provider_timestamp=EXCLUDED.provider_timestamp,
+          updated_at=CURRENT_TIMESTAMP
+      WHERE ai_outbound_delivery_receipts.status_rank < EXCLUDED.status_rank`;
+  }
   await tx.auditEvent.create({
     data: {
       tenantId,
