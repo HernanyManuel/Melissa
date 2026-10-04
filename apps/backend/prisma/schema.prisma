@@ -383,6 +383,8 @@ model AiTurn {
   toolCalls      Int           @default(0) @map("tool_calls")
   failureCode    String?       @map("failure_code") @db.VarChar(64)
   startedAt      DateTime      @default(now()) @map("started_at") @db.Timestamptz(6)
+  executionLeaseId String?      @map("execution_lease_id") @db.Uuid
+  executionLeaseExpiresAt DateTime? @map("execution_lease_expires_at") @db.Timestamptz(6)
   completedAt    DateTime?     @map("completed_at") @db.Timestamptz(6)
   usageEvent     AiUsageEvent?
   outboundIntent AiOutboundIntent?
