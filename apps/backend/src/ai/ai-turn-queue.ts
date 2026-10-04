@@ -24,27 +24,36 @@ export function isAITurnJob(name: string, data: unknown): data is { id: string; 
   );
 }
 
-export async function reconcileAbandonedAITurns(deps: Pick<Dependencies, 'db'>): Promise<void> {
-  await deps.db.$executeRaw`
-    UPDATE ai_turn_dispatch d
-    SET state='pending', next_attempt_at=CURRENT_TIMESTAMP
-    FROM ai_turns t
-    WHERE t.tenant_id=d.tenant_id AND t.id=d.id
-      AND t.status='running'
-      AND t.execution_lease_id IS NOT NULL
-      AND t.execution_lease_expires_at <= CURRENT_TIMESTAMP
-      AND d.state='pending' AND d.attempts < 5`;
-  await deps.db.$executeRaw`
-    UPDATE ai_turns t
-    SET status='failed', failure_code='execution_abandoned',
-        completed_at=CURRENT_TIMESTAMP,
-        execution_lease_id=NULL, execution_lease_expires_at=NULL
-    FROM ai_turn_dispatch d
-    WHERE t.tenant_id=d.tenant_id AND t.id=d.id
-      AND t.status='running'
-      AND t.execution_lease_id IS NOT NULL
-      AND t.execution_lease_expires_at <= CURRENT_TIMESTAMP
-      AND d.state IN ('processed', 'rejected', 'failed')`;
+export async function reconcileAbandonedAITurns(
+  deps: Pick<Dependencies, 'db'>,
+): Promise<void> {
+  const abandoned = await deps.db.$queryRaw<
+    Array<{ tenantId: string; id: string; dispatchState: string }>
+  >`
+    SELECT tenant_id AS "tenantId", id, dispatch_state AS "dispatchState"
+    FROM discover_abandoned_ai_turns(100)`;
+  for (const turn of abandoned) {
+    await deps.db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${turn.tenantId}, true)`;
+      if (turn.dispatchState === 'pending') {
+        await tx.$executeRaw`
+          UPDATE ai_turn_dispatch
+          SET next_attempt_at=CURRENT_TIMESTAMP
+          WHERE tenant_id=${turn.tenantId}::uuid AND id=${turn.id}::uuid
+            AND state='pending' AND attempts < 5`;
+        return;
+      }
+      await tx.$executeRaw`
+        UPDATE ai_turns
+        SET status='failed', failure_code='execution_abandoned',
+            completed_at=CURRENT_TIMESTAMP,
+            execution_lease_id=NULL, execution_lease_expires_at=NULL
+        WHERE tenant_id=${turn.tenantId}::uuid AND id=${turn.id}::uuid
+          AND status='running'
+          AND execution_lease_id IS NOT NULL
+          AND execution_lease_expires_at <= CURRENT_TIMESTAMP`;
+    });
+  }
 }
 
 export async function startAITurnQueue(
