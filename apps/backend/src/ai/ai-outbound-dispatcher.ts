@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { isUUID } from 'class-validator';
 import { MessagingDeliveryUnknown } from '../channels/messaging-provider';
 import { MessagingProviderRegistry } from '../channels/messaging-provider-registry';
@@ -263,8 +264,11 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
   ): Promise<void> {
     await tx.$executeRaw`
       INSERT INTO audit_events
-        (tenant_id, actor_id, actor_type, action, target_id)
-      VALUES (${claim.tenantId}::uuid, NULL, 'system', ${action}, ${claim.id}::uuid)`;
+        (tenant_id, id, actor_id, actor_type, action, target_id)
+      VALUES (
+        ${claim.tenantId}::uuid, ${randomUUID()}::uuid, NULL, 'system',
+        ${action}, ${claim.id}::uuid
+      )`;
   }
 }
 
