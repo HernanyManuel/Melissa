@@ -87,3 +87,38 @@ test('AI turn ledger rejects invalid usage and failure shapes before persistence
     await assert.rejects(ledger.finish(invalid), InvalidAITurn);
   await assert.rejects(ledger.begin({ ...start, tenantId: 'not-a-uuid' }), InvalidAITurn);
 });
+
+test('AI turn lease ownership distinguishes active, reclaimed, and stale workers', async () => {
+  const leaseId = '00000000-0000-4000-8000-000000000005';
+  const otherLeaseId = '00000000-0000-4000-8000-000000000006';
+  assert.equal(
+    await new AITurnLedger(
+      repository({
+        conversationId: ids.conversationId,
+        customerId: ids.customerId,
+        modeEpoch: 3n,
+        stateVersion: 7n,
+        status: 'running',
+        leaseId,
+      }),
+    ).begin({ ...start, leaseId }),
+    'started',
+  );
+  assert.equal(
+    await new AITurnLedger(
+      repository({
+        conversationId: ids.conversationId,
+        customerId: ids.customerId,
+        modeEpoch: 3n,
+        stateVersion: 7n,
+        status: 'running',
+        leaseId,
+      }),
+    ).begin({ ...start, leaseId: otherLeaseId }),
+    'running',
+  );
+  await assert.rejects(
+    new AITurnLedger(repository()).begin({ ...start, leaseId: 'not-a-uuid' }),
+    InvalidAITurn,
+  );
+});
