@@ -120,7 +120,9 @@ test(
 
     const visible = await deps.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
-      return tx.aiOutboundDeadLetter.count({ where: { dispatchId: outbound.id } });
+      return tx.aiOutboundDeadLetter.count({
+        where: { dispatchId: outbound.id },
+      });
     });
     assert.equal(visible, 1);
     const hidden = await deps.db.$transaction(async (tx) => {
@@ -131,5 +133,6 @@ test(
   } finally {
     await deps.onModuleDestroy();
     await admin.$disconnect();
+    }
   },
 );
