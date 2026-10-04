@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { isUUID } from 'class-validator';
 import { AIContextBuilder, AIContextUnavailable } from './ai-context-builder';
 import { AICompletionFailed } from './ai-provider';
@@ -53,6 +54,7 @@ export class ConversationTurnCoordinator {
 
   async run(request: ConversationTurnRequest): Promise<ConversationTurnResult> {
     this.validate(request);
+    const leaseId = randomUUID();
     const begun = await this.ledger.begin({
       tenantId: request.tenantId,
       turnId: request.turnId,
@@ -60,6 +62,7 @@ export class ConversationTurnCoordinator {
       customerId: request.customerId,
       modeEpoch: request.expectedModeEpoch,
       stateVersion: request.expectedStateVersion,
+      leaseId,
     });
     if (begun !== 'started')
       return {
@@ -80,7 +83,7 @@ export class ConversationTurnCoordinator {
     } catch (error) {
       if (error instanceof ConversationExecutionStale) {
         await this.ledger.finish({
-          ...this.finishBase(request),
+          ...this.finishBase(request, leaseId),
           outcome: 'stale',
           rounds: error.rounds,
           toolCalls: error.toolCalls,
@@ -90,7 +93,7 @@ export class ConversationTurnCoordinator {
         return { status: 'stale' };
       }
       await this.ledger.finish({
-        ...this.finishBase(request),
+        ...this.finishBase(request, leaseId),
         outcome: 'failed',
         rounds: 0,
         toolCalls: 0,
@@ -137,7 +140,7 @@ export class ConversationTurnCoordinator {
     deliveryText?: string,
   ) {
     return this.ledger.finish({
-      ...this.finishBase(request),
+      ...this.finishBase(request, leaseId),
       outcome: result.status,
       rounds: result.rounds,
       toolCalls: result.toolCalls,
@@ -147,18 +150,19 @@ export class ConversationTurnCoordinator {
     });
   }
 
-  private finishBase(request: ConversationTurnRequest) {
+  private finishBase(request: ConversationTurnRequest, leaseId: string) {
     return {
       tenantId: request.tenantId,
       turnId: request.turnId,
       providerKey: this.providerKey,
       modelKey: this.modelKey,
+      leaseId,
     };
   }
 
   private async invalidResult(request: ConversationTurnRequest): Promise<ConversationTurnResult> {
     await this.ledger.finish({
-      ...this.finishBase(request),
+      ...this.finishBase(request, leaseId),
       outcome: 'failed',
       rounds: 0,
       toolCalls: 0,
