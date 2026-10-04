@@ -466,6 +466,18 @@ model AiOutboundDispatch {
   @@map("ai_outbound_dispatch")
 }
 
+model AiOutboundDeadLetter {
+  tenantId   String   @map("tenant_id") @db.Uuid
+  dispatchId String   @map("dispatch_id") @db.Uuid
+  reason     String   @db.VarChar(32)
+  attempts   Int
+  failedAt   DateTime @default(now()) @map("failed_at") @db.Timestamptz(6)
+
+  @@id([tenantId, dispatchId])
+  @@index([failedAt, tenantId, dispatchId])
+  @@map("ai_outbound_dead_letters")
+}
+
 model Message {
   batchId         String?       @map("batch_id") @db.Uuid
   id              String        @default(uuid()) @db.Uuid
