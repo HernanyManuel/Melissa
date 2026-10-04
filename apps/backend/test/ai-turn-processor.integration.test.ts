@@ -369,10 +369,12 @@ test(
         });
         assert.equal(deadLetterCount, attempt === 4 ? 1 : 0);
       }
-      const [failedDispatch] = await admin.$queryRaw<Array<{
-        state: string;
-        attempts: number;
-      }>>`
+      const [failedDispatch] = await admin.$queryRaw<
+        Array<{
+          state: string;
+          attempts: number;
+        }>
+      >`
         SELECT state, attempts
         FROM ai_outbound_dispatch
         WHERE tenant_id=${tenantId}::uuid AND id=${outbound.id}::uuid`;
