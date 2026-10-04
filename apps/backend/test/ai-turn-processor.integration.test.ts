@@ -280,6 +280,74 @@ test(
         await admin.aiOutboundIntent.count({ where: { tenantId, turnId: leasedTurnId } }),
         1,
       );
+
+      const pricedTurnId = randomUUID();
+      const pricingId = randomUUID();
+      await admin.$executeRaw`
+        INSERT INTO ai_model_prices (
+          id, provider_key, model_key, currency,
+          input_price_micros_per_million, output_price_micros_per_million, effective_from
+        ) VALUES (
+          ${pricingId}::uuid, 'mock', 'priced-model', 'USD', 1500000, 6000000,
+          CURRENT_TIMESTAMP - interval '1 minute'
+        )`;
+      assert.equal(
+        await ledger.begin({
+          tenantId,
+          turnId: pricedTurnId,
+          conversationId,
+          customerId,
+          modeEpoch: 4n,
+          stateVersion: 2n,
+        }),
+        'started',
+      );
+      assert.equal(
+        await ledger.finish({
+          tenantId,
+          turnId: pricedTurnId,
+          outcome: 'completed',
+          rounds: 1,
+          toolCalls: 0,
+          failureCode: null,
+          providerKey: 'mock',
+          modelKey: 'priced-model',
+          inputTokens: 1000,
+          outputTokens: 500,
+        }),
+        'finished',
+      );
+      const [pricedUsage] = await admin.$queryRaw<
+        Array<{
+          pricingId: string | null;
+          currency: string | null;
+          inputPrice: bigint | null;
+          outputPrice: bigint | null;
+          costMicros: bigint | null;
+        }>
+      >`
+        SELECT pricing_id::text AS "pricingId", currency,
+               input_price_micros_per_million AS "inputPrice",
+               output_price_micros_per_million AS "outputPrice",
+               cost_micros AS "costMicros"
+        FROM ai_usage_events
+        WHERE tenant_id=${tenantId}::uuid AND turn_id=${pricedTurnId}::uuid`;
+      assert.equal(pricedUsage?.pricingId, pricingId);
+      assert.equal(pricedUsage?.currency, 'USD');
+      assert.equal(pricedUsage?.inputPrice, 1500000n);
+      assert.equal(pricedUsage?.outputPrice, 6000000n);
+      assert.equal(pricedUsage?.costMicros, 4500n);
+
+      await admin.$executeRaw`
+        UPDATE ai_model_prices
+        SET input_price_micros_per_million=9000000,
+            output_price_micros_per_million=9000000
+        WHERE id=${pricingId}::uuid`;
+      const [historicalUsage] = await admin.$queryRaw<Array<{ costMicros: bigint | null }>>`
+        SELECT cost_micros AS "costMicros"
+        FROM ai_usage_events
+        WHERE tenant_id=${tenantId}::uuid AND turn_id=${pricedTurnId}::uuid`;
+      assert.equal(historicalUsage?.costMicros, 4500n);
     } finally {
       await deps.onModuleDestroy();
       await admin.$disconnect();
