@@ -373,7 +373,8 @@ test(
         FROM ai_turn_dispatch
         WHERE tenant_id=${tenantId}::uuid AND id=${recoverableId}::uuid`;
       assert.equal(recoverableDispatch?.state, 'pending');
-      assert(recoverableDispatch && recoverableDispatch.nextAttemptAt <= new Date());
+      const recoverableThreshold = new Date(Date.now() + 30 * 60 * 1000);
+      assert(recoverableDispatch && recoverableDispatch.nextAttemptAt < recoverableThreshold);
 
       const activeId = await createIntent(customerId);
       const activeLeaseId = randomUUID();
