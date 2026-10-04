@@ -24,9 +24,7 @@ export function isAITurnJob(name: string, data: unknown): data is { id: string; 
   );
 }
 
-export async function reconcileAbandonedAITurns(
-  deps: Pick<Dependencies, 'db'>,
-): Promise<void> {
+export async function reconcileAbandonedAITurns(deps: Pick<Dependencies, 'db'>): Promise<void> {
   await deps.db.$executeRaw`
     UPDATE ai_turn_dispatch d
     SET state='pending', next_attempt_at=CURRENT_TIMESTAMP
