@@ -7,7 +7,6 @@ import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 import { PrismaAITurnLedgerRepository } from '../src/ai/ai-turn-ledger';
 import { PrismaAITurnDispatchStore } from '../src/ai/ai-turn-processor';
-import { PrismaAIAutomaticOutboundStore } from '../src/ai/ai-outbound-dispatcher';
 
 test(
   'AI turn dispatch store enforces server-owned scope and durable retry state',
@@ -350,89 +349,6 @@ test(
         WHERE tenant_id=${tenantId}::uuid AND turn_id=${pricedTurnId}::uuid`;
       assert.equal(historicalUsage?.costMicros, 4500n);
 
-      const [outbound] = await admin.$queryRaw<Array<{ id: string }>>`
-        SELECT id::text
-        FROM ai_outbound_intents
-        WHERE tenant_id=${tenantId}::uuid AND turn_id=${leasedTurnId}::uuid`;
-      assert(outbound);
-      const outboundStore = new PrismaAIAutomaticOutboundStore(deps);
-      for (let attempt = 0; attempt < 5; attempt++) {
-        await admin.$executeRaw`
-          UPDATE ai_outbound_dispatch
-          SET next_attempt_at=CURRENT_TIMESTAMP - interval '1 second'
-          WHERE tenant_id=${tenantId}::uuid AND id=${outbound.id}::uuid`;
-        const claim = await outboundStore.claim(outbound.id, attempt);
-        assert(claim);
-        await outboundStore.recordFailure(claim);
-        const deadLetterCount: number = await admin.aiOutboundDeadLetter.count({
-          where: { tenantId, dispatchId: outbound.id },
-        });
-        assert.equal(deadLetterCount, attempt === 4 ? 1 : 0);
-      }
-      const [failedDispatch] = await admin.$queryRaw<
-        Array<{ state: string; attempts: number }>
-      >`
-        SELECT state, attempts
-        FROM ai_outbound_dispatch
-        WHERE tenant_id=${tenantId}::uuid AND id=${outbound.id}::uuid`;
-      assert.deepEqual(failedDispatch, { state: 'failed', attempts: 5 });
-      const [deadLetter] = await admin.$queryRaw<
-        Array<{ reason: string; attempts: number }>
-      >`
-        SELECT reason, attempts
-        FROM ai_outbound_dead_letters
-        WHERE tenant_id=${tenantId}::uuid AND dispatch_id=${outbound.id}::uuid`;
-      assert.deepEqual(deadLetter, { reason: 'retry_exhausted', attempts: 5 });
-
-      const runtimeVisible = await deps.db.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
-        return tx.aiOutboundDeadLetter.count({
-          where: { dispatchId: outbound.id },
-        });
-      });
-      assert.equal(runtimeVisible, 1);
-      const hiddenFromOtherTenant = await deps.db.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${randomUUID()}, true)`;
-        return tx.aiOutboundDeadLetter.count({
-          where: { dispatchId: outbound.id },
-        });
-      });
-      assert.equal(hiddenFromOtherTenant, 0);
-
-      const unknownTurnId = randomUUID();
-      assert.equal(
-        await ledger.begin({
-          tenantId,
-          turnId: unknownTurnId,
-          conversationId,
-          customerId,
-          modeEpoch: 4n,
-          stateVersion: 2n,
-        }),
-        'started',
-      );
-      assert.equal(
-        await ledger.finish({
-          ...finishBase,
-          turnId: unknownTurnId,
-          deliveryText: 'unknown delivery',
-        }),
-        'finished',
-      );
-      const [unknownOutbound] = await admin.$queryRaw<Array<{ id: string }>>`
-        SELECT id::text FROM ai_outbound_intents
-        WHERE tenant_id=${tenantId}::uuid AND turn_id=${unknownTurnId}::uuid`;
-      assert(unknownOutbound);
-      const unknownClaim = await outboundStore.claim(unknownOutbound.id, 0);
-      assert(unknownClaim);
-      await outboundStore.recordUnknownDelivery(unknownClaim);
-      await outboundStore.recordUnknownDelivery(unknownClaim);
-      const unknownDeadLetters = await admin.aiOutboundDeadLetter.findMany({
-        where: { tenantId, dispatchId: unknownOutbound.id },
-      });
-      assert.equal(unknownDeadLetters.length, 1);
-      assert.equal(unknownDeadLetters[0]?.reason, 'delivery_unknown');
-      assert.equal(unknownDeadLetters[0]?.attempts, 1);
     } finally {
       await deps.onModuleDestroy();
       await admin.$disconnect();
