@@ -153,7 +153,8 @@ test(
         WHERE tenant_id=${tenantId}::uuid AND id=${acceptedOutbound.id}::uuid`;
       assert.equal(acceptedDispatch?.state, 'accepted');
       assert.equal(acceptedDispatch?.providerMessageId, providerMessageId);
-      assert.equal(acceptedDispatch?.acceptedAt.getTime(), acceptedAt.getTime());
+      const persistedAcceptedAt = acceptedDispatch?.acceptedAt.getTime();
+      assert.equal(persistedAcceptedAt, acceptedAt.getTime());
 
       const sentAt = new Date(acceptedAt.getTime() + 1000);
       assert.equal(
@@ -210,10 +211,8 @@ test(
           AND provider_message_id=${providerMessageId}`;
       assert.equal(deliveryReceipt?.status, 'delivered');
       assert.equal(deliveryReceipt?.statusRank, 20);
-      assert.equal(
-        deliveryReceipt?.providerTimestamp.getTime(),
-        deliveredAt.getTime(),
-      );
+      const persistedDeliveredAt = deliveryReceipt?.providerTimestamp.getTime();
+      assert.equal(persistedDeliveredAt, deliveredAt.getTime());
 
       for (let attempt = 0; attempt < 5; attempt++) {
         await admin.aiOutboundDispatch.updateMany({
