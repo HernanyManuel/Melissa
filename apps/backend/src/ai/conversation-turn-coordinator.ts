@@ -109,10 +109,11 @@ export class ConversationTurnCoordinator {
       return { status: 'failed' };
     }
     if (result.status === 'completed') {
-      if (!result.content) return this.invalidResult(request);
+      if (!result.content) return this.invalidResult(request, leaseId);
       const committed = await this.complete(
         request,
         result,
+        leaseId,
         request.executionMode === 'live' ? result.content : undefined,
       );
       if (committed === 'stale') return { status: 'stale' };
@@ -124,8 +125,8 @@ export class ConversationTurnCoordinator {
       };
     }
     if (!['round_limit', 'tool_limit', 'tool_handoff'].includes(result.reason))
-      return this.invalidResult(request);
-    await this.complete(request, result);
+      return this.invalidResult(request, leaseId);
+    await this.complete(request, result, leaseId);
     return {
       status: 'handoff_required',
       reason: result.reason as 'round_limit' | 'tool_limit' | 'tool_handoff',
@@ -137,6 +138,7 @@ export class ConversationTurnCoordinator {
   private complete(
     request: ConversationTurnRequest,
     result: ConversationEngineResult,
+    leaseId: string,
     deliveryText?: string,
   ) {
     return this.ledger.finish({
@@ -160,7 +162,10 @@ export class ConversationTurnCoordinator {
     };
   }
 
-  private async invalidResult(request: ConversationTurnRequest): Promise<ConversationTurnResult> {
+  private async invalidResult(
+    request: ConversationTurnRequest,
+    leaseId: string,
+  ): Promise<ConversationTurnResult> {
     await this.ledger.finish({
       ...this.finishBase(request, leaseId),
       outcome: 'failed',
