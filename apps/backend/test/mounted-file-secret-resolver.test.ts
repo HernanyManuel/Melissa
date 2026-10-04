@@ -47,7 +47,9 @@ test('mounted secret resolver rejects a filesystem root as its secret mount', as
 });
 
 
-test('mounted secret resolver observes atomic rotation without restart or stale fallback', async (t) => {
+test(
+  'mounted secret resolver observes atomic rotation without restart or stale fallback',
+  async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'melissa-secrets-rotation-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const current = join(root, 'current');
@@ -61,8 +63,9 @@ test('mounted secret resolver observes atomic rotation without restart or stale 
   assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v2');
 
   await rm(current);
-  await assert.rejects(() => resolver.resolve('secret://current'), SecretUnavailable);
-});
+    await assert.rejects(() => resolver.resolve('secret://current'), SecretUnavailable);
+  },
+);
 
 test('mounted secret resolver follows an in-root version symlink after atomic rotation', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'melissa-secrets-symlink-rotation-'));
