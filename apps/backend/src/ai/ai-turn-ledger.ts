@@ -146,13 +146,40 @@ export class PrismaAITurnLedgerRepository implements AITurnLedgerRepository {
         UPDATE ai_turns SET status=${outcome}, rounds=${input.rounds},
           tool_calls=${input.toolCalls}, failure_code=${failureCode}, completed_at=now()
         WHERE tenant_id=${input.tenantId}::uuid AND id=${input.turnId}::uuid`;
+      const [price] = await tx.$queryRaw<
+        Array<{
+          id: string;
+          currency: string;
+          inputPriceMicrosPerMillion: bigint;
+          outputPriceMicrosPerMillion: bigint;
+        }>
+      >`
+        SELECT id::text, currency,
+               input_price_micros_per_million AS "inputPriceMicrosPerMillion",
+               output_price_micros_per_million AS "outputPriceMicrosPerMillion"
+        FROM ai_model_prices
+        WHERE provider_key=${input.providerKey}
+          AND model_key=${input.modelKey}
+          AND effective_from <= now()
+        ORDER BY effective_from DESC
+        LIMIT 1`;
+      const costMicros = price
+        ? (BigInt(input.inputTokens) * price.inputPriceMicrosPerMillion +
+            BigInt(input.outputTokens) * price.outputPriceMicrosPerMillion +
+            999_999n) /
+          1_000_000n
+        : null;
       await tx.$executeRaw`
         INSERT INTO ai_usage_events (
-          tenant_id, id, turn_id, provider_key, model_key, input_tokens, output_tokens, outcome
+          tenant_id, id, turn_id, provider_key, model_key, input_tokens, output_tokens, outcome,
+          pricing_id, currency, input_price_micros_per_million,
+          output_price_micros_per_million, cost_micros
         ) VALUES (
           ${input.tenantId}::uuid, ${randomUUID()}::uuid, ${input.turnId}::uuid,
           ${input.providerKey}, ${input.modelKey}, ${input.inputTokens}, ${input.outputTokens},
-          ${outcome}
+          ${outcome}, ${price?.id ?? null}::uuid, ${price?.currency ?? null},
+          ${price?.inputPriceMicrosPerMillion ?? null},
+          ${price?.outputPriceMicrosPerMillion ?? null}, ${costMicros}
         )`;
       if (!deliveryStale && input.deliveryText !== undefined) {
         const intentId = randomUUID();
