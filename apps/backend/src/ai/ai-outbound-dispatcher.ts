@@ -170,6 +170,7 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
         UPDATE ai_outbound_dispatch
         SET attempts=${attempts}, state=${state}, next_attempt_at=${nextAttemptAt}
         WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid`;
+      if (terminal) await this.deadLetter(tx, claim, 'retry_exhausted', attempts);
       const action = terminal ? 'ai.outbound_failed' : 'ai.outbound_retry';
       await this.audit(tx, claim, action);
     });
@@ -182,7 +183,10 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
         SET attempts=${claim.attempt + 1}, state='failed'
         WHERE tenant_id=${claim.tenantId}::uuid AND id=${claim.id}::uuid
           AND state='pending' AND attempts=${claim.attempt}`;
-      if (updated === 1) await this.audit(tx, claim, 'ai.outbound_delivery_unknown');
+      if (updated === 1) {
+        await this.deadLetter(tx, claim, 'delivery_unknown', claim.attempt + 1);
+        await this.audit(tx, claim, 'ai.outbound_delivery_unknown');
+      }
     });
   }
 
@@ -237,6 +241,19 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
       WHERE tenant_id=${claim.tenantId}::uuid
         AND id=${claim.id}::uuid AND state='pending'`;
     if (updated === 1) await this.audit(tx, claim, `ai.outbound_${reason}`);
+  }
+
+  private async deadLetter(
+    tx: Prisma.TransactionClient,
+    claim: AIAutomaticOutboundClaim,
+    reason: 'retry_exhausted' | 'delivery_unknown',
+    attempts: number,
+  ): Promise<void> {
+    await tx.$executeRaw`
+      INSERT INTO ai_outbound_dead_letters
+        (tenant_id, dispatch_id, reason, attempts)
+      VALUES (${claim.tenantId}::uuid, ${claim.id}::uuid, ${reason}, ${attempts})
+      ON CONFLICT (tenant_id, dispatch_id) DO NOTHING`;
   }
 
   private async audit(
