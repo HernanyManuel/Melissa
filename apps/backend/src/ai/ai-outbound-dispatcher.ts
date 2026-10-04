@@ -53,7 +53,10 @@ export interface AIAutomaticOutboundStore {
   claim(id: string, attempt: number): Promise<ClaimResult>;
   isCurrent(claim: AIAutomaticOutboundClaim): Promise<boolean>;
   reject(claim: AIAutomaticOutboundClaim, reason: RejectReason): Promise<void>;
-  accept(claim: AIAutomaticOutboundClaim): Promise<void>;
+  accept(
+    claim: AIAutomaticOutboundClaim,
+    receipt: { providerMessageId: string; acceptedAt: Date },
+  ): Promise<void>;
   recordFailure(claim: AIAutomaticOutboundClaim): Promise<void>;
   recordUnknownDelivery(claim: AIAutomaticOutboundClaim): Promise<void>;
 }
@@ -145,10 +148,16 @@ export class PrismaAIAutomaticOutboundStore implements AIAutomaticOutboundStore 
     return this.scoped(claim.tenantId, (tx) => this.rejectInTransaction(tx, claim, reason));
   }
 
-  accept(claim: AIAutomaticOutboundClaim): Promise<void> {
+  accept(
+    claim: AIAutomaticOutboundClaim,
+    receipt: { providerMessageId: string; acceptedAt: Date },
+  ): Promise<void> {
     return this.scoped(claim.tenantId, async (tx) => {
       const updated = await tx.$executeRaw`
-        UPDATE ai_outbound_dispatch SET state='accepted'
+        UPDATE ai_outbound_dispatch
+        SET state='accepted',
+            provider_message_id=${receipt.providerMessageId},
+            accepted_at=${receipt.acceptedAt}
         WHERE tenant_id=${claim.tenantId}::uuid
           AND id=${claim.id}::uuid AND state='pending'`;
       if (updated === 1) await this.audit(tx, claim, 'ai.outbound_accepted');
@@ -315,7 +324,7 @@ export class AIAutomaticOutboundDispatcher {
           text: claim.text,
         });
         if (!this.validReceipt(delivery)) throw new Error('Invalid receipt');
-        await this.store.accept(claim);
+        await this.store.accept(claim, delivery);
       } catch (error) {
         if (error instanceof MessagingDeliveryUnknown)
           await this.store.recordUnknownDelivery(claim);
