@@ -66,16 +66,19 @@ test(
   },
 );
 
-test('mounted secret resolver follows an in-root version symlink after atomic rotation', async (t) => {
-  const root = await mkdtemp(join(tmpdir(), 'melissa-secrets-symlink-rotation-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  await writeFile(join(root, 'v1'), 'synthetic-token-v1');
-  await writeFile(join(root, 'v2'), 'synthetic-token-v2');
-  await symlink(join(root, 'v1'), join(root, 'current'));
-  const resolver = await MountedFileSecretResolver.create(root);
-  assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v1');
+test(
+  'mounted secret resolver follows an in-root version symlink after atomic rotation',
+  async (t) => {
+    const root = await mkdtemp(join(tmpdir(), 'melissa-secrets-symlink-rotation-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await writeFile(join(root, 'v1'), 'synthetic-token-v1');
+    await writeFile(join(root, 'v2'), 'synthetic-token-v2');
+    await symlink(join(root, 'v1'), join(root, 'current'));
+    const resolver = await MountedFileSecretResolver.create(root);
+    assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v1');
 
-  await symlink(join(root, 'v2'), join(root, 'next'));
-  await rename(join(root, 'next'), join(root, 'current'));
-  assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v2');
-});
+    await symlink(join(root, 'v2'), join(root, 'next'));
+    await rename(join(root, 'next'), join(root, 'current'));
+    assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v2');
+  },
+);
