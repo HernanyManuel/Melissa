@@ -418,11 +418,15 @@ test(
       assert.equal(terminalTurn.executionLeaseId, null);
       assert.equal(terminalTurn.executionLeaseExpiresAt, null);
       assert.equal(
-        await admin.aiUsageEvent.count({ where: { tenantId, turnId: terminalId } }),
+        await admin.aiUsageEvent.count({
+          where: { tenantId, turnId: terminalId },
+        }),
         0,
       );
       assert.equal(
-        await admin.aiOutboundIntent.count({ where: { tenantId, turnId: terminalId } }),
+        await admin.aiOutboundIntent.count({
+          where: { tenantId, turnId: terminalId },
+        }),
         0,
       );
     } finally {
