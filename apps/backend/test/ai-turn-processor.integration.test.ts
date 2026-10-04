@@ -366,11 +366,14 @@ test(
         SET next_attempt_at=CURRENT_TIMESTAMP + interval '1 hour'
         WHERE tenant_id=${tenantId}::uuid AND id=${recoverableId}::uuid`;
       await reconcileAbandonedAITurns(deps);
-      const recoverableDispatch = await admin.aiTurnDispatch.findFirstOrThrow({
-        where: { tenantId, id: recoverableId },
-      });
-      assert.equal(recoverableDispatch.state, 'pending');
-      assert(recoverableDispatch.nextAttemptAt <= new Date());
+      const [recoverableDispatch] = await admin.$queryRaw<
+        Array<{ state: string; nextAttemptAt: Date }>
+      >`
+        SELECT state, next_attempt_at AS "nextAttemptAt"
+        FROM ai_turn_dispatch
+        WHERE tenant_id=${tenantId}::uuid AND id=${recoverableId}::uuid`;
+      assert.equal(recoverableDispatch?.state, 'pending');
+      assert(recoverableDispatch && recoverableDispatch.nextAttemptAt <= new Date());
 
       const activeId = await createIntent(customerId);
       const activeLeaseId = randomUUID();
@@ -388,11 +391,12 @@ test(
         SET next_attempt_at=CURRENT_TIMESTAMP + interval '1 hour'
         WHERE tenant_id=${tenantId}::uuid AND id=${activeId}::uuid`;
       await reconcileAbandonedAITurns(deps);
-      const activeDispatch = await admin.aiTurnDispatch.findFirstOrThrow({
-        where: { tenantId, id: activeId },
-      });
+      const [activeDispatch] = await admin.$queryRaw<Array<{ nextAttemptAt: Date }>>`
+        SELECT next_attempt_at AS "nextAttemptAt"
+        FROM ai_turn_dispatch
+        WHERE tenant_id=${tenantId}::uuid AND id=${activeId}::uuid`;
       const activeLeaseThreshold = new Date(Date.now() + 30 * 60 * 1000);
-      assert(activeDispatch.nextAttemptAt > activeLeaseThreshold);
+      assert(activeDispatch && activeDispatch.nextAttemptAt > activeLeaseThreshold);
 
       const terminalId = await createIntent(customerId);
       const terminalLeaseId = randomUUID();
