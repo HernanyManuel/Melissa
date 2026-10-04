@@ -55,7 +55,7 @@ export async function recordAIAutomaticDeliveryReceipt(
     if (!dispatch[0]) return 'unknown';
 
     const existing = await tx.$queryRaw<
-      { status: AIAutomaticDeliveryStatus; statusRank: number }[]
+      Array<{ status: AIAutomaticDeliveryStatus; statusRank: number }>
     >`
       SELECT status, status_rank AS "statusRank"
       FROM ai_outbound_delivery_receipts
