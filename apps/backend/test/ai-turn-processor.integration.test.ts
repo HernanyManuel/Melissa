@@ -391,9 +391,8 @@ test(
       const activeDispatch = await admin.aiTurnDispatch.findFirstOrThrow({
         where: { tenantId, id: activeId },
       });
-      assert(
-        activeDispatch.nextAttemptAt > new Date(Date.now() + 30 * 60 * 1000),
-      );
+      const activeLeaseThreshold = new Date(Date.now() + 30 * 60 * 1000);
+      assert(activeDispatch.nextAttemptAt > activeLeaseThreshold);
 
       const terminalId = await createIntent(customerId);
       const terminalLeaseId = randomUUID();
@@ -417,18 +416,14 @@ test(
       assert.equal(terminalTurn.failureCode, 'execution_abandoned');
       assert.equal(terminalTurn.executionLeaseId, null);
       assert.equal(terminalTurn.executionLeaseExpiresAt, null);
-      assert.equal(
-        await admin.aiUsageEvent.count({
-          where: { tenantId, turnId: terminalId },
-        }),
-        0,
-      );
-      assert.equal(
-        await admin.aiOutboundIntent.count({
-          where: { tenantId, turnId: terminalId },
-        }),
-        0,
-      );
+      const terminalUsage = await admin.aiUsageEvent.count({
+        where: { tenantId, turnId: terminalId },
+      });
+      const terminalOutbound = await admin.aiOutboundIntent.count({
+        where: { tenantId, turnId: terminalId },
+      });
+      assert.equal(terminalUsage, 0);
+      assert.equal(terminalOutbound, 0);
     } finally {
       await deps.onModuleDestroy();
       await admin.$disconnect();
