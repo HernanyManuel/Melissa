@@ -63,7 +63,7 @@ test(
           lastMessageAt: new Date(),
         },
       });
-  
+
       const ledger = new PrismaAITurnLedgerRepository(deps);
       assert.equal(
         await ledger.begin({
@@ -96,7 +96,7 @@ test(
         where: { tenantId, turnId },
       });
       const store = new PrismaAIAutomaticOutboundStore(deps);
-  
+
       for (let attempt = 0; attempt < 5; attempt++) {
         await admin.aiOutboundDispatch.updateMany({
           where: { tenantId, id: outbound.id },
@@ -117,7 +117,7 @@ test(
       });
       assert.equal(deadLetter.reason, 'retry_exhausted');
       assert.equal(deadLetter.attempts, 5);
-  
+
       const visible = await deps.db.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
         return tx.aiOutboundDeadLetter.count({
@@ -135,6 +135,6 @@ test(
     } finally {
       await deps.onModuleDestroy();
       await admin.$disconnect();
-      }
+    }
   },
 );
