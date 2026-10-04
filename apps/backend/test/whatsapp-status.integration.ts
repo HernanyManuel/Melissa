@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { createHmac, randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
-import { Dependencies } from '../src/dependencies';
 import { PrismaAITurnLedgerRepository } from '../src/ai/ai-turn-ledger';
 import { PrismaAIAutomaticOutboundStore } from '../src/ai/ai-outbound-dispatcher';
 
@@ -44,7 +43,9 @@ export async function testWhatsAppStatuses(
       lastMessageAt: new Date(),
     },
   });
-  const deps = { db: runtime } as Pick<Dependencies, 'db'>;
+  const deps = { db: runtime } as unknown as ConstructorParameters<
+    typeof PrismaAITurnLedgerRepository
+  >[0];
   const ledger = new PrismaAITurnLedgerRepository(deps);
   const turnId = randomUUID();
   assert.equal(
