@@ -24,6 +24,31 @@ export function isAITurnJob(name: string, data: unknown): data is { id: string; 
   );
 }
 
+export async function reconcileAbandonedAITurns(
+  deps: Pick<Dependencies, 'db'>,
+): Promise<void> {
+  await deps.db.$executeRaw`
+    UPDATE ai_turn_dispatch d
+    SET state='pending', next_attempt_at=CURRENT_TIMESTAMP
+    FROM ai_turns t
+    WHERE t.tenant_id=d.tenant_id AND t.id=d.id
+      AND t.status='running'
+      AND t.execution_lease_id IS NOT NULL
+      AND t.execution_lease_expires_at <= CURRENT_TIMESTAMP
+      AND d.state='pending' AND d.attempts < 5`;
+  await deps.db.$executeRaw`
+    UPDATE ai_turns t
+    SET status='failed', failure_code='execution_abandoned',
+        completed_at=CURRENT_TIMESTAMP,
+        execution_lease_id=NULL, execution_lease_expires_at=NULL
+    FROM ai_turn_dispatch d
+    WHERE t.tenant_id=d.tenant_id AND t.id=d.id
+      AND t.status='running'
+      AND t.execution_lease_id IS NOT NULL
+      AND t.execution_lease_expires_at <= CURRENT_TIMESTAMP
+      AND d.state IN ('processed', 'rejected', 'failed')`;
+}
+
 export async function startAITurnQueue(
   deps: Pick<Dependencies, 'db'>,
   redisUrl: string,
@@ -56,26 +81,7 @@ export async function startAITurnQueue(
   let running: Promise<void> = Promise.resolve();
   const dispatch = async (): Promise<void> => {
     try {
-      await deps.db.$executeRaw`
-        UPDATE ai_turn_dispatch d
-        SET state='pending', next_attempt_at=CURRENT_TIMESTAMP
-        FROM ai_turns t
-        WHERE t.tenant_id=d.tenant_id AND t.id=d.id
-          AND t.status='running'
-          AND t.execution_lease_id IS NOT NULL
-          AND t.execution_lease_expires_at <= CURRENT_TIMESTAMP
-          AND d.state='pending' AND d.attempts < 5`;
-      await deps.db.$executeRaw`
-        UPDATE ai_turns t
-        SET status='failed', failure_code='execution_abandoned',
-            completed_at=CURRENT_TIMESTAMP,
-            execution_lease_id=NULL, execution_lease_expires_at=NULL
-        FROM ai_turn_dispatch d
-        WHERE t.tenant_id=d.tenant_id AND t.id=d.id
-          AND t.status='running'
-          AND t.execution_lease_id IS NOT NULL
-          AND t.execution_lease_expires_at <= CURRENT_TIMESTAMP
-          AND d.state IN ('processed', 'rejected', 'failed')`;
+      await reconcileAbandonedAITurns(deps);
       const pending = await deps.db.$queryRaw<
         Array<{ id: string; attempts: number }>
       >`SELECT id, attempts FROM ai_turn_dispatch
