@@ -370,17 +370,17 @@ test(
         assert.equal(deadLetterCount, attempt === 4 ? 1 : 0);
       }
       const [failedDispatch] = await admin.$queryRaw<
-        Array<{
+        {
           state: string;
           attempts: number;
-        }>
+        }[]
       >`
         SELECT state, attempts
         FROM ai_outbound_dispatch
         WHERE tenant_id=${tenantId}::uuid AND id=${outbound.id}::uuid`;
       assert.deepEqual(failedDispatch, { state: 'failed', attempts: 5 });
       const [deadLetter] = await admin.$queryRaw<
-        Array<{ reason: string; attempts: number }>
+        { reason: string; attempts: number }[]
       >`
         SELECT reason, attempts
         FROM ai_outbound_dead_letters
