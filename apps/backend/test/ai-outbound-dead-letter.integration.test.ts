@@ -135,7 +135,7 @@ test(
       const acceptedAt = new Date();
       await store.accept(acceptedClaim, { providerMessageId, acceptedAt });
       const [acceptedDispatch] = await admin.$queryRaw<
-        Array<{ state: string; providerMessageId: string; acceptedAt: Date }>
+        { state: string; providerMessageId: string; acceptedAt: Date }[]
       >`
         SELECT state, provider_message_id AS "providerMessageId",
           accepted_at AS "acceptedAt"
