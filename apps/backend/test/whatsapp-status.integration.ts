@@ -3,6 +3,13 @@ import { createHmac, randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
 
+type AIDeliveryReceiptRow = {
+  status: string;
+  statusRank: number;
+};
+
+type CountRow = { count: bigint };
+
 export async function testWhatsAppStatuses(
   admin: PrismaClient,
   runtime: PrismaClient,
@@ -79,23 +86,19 @@ export async function testWhatsAppStatuses(
     externalMessageId: externalId,
   };
   assert.equal(await admin.whatsAppStatusEvent.count({ where }), 4);
-  const [aiReceipt] = await admin.$queryRaw<
-    Array<{ status: string; statusRank: number }>
-  >`
+  const [aiReceipt] = await admin.$queryRaw<AIDeliveryReceiptRow[]>`
     SELECT status, status_rank AS "statusRank"
     FROM ai_outbound_delivery_receipts
     WHERE tenant_id=${scope.tenantId}::uuid
       AND provider_message_id=${externalId}`;
   assert.equal(aiReceipt?.status, 'failed');
   assert.equal(aiReceipt?.statusRank, 40);
-  assert.equal(
-    await admin.$queryRaw<Array<{ count: bigint }>>`
-      SELECT count(*) AS count
-      FROM ai_outbound_delivery_receipts
-      WHERE tenant_id=${scope.tenantId}::uuid
-        AND provider_message_id=${externalId}`.then((rows) => Number(rows[0]?.count ?? 0n)),
-    1,
-  );
+  const receiptCount = await admin.$queryRaw<CountRow[]>`
+    SELECT count(*) AS count
+    FROM ai_outbound_delivery_receipts
+    WHERE tenant_id=${scope.tenantId}::uuid
+      AND provider_message_id=${externalId}`;
+  assert.equal(Number(receiptCount[0]?.count ?? 0n), 1);
   const statuses = await admin.whatsAppStatusEvent.findMany({
     where,
     orderBy: { occurredAt: 'asc' },
