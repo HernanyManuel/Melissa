@@ -17,16 +17,8 @@ export function checkedReceiptState(
   return state;
 }
 
-export type AIAutomaticDeliveryStatus =
-  | 'sent'
-  | 'delivered'
-  | 'read'
-  | 'failed';
-export type AIAutomaticDeliveryReceiptResult =
-  | 'applied'
-  | 'duplicate'
-  | 'stale'
-  | 'unknown';
+export type AIAutomaticDeliveryStatus = 'sent' | 'delivered' | 'read' | 'failed';
+export type AIAutomaticDeliveryReceiptResult = 'applied' | 'duplicate' | 'stale' | 'unknown';
 
 type ExistingDeliveryReceipt = {
   status: AIAutomaticDeliveryStatus;
@@ -50,9 +42,7 @@ export async function recordAIAutomaticDeliveryReceipt(
   },
 ): Promise<AIAutomaticDeliveryReceiptResult> {
   return deps.db.$transaction(async (tx) => {
-    await tx.$executeRaw`
-      SELECT set_config('app.tenant_id', ${input.tenantId}, true)
-    `;
+    await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
     const dispatch = await tx.$queryRaw<{ id: string }[]>`
       SELECT id FROM ai_outbound_dispatch
       WHERE tenant_id=${input.tenantId}::uuid
