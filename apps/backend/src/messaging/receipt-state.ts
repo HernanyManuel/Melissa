@@ -50,7 +50,9 @@ export async function recordAIAutomaticDeliveryReceipt(
   },
 ): Promise<AIAutomaticDeliveryReceiptResult> {
   return deps.db.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT set_config('app.tenant_id', ${input.tenantId}, true)`;
+    await tx.$executeRaw`
+      SELECT set_config('app.tenant_id', ${input.tenantId}, true)
+    `;
     const dispatch = await tx.$queryRaw<{ id: string }[]>`
       SELECT id FROM ai_outbound_dispatch
       WHERE tenant_id=${input.tenantId}::uuid
@@ -73,8 +75,11 @@ export async function recordAIAutomaticDeliveryReceipt(
         tenant_id, dispatch_id, provider_message_id, status, status_rank,
         provider_timestamp
       ) VALUES (
-        ${input.tenantId}::uuid, ${dispatch[0].id}::uuid,
-        ${input.providerMessageId}, ${input.status}, ${rank},
+        ${input.tenantId}::uuid,
+        ${dispatch[0].id}::uuid,
+        ${input.providerMessageId},
+        ${input.status},
+        ${rank},
         ${input.providerTimestamp}
       )
       ON CONFLICT (tenant_id, provider_message_id) DO UPDATE
