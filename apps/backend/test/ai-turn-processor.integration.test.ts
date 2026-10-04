@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
+import { PrismaAITurnLedgerRepository } from '../src/ai/ai-turn-ledger';
 import { PrismaAITurnDispatchStore } from '../src/ai/ai-turn-processor';
 
 test(
@@ -219,6 +220,66 @@ test(
       assert.equal(running?.attempts, 0);
       assert(running && running.nextAttemptAt > new Date(Date.now() - 500));
       assert.equal(await admin.auditEvent.count({ where: { tenantId, targetId: runningId } }), 0);
+
+      const leasedTurnId = randomUUID();
+      const firstLeaseId = randomUUID();
+      const secondLeaseId = randomUUID();
+      const ledger = new PrismaAITurnLedgerRepository(deps);
+      const leaseStart = {
+        tenantId,
+        turnId: leasedTurnId,
+        conversationId,
+        customerId,
+        modeEpoch: 4n,
+        stateVersion: 2n,
+      };
+      assert.equal(await ledger.begin({ ...leaseStart, leaseId: firstLeaseId }), 'started');
+      const activeOwner = await ledger.begin({ ...leaseStart, leaseId: secondLeaseId });
+      assert.notEqual(activeOwner, 'started');
+      assert.equal(activeOwner.status, 'running');
+      assert.equal(activeOwner.leaseId, firstLeaseId);
+
+      await admin.$executeRaw`
+        UPDATE ai_turns
+        SET execution_lease_expires_at=CURRENT_TIMESTAMP - interval '1 second'
+        WHERE tenant_id=${tenantId}::uuid AND id=${leasedTurnId}::uuid`;
+      const reclaimed = await ledger.begin({ ...leaseStart, leaseId: secondLeaseId });
+      assert.notEqual(reclaimed, 'started');
+      assert.equal(reclaimed.status, 'running');
+      assert.equal(reclaimed.leaseId, secondLeaseId);
+
+      const finishBase = {
+        tenantId,
+        turnId: leasedTurnId,
+        outcome: 'completed' as const,
+        rounds: 1,
+        toolCalls: 0,
+        failureCode: null,
+        providerKey: 'mock',
+        modelKey: 'mock',
+        inputTokens: 3,
+        outputTokens: 2,
+        deliveryText: 'lease winner',
+      };
+      assert.equal(await ledger.finish({ ...finishBase, leaseId: firstLeaseId }), 'stale');
+      assert.equal(
+        await admin.aiUsageEvent.count({ where: { tenantId, turnId: leasedTurnId } }),
+        0,
+      );
+      assert.equal(
+        await admin.aiOutboundIntent.count({ where: { tenantId, turnId: leasedTurnId } }),
+        0,
+      );
+
+      assert.equal(await ledger.finish({ ...finishBase, leaseId: secondLeaseId }), 'finished');
+      assert.equal(
+        await admin.aiUsageEvent.count({ where: { tenantId, turnId: leasedTurnId } }),
+        1,
+      );
+      assert.equal(
+        await admin.aiOutboundIntent.count({ where: { tenantId, turnId: leasedTurnId } }),
+        1,
+      );
     } finally {
       await deps.onModuleDestroy();
       await admin.$disconnect();
