@@ -97,6 +97,53 @@ test(
       });
       const store = new PrismaAIAutomaticOutboundStore(deps);
 
+      const acceptedTurnId = randomUUID();
+      assert.equal(
+        await ledger.begin({
+          tenantId,
+          turnId: acceptedTurnId,
+          conversationId,
+          customerId,
+          modeEpoch: 1n,
+          stateVersion: 1n,
+        }),
+        'started',
+      );
+      assert.equal(
+        await ledger.finish({
+          tenantId,
+          turnId: acceptedTurnId,
+          outcome: 'completed',
+          rounds: 1,
+          toolCalls: 0,
+          failureCode: null,
+          providerKey: 'mock',
+          modelKey: 'mock',
+          inputTokens: 1,
+          outputTokens: 1,
+          deliveryText: 'Receipt',
+        }),
+        'finished',
+      );
+      const acceptedOutbound = await admin.aiOutboundIntent.findFirstOrThrow({
+        where: { tenantId, turnId: acceptedTurnId },
+      });
+      const acceptedClaim = await store.claim(acceptedOutbound.id, 0);
+      assert(acceptedClaim);
+      const providerMessageId = `wamid.${randomUUID()}`;
+      const acceptedAt = new Date();
+      await store.accept(acceptedClaim, { providerMessageId, acceptedAt });
+      const [acceptedDispatch] = await admin.$queryRaw<
+        Array<{ state: string; providerMessageId: string; acceptedAt: Date }>
+      >`
+        SELECT state, provider_message_id AS "providerMessageId",
+          accepted_at AS "acceptedAt"
+        FROM ai_outbound_dispatch
+        WHERE tenant_id=${tenantId}::uuid AND id=${acceptedOutbound.id}::uuid`;
+      assert.equal(acceptedDispatch?.state, 'accepted');
+      assert.equal(acceptedDispatch?.providerMessageId, providerMessageId);
+      assert.equal(acceptedDispatch?.acceptedAt.getTime(), acceptedAt.getTime());
+
       for (let attempt = 0; attempt < 5; attempt++) {
         await admin.aiOutboundDispatch.updateMany({
           where: { tenantId, id: outbound.id },
