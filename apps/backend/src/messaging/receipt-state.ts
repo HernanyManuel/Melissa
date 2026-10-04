@@ -28,6 +28,11 @@ export type AIAutomaticDeliveryReceiptResult =
   | 'stale'
   | 'unknown';
 
+type ExistingDeliveryReceipt = {
+  status: AIAutomaticDeliveryStatus;
+  statusRank: number;
+};
+
 const AI_DELIVERY_STATUS_RANK: Record<AIAutomaticDeliveryStatus, number> = {
   sent: 10,
   delivered: 20,
@@ -54,9 +59,7 @@ export async function recordAIAutomaticDeliveryReceipt(
       LIMIT 1`;
     if (!dispatch[0]) return 'unknown';
 
-    const existing = await tx.$queryRaw<
-      Array<{ status: AIAutomaticDeliveryStatus; statusRank: number }>
-    >`
+    const existing = await tx.$queryRaw<ExistingDeliveryReceipt[]>`
       SELECT status, status_rank AS "statusRank"
       FROM ai_outbound_delivery_receipts
       WHERE tenant_id=${input.tenantId}::uuid
