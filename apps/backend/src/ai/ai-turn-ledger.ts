@@ -134,8 +134,7 @@ export class PrismaAITurnLedgerRepository implements AITurnLedgerRepository {
           SELECT execution_lease_id=${input.leaseId}::uuid
             AND execution_lease_expires_at > now() AS owned
           FROM ai_turns
-          WHERE tenant_id=${input.tenantId}::uuid AND id=${input.turnId}::uuid
-          ${Prisma.raw(input.leaseId ? `AND execution_lease_id='${input.leaseId}'::uuid` : '')}`;
+          WHERE tenant_id=${input.tenantId}::uuid AND id=${input.turnId}::uuid`;
         if (!lease?.owned) return 'stale';
       }
       const deliveryStale =
