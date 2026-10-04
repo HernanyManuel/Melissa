@@ -193,7 +193,7 @@ test(
         'unknown',
       );
       const [deliveryReceipt] = await admin.$queryRaw<
-        Array<{ status: string; statusRank: number; providerTimestamp: Date }>
+        { status: string; statusRank: number; providerTimestamp: Date }[]
       >`
         SELECT status, status_rank AS "statusRank",
           provider_timestamp AS "providerTimestamp"
