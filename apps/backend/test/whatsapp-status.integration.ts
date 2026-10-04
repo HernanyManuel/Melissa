@@ -26,16 +26,25 @@ export async function testWhatsAppStatuses(
   const externalId = `wamid.status.${randomUUID()}`;
   const now = Math.floor(Date.now() / 1000);
   const dispatchId = randomUUID();
+  const [fixture] = await admin.$queryRaw<
+    Array<{ turnId: string; conversationId: string; customerId: string }>
+  >`
+    SELECT t.id AS "turnId", t.conversation_id AS "conversationId",
+      t.customer_id AS "customerId"
+    FROM ai_turns t
+    WHERE t.tenant_id=${scope.tenantId}::uuid
+    ORDER BY t.created_at DESC
+    LIMIT 1`;
+  assert(fixture);
   await admin.$executeRaw`
     INSERT INTO ai_outbound_intents (
-      tenant_id, id, turn_id, conversation_id, customer_id, text
-    )
-    SELECT ${scope.tenantId}::uuid, ${dispatchId}::uuid, gen_random_uuid(),
-      gen_random_uuid(), id, 'Status correlation'
-    FROM customers
-    WHERE tenant_id=${scope.tenantId}::uuid
-    ORDER BY created_at
-    LIMIT 1`;
+      tenant_id, id, turn_id, conversation_id, customer_id,
+      channel_connection_id, mode_epoch, content_text
+    ) VALUES (
+      ${scope.tenantId}::uuid, ${dispatchId}::uuid, ${fixture.turnId}::uuid,
+      ${fixture.conversationId}::uuid, ${fixture.customerId}::uuid,
+      ${scope.channelId}::uuid, 1, 'Status correlation'
+    )`;
   await admin.$executeRaw`
     INSERT INTO ai_outbound_dispatch (
       tenant_id, id, state, provider_message_id, accepted_at
