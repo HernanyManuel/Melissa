@@ -7,6 +7,7 @@ import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 import { PrismaAITurnLedgerRepository } from '../src/ai/ai-turn-ledger';
 import { PrismaAIAutomaticOutboundStore } from '../src/ai/ai-outbound-dispatcher';
+import { recordAIAutomaticDeliveryReceipt } from '../src/messaging/receipt-state';
 
 test(
   'outbound dead letters are terminal, idempotent, and tenant scoped',
@@ -143,6 +144,68 @@ test(
       assert.equal(acceptedDispatch?.state, 'accepted');
       assert.equal(acceptedDispatch?.providerMessageId, providerMessageId);
       assert.equal(acceptedDispatch?.acceptedAt.getTime(), acceptedAt.getTime());
+
+      const sentAt = new Date(acceptedAt.getTime() + 1000);
+      assert.equal(
+        await recordAIAutomaticDeliveryReceipt(deps, {
+          tenantId,
+          providerMessageId,
+          status: 'sent',
+          providerTimestamp: sentAt,
+        }),
+        'applied',
+      );
+      assert.equal(
+        await recordAIAutomaticDeliveryReceipt(deps, {
+          tenantId,
+          providerMessageId,
+          status: 'sent',
+          providerTimestamp: sentAt,
+        }),
+        'duplicate',
+      );
+      const deliveredAt = new Date(acceptedAt.getTime() + 2000);
+      assert.equal(
+        await recordAIAutomaticDeliveryReceipt(deps, {
+          tenantId,
+          providerMessageId,
+          status: 'delivered',
+          providerTimestamp: deliveredAt,
+        }),
+        'applied',
+      );
+      assert.equal(
+        await recordAIAutomaticDeliveryReceipt(deps, {
+          tenantId,
+          providerMessageId,
+          status: 'sent',
+          providerTimestamp: new Date(deliveredAt.getTime() + 1000),
+        }),
+        'stale',
+      );
+      assert.equal(
+        await recordAIAutomaticDeliveryReceipt(deps, {
+          tenantId,
+          providerMessageId: `wamid.${randomUUID()}`,
+          status: 'delivered',
+          providerTimestamp: deliveredAt,
+        }),
+        'unknown',
+      );
+      const [deliveryReceipt] = await admin.$queryRaw<
+        Array<{ status: string; statusRank: number; providerTimestamp: Date }>
+      >`
+        SELECT status, status_rank AS "statusRank",
+          provider_timestamp AS "providerTimestamp"
+        FROM ai_outbound_delivery_receipts
+        WHERE tenant_id=${tenantId}::uuid
+          AND provider_message_id=${providerMessageId}`;
+      assert.equal(deliveryReceipt?.status, 'delivered');
+      assert.equal(deliveryReceipt?.statusRank, 20);
+      assert.equal(
+        deliveryReceipt?.providerTimestamp.getTime(),
+        deliveredAt.getTime(),
+      );
 
       for (let attempt = 0; attempt < 5; attempt++) {
         await admin.aiOutboundDispatch.updateMany({
