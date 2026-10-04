@@ -369,7 +369,9 @@ test(
         });
         assert.equal(deadLetterCount, attempt === 4 ? 1 : 0);
       }
-      const [failedDispatch] = await admin.$queryRaw<Array<{ state: string; attempts: number }>>`
+      const [failedDispatch] = await admin.$queryRaw<
+        Array<{ state: string; attempts: number }>
+      >`
         SELECT state, attempts
         FROM ai_outbound_dispatch
         WHERE tenant_id=${tenantId}::uuid AND id=${outbound.id}::uuid`;
@@ -384,7 +386,9 @@ test(
 
       const runtimeVisible = await deps.db.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
-        return tx.aiOutboundDeadLetter.count({ where: { dispatchId: outbound.id } });
+        return tx.aiOutboundDeadLetter.count({
+          where: { dispatchId: outbound.id },
+        });
       });
       assert.equal(runtimeVisible, 1);
       const hiddenFromOtherTenant = await deps.db.$transaction(async (tx) => {
