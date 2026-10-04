@@ -17,7 +17,6 @@ export function checkedReceiptState(
   return state;
 }
 
-
 export type AIAutomaticDeliveryStatus = 'sent' | 'delivered' | 'read' | 'failed';
 export type AIAutomaticDeliveryReceiptResult =
   | 'applied'
@@ -52,7 +51,7 @@ export async function recordAIAutomaticDeliveryReceipt(
     if (!dispatch[0]) return 'unknown';
 
     const existing = await tx.$queryRaw<
-      Array<{ status: AIAutomaticDeliveryStatus; statusRank: number }>
+      { status: AIAutomaticDeliveryStatus; statusRank: number }[]
     >`
       SELECT status, status_rank AS "statusRank"
       FROM ai_outbound_delivery_receipts
