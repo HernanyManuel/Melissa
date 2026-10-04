@@ -364,10 +364,10 @@ test(
         const claim = await outboundStore.claim(outbound.id, attempt);
         assert(claim);
         await outboundStore.recordFailure(claim);
-        const deadLetters = await admin.aiOutboundDeadLetter.count({
+        const deadLetterCount: number = await admin.aiOutboundDeadLetter.count({
           where: { tenantId, dispatchId: outbound.id },
         });
-        assert.equal(deadLetters, attempt === 4 ? 1 : 0);
+        assert.equal(deadLetterCount, attempt === 4 ? 1 : 0);
       }
       const [failedDispatch] = await admin.$queryRaw<Array<{ state: string; attempts: number }>>`
         SELECT state, attempts
