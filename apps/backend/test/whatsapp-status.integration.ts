@@ -18,6 +18,24 @@ export async function testWhatsAppStatuses(
 ) {
   const externalId = `wamid.status.${randomUUID()}`;
   const now = Math.floor(Date.now() / 1000);
+  const dispatchId = randomUUID();
+  await admin.$executeRaw`
+    INSERT INTO ai_outbound_intents (
+      tenant_id, id, turn_id, conversation_id, customer_id, text
+    )
+    SELECT ${scope.tenantId}::uuid, ${dispatchId}::uuid, gen_random_uuid(),
+      gen_random_uuid(), id, 'Status correlation'
+    FROM customers
+    WHERE tenant_id=${scope.tenantId}::uuid
+    ORDER BY created_at
+    LIMIT 1`;
+  await admin.$executeRaw`
+    INSERT INTO ai_outbound_dispatch (
+      tenant_id, id, state, provider_message_id, accepted_at
+    ) VALUES (
+      ${scope.tenantId}::uuid, ${dispatchId}::uuid, 'accepted',
+      ${externalId}, CURRENT_TIMESTAMP
+    )`;
   const payload = (status: string, timestamp = String(now), recipient = '351900000099') =>
     Buffer.from(
       JSON.stringify({
@@ -61,6 +79,23 @@ export async function testWhatsAppStatuses(
     externalMessageId: externalId,
   };
   assert.equal(await admin.whatsAppStatusEvent.count({ where }), 4);
+  const [aiReceipt] = await admin.$queryRaw<
+    Array<{ status: string; statusRank: number }>
+  >`
+    SELECT status, status_rank AS "statusRank"
+    FROM ai_outbound_delivery_receipts
+    WHERE tenant_id=${scope.tenantId}::uuid
+      AND provider_message_id=${externalId}`;
+  assert.equal(aiReceipt?.status, 'failed');
+  assert.equal(aiReceipt?.statusRank, 40);
+  assert.equal(
+    await admin.$queryRaw<Array<{ count: bigint }>>`
+      SELECT count(*) AS count
+      FROM ai_outbound_delivery_receipts
+      WHERE tenant_id=${scope.tenantId}::uuid
+        AND provider_message_id=${externalId}`.then((rows) => Number(rows[0]?.count ?? 0n)),
+    1,
+  );
   const statuses = await admin.whatsAppStatusEvent.findMany({
     where,
     orderBy: { occurredAt: 'asc' },
