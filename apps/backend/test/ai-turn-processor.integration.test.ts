@@ -235,7 +235,7 @@ test(
       };
       assert.equal(await ledger.begin({ ...leaseStart, leaseId: firstLeaseId }), 'started');
       const activeOwner = await ledger.begin({ ...leaseStart, leaseId: secondLeaseId });
-      assert.notEqual(activeOwner, 'started');
+      assert(activeOwner !== 'started');
       assert.equal(activeOwner.status, 'running');
       assert.equal(activeOwner.leaseId, firstLeaseId);
 
@@ -244,7 +244,7 @@ test(
         SET execution_lease_expires_at=CURRENT_TIMESTAMP - interval '1 second'
         WHERE tenant_id=${tenantId}::uuid AND id=${leasedTurnId}::uuid`;
       const reclaimed = await ledger.begin({ ...leaseStart, leaseId: secondLeaseId });
-      assert.notEqual(reclaimed, 'started');
+      assert(reclaimed !== 'started');
       assert.equal(reclaimed.status, 'running');
       assert.equal(reclaimed.leaseId, secondLeaseId);
 
