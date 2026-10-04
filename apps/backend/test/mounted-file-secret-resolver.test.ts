@@ -46,23 +46,22 @@ test('mounted secret resolver rejects a filesystem root as its secret mount', as
   await assert.rejects(() => MountedFileSecretResolver.create(filesystemRoot), SecretUnavailable);
 });
 
-
 test(
   'mounted secret resolver observes atomic rotation without restart or stale fallback',
   async (t) => {
-  const root = await mkdtemp(join(tmpdir(), 'melissa-secrets-rotation-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const current = join(root, 'current');
-  await writeFile(current, 'synthetic-token-v1');
-  const resolver = await MountedFileSecretResolver.create(root);
-  assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v1');
+    const root = await mkdtemp(join(tmpdir(), 'melissa-secrets-rotation-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const current = join(root, 'current');
+    await writeFile(current, 'synthetic-token-v1');
+    const resolver = await MountedFileSecretResolver.create(root);
+    assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v1');
 
-  const replacement = join(root, 'replacement');
-  await writeFile(replacement, 'synthetic-token-v2');
-  await rename(replacement, current);
-  assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v2');
+    const replacement = join(root, 'replacement');
+    await writeFile(replacement, 'synthetic-token-v2');
+    await rename(replacement, current);
+    assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v2');
 
-  await rm(current);
+    await rm(current);
     await assert.rejects(() => resolver.resolve('secret://current'), SecretUnavailable);
   },
 );
