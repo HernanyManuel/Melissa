@@ -9,6 +9,18 @@ import { PrismaAITurnLedgerRepository } from '../src/ai/ai-turn-ledger';
 import { PrismaAIAutomaticOutboundStore } from '../src/ai/ai-outbound-dispatcher';
 import { recordAIAutomaticDeliveryReceipt } from '../src/messaging/receipt-state';
 
+type AcceptedDispatchRow = {
+  state: string;
+  providerMessageId: string;
+  acceptedAt: Date;
+};
+
+type DeliveryReceiptRow = {
+  status: string;
+  statusRank: number;
+  providerTimestamp: Date;
+};
+
 test(
   'outbound dead letters are terminal, idempotent, and tenant scoped',
   { timeout: 15000 },
@@ -134,9 +146,7 @@ test(
       const providerMessageId = `wamid.${randomUUID()}`;
       const acceptedAt = new Date();
       await store.accept(acceptedClaim, { providerMessageId, acceptedAt });
-      const [acceptedDispatch] = await admin.$queryRaw<
-        Array<{ state: string; providerMessageId: string; acceptedAt: Date }>
-      >`
+      const [acceptedDispatch] = await admin.$queryRaw<AcceptedDispatchRow[]>`
         SELECT state, provider_message_id AS "providerMessageId",
           accepted_at AS "acceptedAt"
         FROM ai_outbound_dispatch
@@ -192,9 +202,7 @@ test(
         }),
         'unknown',
       );
-      const [deliveryReceipt] = await admin.$queryRaw<
-        Array<{ status: string; statusRank: number; providerTimestamp: Date }>
-      >`
+      const [deliveryReceipt] = await admin.$queryRaw<DeliveryReceiptRow[]>`
         SELECT status, status_rank AS "statusRank",
           provider_timestamp AS "providerTimestamp"
         FROM ai_outbound_delivery_receipts
