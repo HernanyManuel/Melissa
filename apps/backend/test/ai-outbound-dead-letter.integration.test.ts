@@ -31,7 +31,10 @@ test('outbound dead letters are terminal, idempotent, and tenant scoped', { time
     const store = new PrismaAIAutomaticOutboundStore(deps);
 
     for (let attempt = 0; attempt < 5; attempt++) {
-      await admin.aiOutboundDispatch.update({ where: { tenantId_id: { tenantId, id: outbound.id } }, data: { nextAttemptAt: new Date(0) } });
+      await admin.aiOutboundDispatch.updateMany({
+        where: { tenantId, id: outbound.id },
+        data: { nextAttemptAt: new Date(0) },
+      });
       const claim = await store.claim(outbound.id, attempt);
       assert(claim);
       await store.recordFailure(claim);
