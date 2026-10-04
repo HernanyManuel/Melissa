@@ -348,7 +348,6 @@ test(
         FROM ai_usage_events
         WHERE tenant_id=${tenantId}::uuid AND turn_id=${pricedTurnId}::uuid`;
       assert.equal(historicalUsage?.costMicros, 4500n);
-
     } finally {
       await deps.onModuleDestroy();
       await admin.$disconnect();
