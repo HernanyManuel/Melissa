@@ -7,6 +7,7 @@ import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
 import { PrismaAITurnLedgerRepository } from '../src/ai/ai-turn-ledger';
 import { PrismaAITurnDispatchStore } from '../src/ai/ai-turn-processor';
+import { reconcileAbandonedAITurns } from '../src/ai/ai-turn-queue';
 
 test(
   'AI turn dispatch store enforces server-owned scope and durable retry state',
@@ -348,6 +349,74 @@ test(
         FROM ai_usage_events
         WHERE tenant_id=${tenantId}::uuid AND turn_id=${pricedTurnId}::uuid`;
       assert.equal(historicalUsage?.costMicros, 4500n);
+
+      const recoverableId = await createIntent(customerId);
+      const recoverableLeaseId = randomUUID();
+      await admin.$executeRaw`
+        INSERT INTO ai_turns (
+          tenant_id, id, conversation_id, customer_id, mode_epoch, state_version,
+          execution_lease_id, execution_lease_expires_at
+        ) VALUES (
+          ${tenantId}::uuid, ${recoverableId}::uuid, ${conversationId}::uuid,
+          ${customerId}::uuid, 4, 2, ${recoverableLeaseId}::uuid,
+          CURRENT_TIMESTAMP - interval '1 second'
+        )`;
+      await admin.$executeRaw`
+        UPDATE ai_turn_dispatch
+        SET next_attempt_at=CURRENT_TIMESTAMP + interval '1 hour'
+        WHERE tenant_id=${tenantId}::uuid AND id=${recoverableId}::uuid`;
+      await reconcileAbandonedAITurns(deps);
+      const recoverableDispatch = await admin.aiTurnDispatch.findFirstOrThrow({
+        where: { tenantId, id: recoverableId },
+      });
+      assert.equal(recoverableDispatch.state, 'pending');
+      assert(recoverableDispatch.nextAttemptAt <= new Date());
+
+      const activeId = await createIntent(customerId);
+      const activeLeaseId = randomUUID();
+      await admin.$executeRaw`
+        INSERT INTO ai_turns (
+          tenant_id, id, conversation_id, customer_id, mode_epoch, state_version,
+          execution_lease_id, execution_lease_expires_at
+        ) VALUES (
+          ${tenantId}::uuid, ${activeId}::uuid, ${conversationId}::uuid,
+          ${customerId}::uuid, 4, 2, ${activeLeaseId}::uuid,
+          CURRENT_TIMESTAMP + interval '1 hour'
+        )`;
+      await admin.$executeRaw`
+        UPDATE ai_turn_dispatch
+        SET next_attempt_at=CURRENT_TIMESTAMP + interval '1 hour'
+        WHERE tenant_id=${tenantId}::uuid AND id=${activeId}::uuid`;
+      await reconcileAbandonedAITurns(deps);
+      const activeDispatch = await admin.aiTurnDispatch.findFirstOrThrow({
+        where: { tenantId, id: activeId },
+      });
+      assert(activeDispatch.nextAttemptAt > new Date(Date.now() + 30 * 60 * 1000));
+
+      const terminalId = await createIntent(customerId);
+      const terminalLeaseId = randomUUID();
+      await admin.$executeRaw`
+        INSERT INTO ai_turns (
+          tenant_id, id, conversation_id, customer_id, mode_epoch, state_version,
+          execution_lease_id, execution_lease_expires_at
+        ) VALUES (
+          ${tenantId}::uuid, ${terminalId}::uuid, ${conversationId}::uuid,
+          ${customerId}::uuid, 4, 2, ${terminalLeaseId}::uuid,
+          CURRENT_TIMESTAMP - interval '1 second'
+        )`;
+      await admin.$executeRaw`
+        UPDATE ai_turn_dispatch SET state='failed'
+        WHERE tenant_id=${tenantId}::uuid AND id=${terminalId}::uuid`;
+      await reconcileAbandonedAITurns(deps);
+      const terminalTurn = await admin.aiTurn.findFirstOrThrow({
+        where: { tenantId, id: terminalId },
+      });
+      assert.equal(terminalTurn.status, 'failed');
+      assert.equal(terminalTurn.failureCode, 'execution_abandoned');
+      assert.equal(terminalTurn.executionLeaseId, null);
+      assert.equal(terminalTurn.executionLeaseExpiresAt, null);
+      assert.equal(await admin.aiUsageEvent.count({ where: { tenantId, turnId: terminalId } }), 0);
+      assert.equal(await admin.aiOutboundIntent.count({ where: { tenantId, turnId: terminalId } }), 0);
     } finally {
       await deps.onModuleDestroy();
       await admin.$disconnect();
