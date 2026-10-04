@@ -12,127 +12,129 @@ test(
   'outbound dead letters are terminal, idempotent, and tenant scoped',
   { timeout: 15000 },
   async () => {
-  const migrationUrl = process.env.MIGRATION_DATABASE_URL;
-  assert(migrationUrl);
-  const deps = new Dependencies(parseConfig(process.env));
-  const admin = new PrismaClient({ datasources: { db: { url: migrationUrl } } });
-  const tenantId = randomUUID();
-  const customerId = randomUUID();
-  const conversationId = randomUUID();
-  const turnId = randomUUID();
-  const channelId = randomUUID();
-  try {
-    await admin.tenant.create({
-      data: {
-        id: tenantId,
-        name: 'DLQ fixture',
-        countryCode: 'PT',
-        timezone: 'Europe/Lisbon',
-      },
-    });
-    await admin.customer.create({
-      data: {
-        id: customerId,
-        tenantId,
-        displayName: 'DLQ customer',
-        phoneE164: '+351910000093',
-      },
-    });
-    await admin.channelConnection.create({
-      data: {
-        id: channelId,
-        tenantId,
-        channelType: 'whatsapp',
-        mode: 'live',
-        externalAccountId: randomUUID(),
-        externalPhoneId: String(Date.now()),
-        displayName: 'DLQ channel',
-        credentialsReference: 'secret://test/dlq',
-        webhookSecretReference: 'secret://test/dlq-webhook',
-      },
-    });
-    await admin.conversation.create({
-      data: {
-        id: conversationId,
-        tenantId,
-        customerId,
-        channelConnectionId: channelId,
-        mode: 'AI_ACTIVE',
-        modeEpoch: 1n,
-        stateVersion: 1n,
-        lastMessageAt: new Date(),
-      },
-    });
-
-    const ledger = new PrismaAITurnLedgerRepository(deps);
-    assert.equal(
-      await ledger.begin({
-        tenantId,
-        turnId,
-        conversationId,
-        customerId,
-        modeEpoch: 1n,
-        stateVersion: 1n,
-      }),
-      'started',
-    );
-    assert.equal(
-      await ledger.finish({
-        tenantId,
-        turnId,
-        outcome: 'completed',
-        rounds: 1,
-        toolCalls: 0,
-        failureCode: null,
-        providerKey: 'mock',
-        modelKey: 'mock',
-        inputTokens: 1,
-        outputTokens: 1,
-        deliveryText: 'DLQ',
-      }),
-      'finished',
-    );
-    const outbound = await admin.aiOutboundIntent.findFirstOrThrow({
-      where: { tenantId, turnId },
-    });
-    const store = new PrismaAIAutomaticOutboundStore(deps);
-
-    for (let attempt = 0; attempt < 5; attempt++) {
-      await admin.aiOutboundDispatch.updateMany({
-        where: { tenantId, id: outbound.id },
-        data: { nextAttemptAt: new Date(0) },
+    const migrationUrl = process.env.MIGRATION_DATABASE_URL;
+    assert(migrationUrl);
+    const deps = new Dependencies(parseConfig(process.env));
+    const admin = new PrismaClient({ datasources: { db: { url: migrationUrl } } });
+    const tenantId = randomUUID();
+    const customerId = randomUUID();
+    const conversationId = randomUUID();
+    const turnId = randomUUID();
+    const channelId = randomUUID();
+    try {
+      await admin.tenant.create({
+        data: {
+          id: tenantId,
+          name: 'DLQ fixture',
+          countryCode: 'PT',
+          timezone: 'Europe/Lisbon',
+        },
       });
-      const claim = await store.claim(outbound.id, attempt);
-      assert(claim);
-      await store.recordFailure(claim);
+      await admin.customer.create({
+        data: {
+          id: customerId,
+          tenantId,
+          displayName: 'DLQ customer',
+          phoneE164: '+351910000093',
+        },
+      });
+      await admin.channelConnection.create({
+        data: {
+          id: channelId,
+          tenantId,
+          channelType: 'whatsapp',
+          mode: 'live',
+          externalAccountId: randomUUID(),
+          externalPhoneId: String(Date.now()),
+          displayName: 'DLQ channel',
+          credentialsReference: 'secret://test/dlq',
+          webhookSecretReference: 'secret://test/dlq-webhook',
+        },
+      });
+      await admin.conversation.create({
+        data: {
+          id: conversationId,
+          tenantId,
+          customerId,
+          channelConnectionId: channelId,
+          mode: 'AI_ACTIVE',
+          modeEpoch: 1n,
+          stateVersion: 1n,
+          lastMessageAt: new Date(),
+        },
+      });
+  
+      const ledger = new PrismaAITurnLedgerRepository(deps);
       assert.equal(
-        await admin.aiOutboundDeadLetter.count({
-          where: { tenantId, dispatchId: outbound.id },
+        await ledger.begin({
+          tenantId,
+          turnId,
+          conversationId,
+          customerId,
+          modeEpoch: 1n,
+          stateVersion: 1n,
         }),
-        attempt === 4 ? 1 : 0,
+        'started',
       );
-    }
-    const deadLetter = await admin.aiOutboundDeadLetter.findFirstOrThrow({
-      where: { tenantId, dispatchId: outbound.id },
-    });
-    assert.equal(deadLetter.reason, 'retry_exhausted');
-    assert.equal(deadLetter.attempts, 5);
-
-    const visible = await deps.db.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
-      return tx.aiOutboundDeadLetter.count({
-        where: { dispatchId: outbound.id },
+      assert.equal(
+        await ledger.finish({
+          tenantId,
+          turnId,
+          outcome: 'completed',
+          rounds: 1,
+          toolCalls: 0,
+          failureCode: null,
+          providerKey: 'mock',
+          modelKey: 'mock',
+          inputTokens: 1,
+          outputTokens: 1,
+          deliveryText: 'DLQ',
+        }),
+        'finished',
+      );
+      const outbound = await admin.aiOutboundIntent.findFirstOrThrow({
+        where: { tenantId, turnId },
       });
-    });
-    assert.equal(visible, 1);
-    const hidden = await deps.db.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${randomUUID()}, true)`;
-      return tx.aiOutboundDeadLetter.count({ where: { dispatchId: outbound.id } });
-    });
-    assert.equal(hidden, 0);
-  } finally {
-    await deps.onModuleDestroy();
-    await admin.$disconnect();
-    }
+      const store = new PrismaAIAutomaticOutboundStore(deps);
+  
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await admin.aiOutboundDispatch.updateMany({
+          where: { tenantId, id: outbound.id },
+          data: { nextAttemptAt: new Date(0) },
+        });
+        const claim = await store.claim(outbound.id, attempt);
+        assert(claim);
+        await store.recordFailure(claim);
+        assert.equal(
+          await admin.aiOutboundDeadLetter.count({
+            where: { tenantId, dispatchId: outbound.id },
+          }),
+          attempt === 4 ? 1 : 0,
+        );
+      }
+      const deadLetter = await admin.aiOutboundDeadLetter.findFirstOrThrow({
+        where: { tenantId, dispatchId: outbound.id },
+      });
+      assert.equal(deadLetter.reason, 'retry_exhausted');
+      assert.equal(deadLetter.attempts, 5);
+  
+      const visible = await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+        return tx.aiOutboundDeadLetter.count({
+          where: { dispatchId: outbound.id },
+        });
+      });
+      assert.equal(visible, 1);
+      const hidden = await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${randomUUID()}, true)`;
+        return tx.aiOutboundDeadLetter.count({
+          where: { dispatchId: outbound.id },
+        });
+      });
+      assert.equal(hidden, 0);
+    } finally {
+      await deps.onModuleDestroy();
+      await admin.$disconnect();
+      }
   },
 );
