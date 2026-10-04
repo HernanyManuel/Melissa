@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { createHmac, randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
+import { Dependencies } from '../src/dependencies';
+import { PrismaAITurnLedgerRepository } from '../src/ai/ai-turn-ledger';
+import { PrismaAIAutomaticOutboundStore } from '../src/ai/ai-outbound-dispatcher';
 
 type AIDeliveryReceiptRow = {
   status: string;
@@ -25,32 +28,62 @@ export async function testWhatsAppStatuses(
 ) {
   const externalId = `wamid.status.${randomUUID()}`;
   const now = Math.floor(Date.now() / 1000);
-  const dispatchId = randomUUID();
-  const [fixture] = await admin.$queryRaw<
-    Array<{ turnId: string; conversationId: string; customerId: string }>
-  >`
-    SELECT t.id AS "turnId", t.conversation_id AS "conversationId",
-      t.customer_id AS "customerId"
-    FROM ai_turns t
-    WHERE t.tenant_id=${scope.tenantId}::uuid
-    LIMIT 1`;
-  assert(fixture);
-  await admin.$executeRaw`
-    INSERT INTO ai_outbound_intents (
-      tenant_id, id, turn_id, conversation_id, customer_id,
-      channel_connection_id, mode_epoch, content_text
-    ) VALUES (
-      ${scope.tenantId}::uuid, ${dispatchId}::uuid, ${fixture.turnId}::uuid,
-      ${fixture.conversationId}::uuid, ${fixture.customerId}::uuid,
-      ${scope.channelId}::uuid, 1, 'Status correlation'
-    )`;
-  await admin.$executeRaw`
-    INSERT INTO ai_outbound_dispatch (
-      tenant_id, id, state, provider_message_id, accepted_at
-    ) VALUES (
-      ${scope.tenantId}::uuid, ${dispatchId}::uuid, 'accepted',
-      ${externalId}, CURRENT_TIMESTAMP
-    )`;
+  const customer = await admin.customer.findFirstOrThrow({
+    where: { tenantId: scope.tenantId },
+  });
+  const conversationId = randomUUID();
+  await admin.conversation.create({
+    data: {
+      id: conversationId,
+      tenantId: scope.tenantId,
+      customerId: customer.id,
+      channelConnectionId: scope.channelId,
+      mode: 'AI_ACTIVE',
+      modeEpoch: 1n,
+      stateVersion: 1n,
+      lastMessageAt: new Date(),
+    },
+  });
+  const deps = { db: runtime } as Pick<Dependencies, 'db'>;
+  const ledger = new PrismaAITurnLedgerRepository(deps);
+  const turnId = randomUUID();
+  assert.equal(
+    await ledger.begin({
+      tenantId: scope.tenantId,
+      turnId,
+      conversationId,
+      customerId: customer.id,
+      modeEpoch: 1n,
+      stateVersion: 1n,
+    }),
+    'started',
+  );
+  assert.equal(
+    await ledger.finish({
+      tenantId: scope.tenantId,
+      turnId,
+      outcome: 'completed',
+      rounds: 1,
+      toolCalls: 0,
+      failureCode: null,
+      providerKey: 'mock',
+      modelKey: 'mock',
+      inputTokens: 1,
+      outputTokens: 1,
+      deliveryText: 'Status correlation',
+    }),
+    'finished',
+  );
+  const outbound = await admin.aiOutboundIntent.findFirstOrThrow({
+    where: { tenantId: scope.tenantId, turnId },
+  });
+  const store = new PrismaAIAutomaticOutboundStore(deps);
+  const claim = await store.claim(outbound.id, 0);
+  assert(claim);
+  await store.accept(claim, {
+    providerMessageId: externalId,
+    acceptedAt: new Date(),
+  });
   const payload = (status: string, timestamp = String(now), recipient = '351900000099') =>
     Buffer.from(
       JSON.stringify({
