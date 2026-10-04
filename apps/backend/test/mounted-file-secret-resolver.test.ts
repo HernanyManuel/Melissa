@@ -44,13 +44,19 @@ test('mounted secret resolver rejects missing, oversized or control-bearing mate
   await writeFile(join(root, 'large'), 'x'.repeat(4097));
   const resolver = await MountedFileSecretResolver.create(root);
   await assert.rejects(() => resolver.resolve('secret://missing'), SecretUnavailable);
-  await assert.rejects(() => resolver.resolve('secret://newline'), SecretUnavailable);
+  await assert.rejects(
+    () => resolver.resolve('secret://newline'),
+    SecretUnavailable,
+  );
   await assert.rejects(() => resolver.resolve('secret://large'), SecretUnavailable);
 });
 
 test('mounted secret resolver rejects a filesystem root as its secret mount', async () => {
   const filesystemRoot = parse(tmpdir()).root;
-  await assert.rejects(() => MountedFileSecretResolver.create(filesystemRoot), SecretUnavailable);
+  await assert.rejects(
+    () => MountedFileSecretResolver.create(filesystemRoot),
+    SecretUnavailable,
+  );
 });
 
 test(
@@ -69,7 +75,10 @@ test(
     assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v2');
 
     await rm(current);
-    await assert.rejects(() => resolver.resolve('secret://current'), SecretUnavailable);
+    await assert.rejects(
+      () => resolver.resolve('secret://current'),
+      SecretUnavailable,
+    );
   },
 );
 
