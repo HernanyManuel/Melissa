@@ -30,6 +30,7 @@ O resultado das verificações está em [estabilização](docs/phase-1-stabiliza
 
 - [Especificação original](SPECIFICATION.md) e [plano](IMPLEMENTATION_PLAN.md).
 - [Arquitetura](docs/architecture.md), [dados](docs/database.md) e [isolamento](docs/multi-tenancy.md).
+- [Rotação da chave de credenciais Calendar](docs/calendar-credential-key-rotation.md).
 - [UX Flutter](docs/flutter-ux.md) e [contratos API](docs/api.md).
 - [Estado atual](docs/PROJECT_STATUS.md) e [decisões](docs/decisions/README.md).
 
