@@ -35,6 +35,7 @@ test('Google Calendar OAuth configuration is disabled by default and fails close
     callbackUri: null,
     credentialKeyId: null,
     credentialKeyReference: null,
+    credentialPreviousKeys: [],
   });
   assert.throws(() =>
     parseGoogleCalendarOAuthConfig({ GOOGLE_CALENDAR_CLIENT_ID: 'client-id' }),
@@ -48,26 +49,57 @@ test('Google Calendar OAuth configuration is disabled by default and fails close
       GOOGLE_CALENDAR_CLIENT_ID: 'client-id',
       GOOGLE_CALENDAR_CLIENT_SECRET_REF: 'secret://calendar/google-client-secret',
       GOOGLE_CALENDAR_CALLBACK_URI: callbackUri,
+      GOOGLE_CALENDAR_CREDENTIAL_KEY_ID: 'calendar-v2',
+      GOOGLE_CALENDAR_CREDENTIAL_KEY_REF: 'secret://calendar/credential-key-v2',
+      GOOGLE_CALENDAR_CREDENTIAL_PREVIOUS_KEYS:
+        '[{"id":"calendar-v1","reference":"secret://calendar/credential-key-v1"}]',
+    }),
+    {
+      enabled: true,
+      clientId: 'client-id',
+      clientSecretReference: 'secret://calendar/google-client-secret',
+      callbackUri,
+      credentialKeyId: 'calendar-v2',
+      credentialKeyReference: 'secret://calendar/credential-key-v2',
+      credentialPreviousKeys: [
+        { id: 'calendar-v1', reference: 'secret://calendar/credential-key-v1' },
+      ],
+    },
+  );
+  assert.throws(() =>
+    parseGoogleCalendarOAuthConfig({
+      GOOGLE_CALENDAR_OAUTH_ENABLED: 'true',
+      GOOGLE_CALENDAR_CLIENT_ID: 'client-id',
+      GOOGLE_CALENDAR_CLIENT_SECRET_REF: 'secret://calendar/google-client-secret',
+      GOOGLE_CALENDAR_CALLBACK_URI: callbackUri,
       GOOGLE_CALENDAR_CREDENTIAL_KEY_ID: 'calendar-v1',
       GOOGLE_CALENDAR_CREDENTIAL_KEY_REF: 'secret://calendar/credential-key',
-    }).callbackUri,
-    callbackUri,
+      GOOGLE_CALENDAR_CREDENTIAL_PREVIOUS_KEYS:
+        '[{"id":"calendar-v1","reference":"secret://calendar/old-key"}]',
+    }),
   );
 });
 
 // prettier-ignore
 test('calendar credential keyring loads only canonical 32-byte secret material', async () => {
-  const reference = 'secret://calendar/credential-key';
-  const material = Buffer.alloc(32, 41).toString('base64');
+  const currentReference = 'secret://calendar/credential-key-v2';
+  const previousReference = 'secret://calendar/credential-key-v1';
   const resolver = {
     resolve: async (seen: string) => {
-      assert.equal(seen, reference);
-      return material;
+      if (seen === currentReference) return Buffer.alloc(32, 42).toString('base64');
+      if (seen === previousReference) return Buffer.alloc(32, 41).toString('base64');
+      assert.fail('unexpected key reference');
     },
   } as SecretResolver;
-  const keyring = await createCalendarCredentialKeyring(resolver, 'calendar-v1', reference);
-  assert.equal(keyring.current.id, 'calendar-v1');
-  assert(keyring.current.key.equals(Buffer.alloc(32, 41)));
+  const keyring = await createCalendarCredentialKeyring(
+    resolver,
+    'calendar-v2',
+    currentReference,
+    [{ id: 'calendar-v1', reference: previousReference }],
+  );
+  assert.equal(keyring.current.id, 'calendar-v2');
+  assert(keyring.current.key.equals(Buffer.alloc(32, 42)));
+  assert(keyring.resolve('calendar-v2')?.equals(Buffer.alloc(32, 42)));
   assert(keyring.resolve('calendar-v1')?.equals(Buffer.alloc(32, 41)));
   assert.equal(keyring.resolve('calendar-v0'), null);
 
@@ -76,7 +108,7 @@ test('calendar credential keyring loads only canonical 32-byte secret material',
       createCalendarCredentialKeyring(
         { resolve: async () => 'not-canonical-base64' },
         'calendar-v1',
-        reference,
+        currentReference,
       ),
     /unavailable/,
   );
