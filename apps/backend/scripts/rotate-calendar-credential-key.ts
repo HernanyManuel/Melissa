@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import { parseGoogleCalendarOAuthConfig } from '../src/calendar/google-calendar-oauth-config';
-import { createGoogleCalendarCredentialRuntime } from '../src/calendar/google-calendar-credential-store-factory';
+import {
+  createGoogleCalendarCredentialRuntime,
+} from '../src/calendar/google-calendar-credential-store-factory';
 import { reencryptCalendarCredentials } from '../src/calendar/calendar-credential-key-rotation';
 import { parseConfig } from '../src/config';
 import { Dependencies } from '../src/dependencies';
@@ -27,7 +29,8 @@ async function main(): Promise<void> {
 }
 
 void main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : 'Calendar credential key rotation failed';
+  const message =
+    error instanceof Error ? error.message : 'Calendar credential key rotation failed';
   process.stderr.write(message + '\n');
   process.exitCode = 1;
 });
