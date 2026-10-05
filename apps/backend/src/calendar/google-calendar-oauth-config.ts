@@ -93,9 +93,7 @@ export function parseGoogleCalendarOAuthConfig(
   const callback = text(parsed.data.GOOGLE_CALENDAR_CALLBACK_URI);
   const credentialKeyId = text(parsed.data.GOOGLE_CALENDAR_CREDENTIAL_KEY_ID);
   const credentialKeyReference = text(parsed.data.GOOGLE_CALENDAR_CREDENTIAL_KEY_REF);
-  const credentialPreviousKeys = previousKeys(
-    parsed.data.GOOGLE_CALENDAR_CREDENTIAL_PREVIOUS_KEYS,
-  );
+  const credentialPreviousKeys = previousKeys(parsed.data.GOOGLE_CALENDAR_CREDENTIAL_PREVIOUS_KEYS);
   const configured = [
     clientId,
     clientSecretReference,
