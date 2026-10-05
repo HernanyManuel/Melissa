@@ -36,6 +36,7 @@ export async function createGoogleCalendarCredentialRuntime(
     secrets,
     oauth.credentialKeyId,
     oauth.credentialKeyReference,
+    oauth.credentialPreviousKeys,
   );
   const tokens = new GoogleOAuthTokenClient(secrets, oauth.clientId, oauth.clientSecretReference);
   const credentials = new CalendarCredentialStore(deps, keyring, {
