@@ -91,3 +91,33 @@ test('WhatsApp live transport treats malformed success receipt as ambiguous deli
   );
   await assert.rejects(() => provider.sendText(input), MessagingDeliveryUnknown);
 });
+
+
+test('WhatsApp live transport resolves rotated secret on every send without restart', async () => {
+  const values = ['synthetic-token-v1', 'synthetic-token-v2'];
+  const authorizations: string[] = [];
+  const secrets: SecretResolver = {
+    async resolve() {
+      const value = values.shift();
+      assert(value);
+      return value;
+    },
+  };
+  const provider = new WhatsAppCloudMessagingProvider(
+    secrets,
+    'v23.0',
+    1000,
+    async (_url, init) => {
+      authorizations.push((init.headers as Record<string, string>).authorization);
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.rotation' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  );
+
+  await provider.sendText(input);
+  await provider.sendText(input);
+
+  assert.deepEqual(authorizations, ['Bearer synthetic-token-v1', 'Bearer synthetic-token-v2']);
+});
