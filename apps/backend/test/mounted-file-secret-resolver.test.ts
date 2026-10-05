@@ -10,10 +10,7 @@ test('mounted secret resolver reads only canonical files below configured root',
   const root = await mkdtemp(join(tmpdir(), 'melissa-secrets-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(join(root, 'tenant', 'channel'), { recursive: true });
-  await writeFile(
-    join(root, 'tenant', 'channel', 'whatsapp'),
-    'synthetic-server-access-token',
-  );
+  await writeFile(join(root, 'tenant', 'channel', 'whatsapp'), 'synthetic-server-access-token');
   const resolver = await MountedFileSecretResolver.create(root);
   assert.equal(
     await resolver.resolve('secret://tenant/channel/whatsapp'),
@@ -42,20 +39,14 @@ test(
     await writeFile(join(root, 'large'), 'x'.repeat(4097));
     const resolver = await MountedFileSecretResolver.create(root);
     await assert.rejects(() => resolver.resolve('secret://missing'), SecretUnavailable);
-    await assert.rejects(
-      () => resolver.resolve('secret://newline'),
-      SecretUnavailable,
-    );
+    await assert.rejects(() => resolver.resolve('secret://newline'), SecretUnavailable);
     await assert.rejects(() => resolver.resolve('secret://large'), SecretUnavailable);
   },
 );
 
 test('mounted secret resolver rejects a filesystem root as its secret mount', async () => {
   const filesystemRoot = parse(tmpdir()).root;
-  await assert.rejects(
-    () => MountedFileSecretResolver.create(filesystemRoot),
-    SecretUnavailable,
-  );
+  await assert.rejects(() => MountedFileSecretResolver.create(filesystemRoot), SecretUnavailable);
 });
 
 test(
@@ -74,10 +65,7 @@ test(
     assert.equal(await resolver.resolve('secret://current'), 'synthetic-token-v2');
 
     await rm(current);
-    await assert.rejects(
-      () => resolver.resolve('secret://current'),
-      SecretUnavailable,
-    );
+    await assert.rejects(() => resolver.resolve('secret://current'), SecretUnavailable);
   },
 );
 
