@@ -21,13 +21,18 @@ test('WhatsApp live transport observes mounted credential rotation without resta
   await writeFile(current, 'synthetic-token-v1');
   const secrets = await MountedFileSecretResolver.create(root);
   const authorizations: string[] = [];
-  const provider = new WhatsAppCloudMessagingProvider(secrets, 'v23.0', 1000, async (_url, init) => {
-    authorizations.push((init.headers as Record<string, string>).authorization);
-    return new Response(JSON.stringify({ messages: [{ id: 'wamid.rotation' }] }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
-  });
+  const provider = new WhatsAppCloudMessagingProvider(
+    secrets,
+    'v23.0',
+    1000,
+    async (_url, init) => {
+      authorizations.push((init.headers as Record<string, string>).authorization);
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.rotation' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  );
 
   await provider.sendText(input);
   const replacement = join(root, 'replacement');
