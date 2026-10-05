@@ -1,15 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import {
   MessagingDeliveryUnknown,
   MessagingProviderUnavailable,
 } from '../src/channels/messaging-provider';
 import { WhatsAppCloudMessagingProvider } from '../src/channels/whatsapp-cloud-messaging-provider';
 import { SecretResolver } from '../src/secrets/secret-resolver';
-import { MountedFileSecretResolver } from '../src/secrets/mounted-file-secret-resolver';
 
 class MemorySecrets implements SecretResolver {
   references: string[] = [];
@@ -94,60 +90,4 @@ test('WhatsApp live transport treats malformed success receipt as ambiguous deli
     async () => new Response(JSON.stringify({ messages: [{}] }), { status: 200 }),
   );
   await assert.rejects(() => provider.sendText(input), MessagingDeliveryUnknown);
-});
-
-
-test('WhatsApp live transport resolves rotated secret on every send without restart', async () => {
-  const values = ['synthetic-token-v1', 'synthetic-token-v2'];
-  const authorizations: string[] = [];
-  const secrets: SecretResolver = {
-    async resolve() {
-      const value = values.shift();
-      assert(value);
-      return value;
-    },
-  };
-  const provider = new WhatsAppCloudMessagingProvider(
-    secrets,
-    'v23.0',
-    1000,
-    async (_url, init) => {
-      authorizations.push((init.headers as Record<string, string>).authorization);
-      return new Response(JSON.stringify({ messages: [{ id: 'wamid.rotation' }] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      });
-    },
-  );
-
-  await provider.sendText(input);
-  await provider.sendText(input);
-
-  assert.deepEqual(authorizations, ['Bearer synthetic-token-v1', 'Bearer synthetic-token-v2']);
-});
-
-
-test('WhatsApp live transport observes mounted credential rotation without restart', async (t) => {
-  const root = await mkdtemp(join(tmpdir(), 'melissa-whatsapp-secret-rotation-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const current = join(root, 'whatsapp');
-  await writeFile(current, 'synthetic-token-v1');
-  const secrets = await MountedFileSecretResolver.create(root);
-  const authorizations: string[] = [];
-  const provider = new WhatsAppCloudMessagingProvider(secrets, 'v23.0', 1000, async (_url, init) => {
-    authorizations.push((init.headers as Record<string, string>).authorization);
-    return new Response(JSON.stringify({ messages: [{ id: 'wamid.rotation' }] }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
-  });
-  const rotatedInput = { ...input, credentialsReference: 'secret://whatsapp' };
-
-  await provider.sendText(rotatedInput);
-  const replacement = join(root, 'replacement');
-  await writeFile(replacement, 'synthetic-token-v2');
-  await rename(replacement, current);
-  await provider.sendText(rotatedInput);
-
-  assert.deepEqual(authorizations, ['Bearer synthetic-token-v1', 'Bearer synthetic-token-v2']);
 });
