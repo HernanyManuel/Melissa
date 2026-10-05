@@ -30,19 +30,16 @@ test('mounted secret resolver rejects traversal and symlink escape', async (t) =
   await assert.rejects(() => resolver.resolve('secret://escaped'), SecretUnavailable);
 });
 
-test(
-  'mounted secret resolver rejects missing, oversized or control-bearing material',
-  async (t) => {
-    const root = await mkdtemp(join(tmpdir(), 'melissa-secrets-invalid-'));
-    t.after(() => rm(root, { recursive: true, force: true }));
-    await writeFile(join(root, 'newline'), 'synthetic-server-access-token\n');
-    await writeFile(join(root, 'large'), 'x'.repeat(4097));
-    const resolver = await MountedFileSecretResolver.create(root);
-    await assert.rejects(() => resolver.resolve('secret://missing'), SecretUnavailable);
-    await assert.rejects(() => resolver.resolve('secret://newline'), SecretUnavailable);
-    await assert.rejects(() => resolver.resolve('secret://large'), SecretUnavailable);
-  },
-);
+test('mounted secret resolver rejects missing, oversized or control-bearing material', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'melissa-secrets-invalid-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, 'newline'), 'synthetic-server-access-token\n');
+  await writeFile(join(root, 'large'), 'x'.repeat(4097));
+  const resolver = await MountedFileSecretResolver.create(root);
+  await assert.rejects(() => resolver.resolve('secret://missing'), SecretUnavailable);
+  await assert.rejects(() => resolver.resolve('secret://newline'), SecretUnavailable);
+  await assert.rejects(() => resolver.resolve('secret://large'), SecretUnavailable);
+});
 
 test('mounted secret resolver rejects a filesystem root as its secret mount', async () => {
   const filesystemRoot = parse(tmpdir()).root;
