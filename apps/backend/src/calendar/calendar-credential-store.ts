@@ -73,6 +73,10 @@ export class CalendarCredentialStore implements SecretResolver {
     this.validateKey(keys.current);
   }
 
+  get currentKeyId(): string {
+    return this.keys.current.id;
+  }
+
   async put(input: {
     tenantId: string;
     connectionId: string;
