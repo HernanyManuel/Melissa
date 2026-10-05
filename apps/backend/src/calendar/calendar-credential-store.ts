@@ -93,17 +93,7 @@ export class CalendarCredentialStore implements SecretResolver {
     },
   ): Promise<string> {
     const reference = calendarCredentialReference(input.tenantId, input.connectionId);
-    const credential = this.normalizeCredential(input.credential);
-    const plaintext = Buffer.from(JSON.stringify(credential), 'utf8');
-    if (plaintext.byteLength > 16384) throw new SecretUnavailable();
-
-    const key = this.keys.current;
-    this.validateKey(key);
-    const nonce = randomBytes(12);
-    const cipher = createCipheriv('aes-256-gcm', key.key, nonce);
-    cipher.setAAD(this.aad(input.tenantId, input.connectionId, key.id));
-    const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-    const tag = cipher.getAuthTag();
+    const encrypted = this.encrypt(input.tenantId, input.connectionId, input.credential);
 
     const connection = await tx.$queryRaw<Array<{ provider: string }>>(Prisma.sql`
       SELECT provider
@@ -117,8 +107,8 @@ export class CalendarCredentialStore implements SecretResolver {
       INSERT INTO calendar_credentials (
         tenant_id, connection_id, key_id, nonce, ciphertext, tag, updated_at
       ) VALUES (
-        ${input.tenantId}::uuid, ${input.connectionId}::uuid, ${key.id},
-        ${nonce}, ${ciphertext}, ${tag}, CURRENT_TIMESTAMP
+        ${input.tenantId}::uuid, ${input.connectionId}::uuid, ${encrypted.keyId},
+        ${encrypted.nonce}, ${encrypted.ciphertext}, ${encrypted.tag}, CURRENT_TIMESTAMP
       )
       ON CONFLICT (tenant_id, connection_id) DO UPDATE SET
         key_id=EXCLUDED.key_id,
@@ -137,9 +127,9 @@ export class CalendarCredentialStore implements SecretResolver {
 
   async read(reference: string): Promise<CalendarCredential> {
     const parsed = this.parseReference(reference);
-    const row = await this.deps.db.$transaction(async (tx) => {
+    return this.deps.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${parsed.tenantId}, true)`;
-      const [credential] = await tx.$queryRaw<EncryptedCredentialRow[]>(Prisma.sql`
+      const [row] = await tx.$queryRaw<EncryptedCredentialRow[]>(Prisma.sql`
         SELECT
           key_id AS "keyId",
           nonce,
@@ -148,11 +138,26 @@ export class CalendarCredentialStore implements SecretResolver {
         FROM calendar_credentials
         WHERE tenant_id=${parsed.tenantId}::uuid
           AND connection_id=${parsed.connectionId}::uuid
+        FOR UPDATE
       `);
+      if (!row) throw new SecretUnavailable();
+      const credential = this.decrypt(parsed.tenantId, parsed.connectionId, row);
+      if (row.keyId !== this.keys.current.id) {
+        const encrypted = this.encrypt(parsed.tenantId, parsed.connectionId, credential);
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE calendar_credentials
+          SET
+            key_id=${encrypted.keyId},
+            nonce=${encrypted.nonce},
+            ciphertext=${encrypted.ciphertext},
+            tag=${encrypted.tag},
+            updated_at=CURRENT_TIMESTAMP
+          WHERE tenant_id=${parsed.tenantId}::uuid
+            AND connection_id=${parsed.connectionId}::uuid
+        `);
+      }
       return credential;
     });
-    if (!row) throw new SecretUnavailable();
-    return this.decrypt(parsed.tenantId, parsed.connectionId, row);
   }
 
   async resolve(reference: string): Promise<string> {
@@ -192,6 +197,24 @@ export class CalendarCredentialStore implements SecretResolver {
     } catch {
       // Credential resolution must fail closed even if status bookkeeping is unavailable.
     }
+  }
+
+  private encrypt(
+    tenantId: string,
+    connectionId: string,
+    input: CalendarCredential,
+  ): EncryptedCredentialRow {
+    const credential = this.normalizeCredential(input);
+    const plaintext = Buffer.from(JSON.stringify(credential), 'utf8');
+    if (plaintext.byteLength > 16384) throw new SecretUnavailable();
+
+    const key = this.keys.current;
+    this.validateKey(key);
+    const nonce = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', key.key, nonce);
+    cipher.setAAD(this.aad(tenantId, connectionId, key.id));
+    const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+    return { keyId: key.id, nonce, ciphertext, tag: cipher.getAuthTag() };
   }
 
   private decrypt(tenantId: string, connectionId: string, row: EncryptedCredentialRow): CalendarCredential {
