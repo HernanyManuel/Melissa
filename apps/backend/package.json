@@ -15,7 +15,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "openapi": "pnpm build && node dist/scripts/export-openapi.js"
+    "openapi": "pnpm build && node dist/scripts/export-openapi.js",
+    "calendar:rotate-credential-key": "tsx scripts/rotate-calendar-credential-key.ts"
   },
   "dependencies": {
     "@nestjs/common": "11.2.3",
