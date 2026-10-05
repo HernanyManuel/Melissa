@@ -43,7 +43,7 @@ test('Google Calendar OAuth configuration is disabled by default and fails close
   assert.throws(() =>
     parseGoogleCalendarOAuthConfig({ GOOGLE_CALENDAR_OAUTH_ENABLED: 'true' }),
   );
-  assert.equal(
+  assert.deepEqual(
     parseGoogleCalendarOAuthConfig({
       GOOGLE_CALENDAR_OAUTH_ENABLED: 'true',
       GOOGLE_CALENDAR_CLIENT_ID: 'client-id',
