@@ -107,3 +107,92 @@ test('calendar credentials are tenant-scoped, encrypted and authenticated', { ti
     await admin.$disconnect();
   }
 });
+
+// prettier-ignore
+test('calendar credential read re-encrypts an old key version under the current key', { timeout: 15000 }, async () => {
+  const migrationUrl = process.env.MIGRATION_DATABASE_URL;
+  assert(migrationUrl, 'calendar credential rotation integration requires MIGRATION_DATABASE_URL');
+  const deps = new Dependencies(parseConfig(process.env));
+  const admin = new PrismaClient({ datasources: { db: { url: migrationUrl } } });
+  const tenantId = randomUUID();
+  const connectionId = randomUUID();
+  const accessToken = 'synthetic-rotating-access-token-with-sufficient-length';
+  const refreshToken = 'synthetic-rotating-refresh-token-with-sufficient-length';
+  const oldKey = Buffer.alloc(32, 51);
+  const currentKey = Buffer.alloc(32, 52);
+  const oldKeyring: CalendarCredentialKeyring = {
+    current: { id: 'calendar-v1', key: oldKey },
+    resolve: (keyId) => (keyId === 'calendar-v1' ? Buffer.from(oldKey) : null),
+  };
+  const rotatingKeyring: CalendarCredentialKeyring = {
+    current: { id: 'calendar-v2', key: currentKey },
+    resolve: (keyId) => {
+      if (keyId === 'calendar-v2') return Buffer.from(currentKey);
+      if (keyId === 'calendar-v1') return Buffer.from(oldKey);
+      return null;
+    },
+  };
+  const currentOnlyKeyring: CalendarCredentialKeyring = {
+    current: { id: 'calendar-v2', key: currentKey },
+    resolve: (keyId) => (keyId === 'calendar-v2' ? Buffer.from(currentKey) : null),
+  };
+
+  try {
+    await admin.tenant.create({
+      data: {
+        id: tenantId,
+        name: 'Rotating calendar credentials',
+        countryCode: 'PT',
+        timezone: 'Europe/Lisbon',
+      },
+    });
+    await admin.$executeRaw`
+      INSERT INTO calendar_connections (
+        tenant_id, id, provider, calendar_ref, credential_ref, status
+      ) VALUES (
+        ${tenantId}::uuid, ${connectionId}::uuid, 'google', 'primary',
+        'secret://bootstrap/calendar', 'connected'
+      )
+    `;
+
+    const oldStore = new CalendarCredentialStore(deps, oldKeyring);
+    const reference = await oldStore.put({
+      tenantId,
+      connectionId,
+      credential: {
+        accessToken,
+        refreshToken,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60_000),
+        scopes: ['scope:rotation'],
+      },
+    });
+    const [before] = await admin.$queryRaw<Array<{ keyId: string; ciphertext: Buffer }>>`
+      SELECT key_id AS "keyId", ciphertext
+      FROM calendar_credentials
+      WHERE tenant_id=${tenantId}::uuid AND connection_id=${connectionId}::uuid
+    `;
+    assert(before);
+    assert.equal(before.keyId, 'calendar-v1');
+
+    const rotatingStore = new CalendarCredentialStore(deps, rotatingKeyring);
+    assert.equal((await rotatingStore.read(reference)).accessToken, accessToken);
+
+    const [after] = await admin.$queryRaw<Array<{ keyId: string; ciphertext: Buffer }>>`
+      SELECT key_id AS "keyId", ciphertext
+      FROM calendar_credentials
+      WHERE tenant_id=${tenantId}::uuid AND connection_id=${connectionId}::uuid
+    `;
+    assert(after);
+    assert.equal(after.keyId, 'calendar-v2');
+    assert.notDeepEqual(after.ciphertext, before.ciphertext);
+
+    const currentOnlyStore = new CalendarCredentialStore(deps, currentOnlyKeyring);
+    const migrated = await currentOnlyStore.read(reference);
+    assert.equal(migrated.accessToken, accessToken);
+    assert.equal(migrated.refreshToken, refreshToken);
+  } finally {
+    await deps.onModuleDestroy();
+    await admin.$disconnect();
+  }
+});
+
