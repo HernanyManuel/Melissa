@@ -26,7 +26,9 @@ test('WhatsApp live transport observes mounted credential rotation without resta
     'v23.0',
     1000,
     async (_url, init) => {
-      authorizations.push((init.headers as Record<string, string>).authorization);
+      const authorization = (init.headers as Record<string, string>).authorization;
+      assert(authorization);
+      authorizations.push(authorization);
       return new Response(JSON.stringify({ messages: [{ id: 'wamid.rotation' }] }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
