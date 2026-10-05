@@ -195,4 +195,3 @@ test('calendar credential read re-encrypts an old key version under the current 
     await admin.$disconnect();
   }
 });
-
