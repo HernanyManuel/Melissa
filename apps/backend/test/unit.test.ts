@@ -26,6 +26,7 @@ import './calendar-provider.test';
 import './google-calendar-provider.test';
 import './google-oauth-token-client.test';
 import './google-calendar-oauth-flow.test';
+import './calendar-credential-key-rotation.test';
 import './calendar-sync-queue.test';
 import './calendar-sync-dispatcher.test';
 import './calendar-sync-runtime.test';
