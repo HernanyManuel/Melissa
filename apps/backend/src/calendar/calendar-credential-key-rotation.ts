@@ -53,9 +53,7 @@ export async function reencryptCalendarCredentials(
       seen.add(identity);
 
       try {
-        await credentials.read(
-          calendarCredentialReference(target.tenantId, target.connectionId),
-        );
+        await credentials.read(calendarCredentialReference(target.tenantId, target.connectionId));
       } catch {
         throw new Error('Calendar credential key rotation is blocked');
       }
