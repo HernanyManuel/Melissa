@@ -10,9 +10,7 @@ const target = {
   keyId: 'calendar-v1',
 };
 
-function depsWithBatches(
-  batches: Array<Array<typeof target>>,
-): Dependencies {
+function depsWithBatches(batches: Array<Array<typeof target>>): Dependencies {
   return {
     db: {
       $queryRaw: async () => batches.shift() ?? [],
@@ -20,9 +18,7 @@ function depsWithBatches(
   } as unknown as Dependencies;
 }
 
-function store(
-  read: (reference: string) => Promise<unknown>,
-): CalendarCredentialStore {
+function store(read: (reference: string) => Promise<unknown>): CalendarCredentialStore {
   return {
     currentKeyId: 'calendar-v2',
     read,
@@ -35,10 +31,7 @@ test('calendar credential key sweep migrates all discovered old-key rows', async
     references.push(reference);
     return {};
   });
-  const migrated = await reencryptCalendarCredentials(
-    depsWithBatches([[target], []]),
-    credentials,
-  );
+  const migrated = await reencryptCalendarCredentials(depsWithBatches([[target], []]), credentials);
 
   assert.equal(migrated, 1);
   assert.deepEqual(references, [
@@ -59,11 +52,7 @@ test('calendar credential key sweep blocks retirement when an old key is unavail
 test('calendar credential key sweep fails closed when migration does not converge', async () => {
   const credentials = store(async () => ({}));
   await assert.rejects(
-    () =>
-      reencryptCalendarCredentials(
-        depsWithBatches([[target], [target]]),
-        credentials,
-      ),
+    () => reencryptCalendarCredentials(depsWithBatches([[target], [target]]), credentials),
     /did not converge/,
   );
 });
