@@ -1,10 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { isUUID } from 'class-validator';
 import { Dependencies } from '../dependencies';
-import {
-  CalendarCredentialStore,
-  calendarCredentialReference,
-} from './calendar-credential-store';
+import { CalendarCredentialStore, calendarCredentialReference } from './calendar-credential-store';
 
 const KEY_ID = /^[A-Za-z0-9_-]{1,64}$/;
 

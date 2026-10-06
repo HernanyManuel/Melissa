@@ -10,7 +10,8 @@ import { Dependencies } from '../src/dependencies';
 async function main(): Promise<void> {
   const config = parseConfig(process.env);
   const oauth = parseGoogleCalendarOAuthConfig(process.env);
-  if (!oauth.enabled) throw new Error('Google Calendar OAuth must be enabled for key rotation');
+  if (!oauth.enabled)
+    throw new Error('Google Calendar OAuth must be enabled for key rotation');
 
   const deps = new Dependencies(config);
   try {
