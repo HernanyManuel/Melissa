@@ -1,5 +1,13 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Controlo humano de conversas (schema 54)
+
+Primeira fundação do Inbox implementada no PR #7: `assigned_staff_id` tenant-scoped, `closed_at`, permissão `conversations:takeover` e comandos autenticados de takeover, reativação da IA e fecho. Takeover preserva o grafo `AI_ACTIVE -> WAITING_HUMAN -> HUMAN_ACTIVE`; cada mudança real de modo avança o `mode_epoch`, e o dispatcher existente volta a verificar modo/epoch antes de enviar. Replays do mesmo takeover/fecho são idempotentes e mutações reais são auditadas. Ver [ADR-076](decisions/ADR-076-human-conversation-control.md).
+
+A integração HTTP com PostgreSQL/RLS e Redis reais prova isolamento cross-tenant, staff assignment, epochs, reativação/fecho e, criticamente, que um outbound AI persistido antes do takeover é rejeitado antes de provider send. O workflow `37536138306` ficou integralmente verde no commit `9a6c4abea80bad0c096550ec013ec41f2388b353`: backend, Compose e Flutter. Durante a validação surgiu o advisory crítico `proxy-addr <2.0.8`; o workspace passou a forçar `2.0.8` e o audit de produção voltou a verde sem reduzir o gate.
+
+P8 continua em progresso: faltam WebSocket/SSE com recuperação após reconexão, isolamento real-time, notificações, resposta manual e UI Inbox completa. O gate externo de P7 para Google Calendar com credenciais reais continua igualmente aberto.
+
 ## Atualização Phase 5/P7 — Rotação da chave persistente de credenciais Calendar (schema 53)
 
 A chave de encriptação persistente das credenciais Google Calendar tem agora keyring versionado: uma chave atual de escrita e chaves anteriores temporárias de leitura. Credenciais sob uma chave antiga são re-encriptadas para a chave atual durante a leitura; um sweep operacional cobre credenciais inativas através de descoberta mínima `SECURITY DEFINER`, voltando ao scope RLS do tenant para a leitura/re-encriptação real. O comando `calendar:rotate-credential-key` falha fechado quando uma chave antiga está indisponível ou a migração não converge, e o runbook preserva as chaves antigas até o sweep concluir e documenta rollback. Ver [rotação da chave Calendar](calendar-credential-key-rotation.md).
