@@ -45,8 +45,7 @@ export async function reencryptCalendarCredentials(
         throw new Error('Invalid calendar credential rotation target');
 
       const identity = `${target.tenantId}:${target.connectionId}`;
-      if (seen.has(identity))
-        throw new Error('Calendar credential key rotation did not converge');
+      if (seen.has(identity)) throw new Error('Calendar credential key rotation did not converge');
       seen.add(identity);
 
       try {
