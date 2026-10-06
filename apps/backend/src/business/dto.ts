@@ -7,9 +7,11 @@ import {
   IsEnum,
   IsInt,
   IsISO4217CurrencyCode,
+  IsISO8601,
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   Length,
   Matches,
   Max,
@@ -110,4 +112,21 @@ export class ConfigurationDto {
   @IsBoolean() useCustomerName!: boolean;
   @IsBoolean() replyInCustomerLanguage!: boolean;
   @IsEnum(Verbosity) verbosity!: Verbosity;
+}
+
+export class BookingPolicyDto {
+  @IsInt() @Min(1) expectedVersion!: number;
+  @IsBoolean() cancellationEnabled!: boolean;
+  @IsInt() @Min(0) @Max(525600) cancellationMinNoticeMinutes!: number;
+  @IsBoolean() reschedulingEnabled!: boolean;
+  @IsInt() @Min(0) @Max(525600) reschedulingMinNoticeMinutes!: number;
+  @IsInt() @Min(0) @Max(525600) creationMinNoticeMinutes!: number;
+  @IsOptional() @IsInt() @Min(0) @Max(3650) creationMaxHorizonDays?: number | null;
+}
+
+export class ResourceBlockDto {
+  @IsOptional() @IsUUID() staffId?: string;
+  @IsISO8601({ strict: true }) startsAt!: string;
+  @IsISO8601({ strict: true }) endsAt!: string;
+  @IsOptional() @IsString() @Length(1, 500) reason?: string;
 }

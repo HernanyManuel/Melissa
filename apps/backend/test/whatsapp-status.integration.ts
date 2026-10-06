@@ -2,6 +2,14 @@ import assert from 'node:assert/strict';
 import { createHmac, randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
+import { PrismaAITurnLedgerRepository } from '../src/ai/ai-turn-ledger';
+
+type AIDeliveryReceiptRow = {
+  status: string;
+  statusRank: number;
+};
+
+type CountRow = { count: bigint };
 
 export async function testWhatsAppStatuses(
   admin: PrismaClient,
@@ -18,6 +26,65 @@ export async function testWhatsAppStatuses(
 ) {
   const externalId = `wamid.status.${randomUUID()}`;
   const now = Math.floor(Date.now() / 1000);
+  const customer = await admin.customer.findFirstOrThrow({
+    where: { tenantId: scope.tenantId },
+  });
+  const conversationId = randomUUID();
+  await admin.conversation.create({
+    data: {
+      id: conversationId,
+      tenantId: scope.tenantId,
+      customerId: customer.id,
+      channelConnectionId: scope.channelId,
+      mode: 'AI_ACTIVE',
+      modeEpoch: 1n,
+      stateVersion: 1n,
+      lastMessageAt: new Date(),
+    },
+  });
+  const deps = { db: runtime } as unknown as ConstructorParameters<
+    typeof PrismaAITurnLedgerRepository
+  >[0];
+  const ledger = new PrismaAITurnLedgerRepository(deps);
+  const turnId = randomUUID();
+  assert.equal(
+    await ledger.begin({
+      tenantId: scope.tenantId,
+      turnId,
+      conversationId,
+      customerId: customer.id,
+      modeEpoch: 1n,
+      stateVersion: 1n,
+    }),
+    'started',
+  );
+  assert.equal(
+    await ledger.finish({
+      tenantId: scope.tenantId,
+      turnId,
+      outcome: 'completed',
+      rounds: 1,
+      toolCalls: 0,
+      failureCode: null,
+      providerKey: 'mock',
+      modelKey: 'mock',
+      inputTokens: 1,
+      outputTokens: 1,
+      deliveryText: 'Status correlation',
+    }),
+    'finished',
+  );
+  const outbound = await admin.aiOutboundIntent.findFirstOrThrow({
+    where: { tenantId: scope.tenantId, turnId },
+  });
+  await admin.$executeRaw`
+    UPDATE ai_outbound_dispatch
+    SET state='accepted',
+        provider_message_id=${externalId},
+        accepted_at=CURRENT_TIMESTAMP
+    WHERE tenant_id=${scope.tenantId}::uuid
+      AND id=${outbound.id}::uuid
+      AND state='pending'`;
   const payload = (status: string, timestamp = String(now), recipient = '351900000099') =>
     Buffer.from(
       JSON.stringify({
@@ -61,6 +128,19 @@ export async function testWhatsAppStatuses(
     externalMessageId: externalId,
   };
   assert.equal(await admin.whatsAppStatusEvent.count({ where }), 4);
+  const [aiReceipt] = await admin.$queryRaw<AIDeliveryReceiptRow[]>`
+    SELECT status, status_rank AS "statusRank"
+    FROM ai_outbound_delivery_receipts
+    WHERE tenant_id=${scope.tenantId}::uuid
+      AND provider_message_id=${externalId}`;
+  assert.equal(aiReceipt?.status, 'failed');
+  assert.equal(aiReceipt?.statusRank, 40);
+  const receiptCount = await admin.$queryRaw<CountRow[]>`
+    SELECT count(*) AS count
+    FROM ai_outbound_delivery_receipts
+    WHERE tenant_id=${scope.tenantId}::uuid
+      AND provider_message_id=${externalId}`;
+  assert.equal(Number(receiptCount[0]?.count ?? 0n), 1);
   const statuses = await admin.whatsAppStatusEvent.findMany({
     where,
     orderBy: { occurredAt: 'asc' },
