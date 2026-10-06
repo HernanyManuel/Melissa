@@ -1,5 +1,11 @@
 # Estado do projeto
 
+## Atualização Phase 5/P7 — Rotação da chave persistente de credenciais Calendar (schema 53)
+
+A chave de encriptação persistente das credenciais Google Calendar tem agora keyring versionado: uma chave atual de escrita e chaves anteriores temporárias de leitura. Credenciais sob uma chave antiga são re-encriptadas para a chave atual durante a leitura; um sweep operacional cobre credenciais inativas através de descoberta mínima `SECURITY DEFINER`, voltando ao scope RLS do tenant para a leitura/re-encriptação real. O comando `calendar:rotate-credential-key` falha fechado quando uma chave antiga está indisponível ou a migração não converge, e o runbook preserva as chaves antigas até o sweep concluir e documenta rollback. Ver [rotação da chave Calendar](calendar-credential-key-rotation.md).
+
+Testes unitários cobrem sweep, bloqueio e não convergência; integração PostgreSQL prova re-encriptação old→current e leitura posterior com keyring apenas da chave atual. O workflow `37397283308` ficou integralmente verde no commit `3205b0d311b5ccb3387dbfda6d0e34667793c874`: backend, Docker Compose e Flutter, incluindo formatter, lint, typecheck, unitários, worker real/recovery, OpenAPI e audit de dependências de produção. Isto não equivale a rotação executada em staging/produção nem a validação live com uma conta Google real; runtimes live continuam desativados por omissão.
+
 ## Atualização Phase 5 — Outbox automática (schema 23)
 
 Resposta live, conclusão do turno, usage e envelope de dispatch são persistidos atomicamente após fence final sob lock. Takeover concorrente produz `stale` sem outbound; conteúdo fica numa tabela tenant-scoped imutável e o índice global não o expõe. Ver [ADR-062](decisions/ADR-062-ai-automatic-outbox.md). Ainda sem consumer, adapter live, retries/recibos ou deploy.
