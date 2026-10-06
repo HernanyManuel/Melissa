@@ -124,11 +124,13 @@ test('human takeover fences automatic outbound and supports reactivation and clo
       data: {
         tenantId: tenant.id,
         id: channelId,
-        channelType: 'test',
+        channelType: 'webchat',
         mode: 'live',
         externalAccountId: randomUUID(),
         externalPhoneId: randomUUID(),
         displayName: 'Live control channel',
+        credentialsReference: 'secret://test/channel',
+        webhookSecretReference: 'secret://test/webhook',
       },
     });
     await admin.customer.create({
