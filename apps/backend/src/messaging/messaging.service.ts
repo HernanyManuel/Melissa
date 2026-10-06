@@ -1,4 +1,11 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { TenantService } from '../tenancy/tenant.service';
 import { Actor } from '../identity/auth.service';
@@ -7,6 +14,14 @@ import { CONFIG, Configuration } from '../config';
 import { enqueueInbound } from './enqueue-inbound';
 import { checkedReceiptState } from './receipt-state';
 import { ProcessingQuery, ProcessingPageDto } from './processing.dto';
+
+interface ConversationControlRow {
+  id: string;
+  mode: string;
+  status: string;
+  assignedStaffId: string | null;
+  closedAt: Date | null;
+}
 
 @Injectable()
 export class MessagingService {
@@ -162,6 +177,133 @@ export class MessagingService {
         }),
         next: rows.length > 50 ? rows[49]!.id : null,
       };
+    });
+  }
+
+  takeover(actor: Actor, tenantId: string, conversationId: string, staffId: string) {
+    return this.tenants.scoped(
+      actor,
+      tenantId,
+      'conversations:takeover',
+      async (tx, role) => {
+        const staff = await tx.staff.findFirst({
+          where: { tenantId, id: staffId, active: true },
+          select: { id: true, userId: true },
+        });
+        if (!staff) throw new NotFoundException();
+        if (role === 'staff' && staff.userId !== actor.userId) throw new ForbiddenException();
+
+        const current = await this.lockConversation(tx, tenantId, conversationId);
+        if (current.status === 'archived' || current.status === 'closed' || current.mode === 'CLOSED')
+          throw new ConflictException();
+        if (current.mode === 'HUMAN_ACTIVE') {
+          if (current.assignedStaffId !== staff.id) throw new ConflictException();
+          return this.conversationControl(tx, tenantId, conversationId);
+        }
+        if (!['AI_ACTIVE', 'WAITING_HUMAN', 'AI_PAUSED'].includes(current.mode))
+          throw new ConflictException();
+
+        const conversation = await tx.conversation.update({
+          where: { tenantId_id: { tenantId, id: conversationId } },
+          data: { mode: 'HUMAN_ACTIVE', assignedStaffId: staff.id },
+          select: {
+            id: true,
+            status: true,
+            mode: true,
+            assignedStaffId: true,
+            closedAt: true,
+          },
+        });
+        await this.tenants.audit(tx, actor, tenantId, 'conversation.takeover', conversationId);
+        return conversation;
+      },
+    );
+  }
+
+  reactivateAI(actor: Actor, tenantId: string, conversationId: string) {
+    return this.tenants.scoped(actor, tenantId, 'conversations:takeover', async (tx) => {
+      const current = await this.lockConversation(tx, tenantId, conversationId);
+      if (current.status === 'archived' || current.status === 'closed' || current.mode === 'CLOSED')
+        throw new ConflictException();
+      if (current.mode === 'AI_ACTIVE' && current.assignedStaffId === null)
+        return this.conversationControl(tx, tenantId, conversationId);
+      if (current.mode !== 'HUMAN_ACTIVE') throw new ConflictException();
+
+      const conversation = await tx.conversation.update({
+        where: { tenantId_id: { tenantId, id: conversationId } },
+        data: { mode: 'AI_ACTIVE', assignedStaffId: null },
+        select: {
+          id: true,
+          status: true,
+          mode: true,
+          assignedStaffId: true,
+          closedAt: true,
+        },
+      });
+      await this.tenants.audit(tx, actor, tenantId, 'conversation.ai_reactivated', conversationId);
+      return conversation;
+    });
+  }
+
+  closeConversation(actor: Actor, tenantId: string, conversationId: string) {
+    return this.tenants.scoped(actor, tenantId, 'conversations:takeover', async (tx) => {
+      const current = await this.lockConversation(tx, tenantId, conversationId);
+      if (current.status === 'archived') throw new ConflictException();
+      if (current.status === 'closed' && current.mode === 'CLOSED')
+        return this.conversationControl(tx, tenantId, conversationId);
+
+      const conversation = await tx.conversation.update({
+        where: { tenantId_id: { tenantId, id: conversationId } },
+        data: {
+          status: 'closed',
+          mode: 'CLOSED',
+          assignedStaffId: null,
+          closedAt: current.closedAt ?? new Date(),
+        },
+        select: {
+          id: true,
+          status: true,
+          mode: true,
+          assignedStaffId: true,
+          closedAt: true,
+        },
+      });
+      await this.tenants.audit(tx, actor, tenantId, 'conversation.closed', conversationId);
+      return conversation;
+    });
+  }
+
+  private async lockConversation(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    conversationId: string,
+  ): Promise<ConversationControlRow> {
+    const [row] = await tx.$queryRaw<ConversationControlRow[]>`
+      SELECT id::text, mode, status,
+             assigned_staff_id::text AS "assignedStaffId",
+             closed_at AS "closedAt"
+      FROM conversations
+      WHERE tenant_id=${tenantId}::uuid AND id=${conversationId}::uuid
+      FOR UPDATE
+    `;
+    if (!row) throw new NotFoundException();
+    return row;
+  }
+
+  private conversationControl(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    conversationId: string,
+  ) {
+    return tx.conversation.findUniqueOrThrow({
+      where: { tenantId_id: { tenantId, id: conversationId } },
+      select: {
+        id: true,
+        status: true,
+        mode: true,
+        assignedStaffId: true,
+        closedAt: true,
+      },
     });
   }
 

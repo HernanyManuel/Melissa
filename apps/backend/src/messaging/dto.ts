@@ -27,3 +27,7 @@ export class ConversationQuery extends MessagePageDto {
   @Length(0, 80)
   q?: string;
 }
+
+export class ConversationTakeoverDto {
+  @ApiProperty({ format: 'uuid' }) @IsUUID() staffId!: string;
+}

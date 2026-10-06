@@ -13,7 +13,12 @@ import {
 import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation, ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { MessagingService } from './messaging.service';
-import { MessagePageDto, MockInboundDto, ConversationQuery } from './dto';
+import {
+  ConversationQuery,
+  ConversationTakeoverDto,
+  MessagePageDto,
+  MockInboundDto,
+} from './dto';
 import { ProcessingQuery, ProcessingPageDto } from './processing.dto';
 
 @ApiTags('Messaging sandbox')
@@ -45,6 +50,52 @@ export class MessagingController {
   ) {
     return this.messaging.conversations(req.actor, tenant, page);
   }
+  @Post('conversations/:id/takeover')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Take over a conversation for a human staff member',
+    description:
+      'Moves an active conversation to HUMAN_ACTIVE. Staff-role users may only claim a staff record linked to their own user identity.',
+  })
+  takeover(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ConversationTakeoverDto,
+  ) {
+    return this.messaging.takeover(req.actor, tenant, id, body.staffId);
+  }
+
+  @Post('conversations/:id/reactivate-ai')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Reactivate AI after a human takeover',
+    description:
+      'Moves HUMAN_ACTIVE to AI_ACTIVE, clears the staff assignment and advances the mode fence.',
+  })
+  reactivateAI(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.messaging.reactivateAI(req.actor, tenant, id);
+  }
+
+  @Post('conversations/:id/close')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Close a conversation',
+    description:
+      'Moves the conversation to CLOSED, clears human assignment and records closedAt. Repeated close is idempotent.',
+  })
+  closeConversation(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.messaging.closeConversation(req.actor, tenant, id);
+  }
+
   @Get('message-processing')
   @ApiOperation({
     operationId: 'listMessageProcessing',
