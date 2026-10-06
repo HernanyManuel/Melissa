@@ -13,6 +13,7 @@ import { configureHttp } from '../src/http';
 import { IdentityMail } from '../src/identity/mail';
 import { waitReady } from './wait-ready';
 
+// prettier-ignore
 test('human takeover fences automatic outbound and supports reactivation and close', { timeout: 30000 }, async () => {
   const migrationUrl = process.env.MIGRATION_DATABASE_URL;
   assert(migrationUrl, 'conversation control integration requires MIGRATION_DATABASE_URL');

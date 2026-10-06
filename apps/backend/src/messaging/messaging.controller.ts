@@ -13,12 +13,7 @@ import {
 import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation, ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { MessagingService } from './messaging.service';
-import {
-  ConversationQuery,
-  ConversationTakeoverDto,
-  MessagePageDto,
-  MockInboundDto,
-} from './dto';
+import { ConversationQuery, ConversationTakeoverDto, MessagePageDto, MockInboundDto } from './dto';
 import { ProcessingQuery, ProcessingPageDto } from './processing.dto';
 
 @ApiTags('Messaging sandbox')

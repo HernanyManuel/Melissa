@@ -181,43 +181,38 @@ export class MessagingService {
   }
 
   takeover(actor: Actor, tenantId: string, conversationId: string, staffId: string) {
-    return this.tenants.scoped(
-      actor,
-      tenantId,
-      'conversations:takeover',
-      async (tx, role) => {
-        const staff = await tx.staff.findFirst({
-          where: { tenantId, id: staffId, active: true },
-          select: { id: true, userId: true },
-        });
-        if (!staff) throw new NotFoundException();
-        if (role === 'staff' && staff.userId !== actor.userId) throw new ForbiddenException();
+    return this.tenants.scoped(actor, tenantId, 'conversations:takeover', async (tx, role) => {
+      const staff = await tx.staff.findFirst({
+        where: { tenantId, id: staffId, active: true },
+        select: { id: true, userId: true },
+      });
+      if (!staff) throw new NotFoundException();
+      if (role === 'staff' && staff.userId !== actor.userId) throw new ForbiddenException();
 
-        const current = await this.lockConversation(tx, tenantId, conversationId);
-        if (current.status === 'archived' || current.status === 'closed' || current.mode === 'CLOSED')
-          throw new ConflictException();
-        if (current.mode === 'HUMAN_ACTIVE') {
-          if (current.assignedStaffId !== staff.id) throw new ConflictException();
-          return this.conversationControl(tx, tenantId, conversationId);
-        }
-        if (!['AI_ACTIVE', 'WAITING_HUMAN', 'AI_PAUSED'].includes(current.mode))
-          throw new ConflictException();
+      const current = await this.lockConversation(tx, tenantId, conversationId);
+      if (current.status === 'archived' || current.status === 'closed' || current.mode === 'CLOSED')
+        throw new ConflictException();
+      if (current.mode === 'HUMAN_ACTIVE') {
+        if (current.assignedStaffId !== staff.id) throw new ConflictException();
+        return this.conversationControl(tx, tenantId, conversationId);
+      }
+      if (!['AI_ACTIVE', 'WAITING_HUMAN', 'AI_PAUSED'].includes(current.mode))
+        throw new ConflictException();
 
-        const conversation = await tx.conversation.update({
-          where: { tenantId_id: { tenantId, id: conversationId } },
-          data: { mode: 'HUMAN_ACTIVE', assignedStaffId: staff.id },
-          select: {
-            id: true,
-            status: true,
-            mode: true,
-            assignedStaffId: true,
-            closedAt: true,
-          },
-        });
-        await this.tenants.audit(tx, actor, tenantId, 'conversation.takeover', conversationId);
-        return conversation;
-      },
-    );
+      const conversation = await tx.conversation.update({
+        where: { tenantId_id: { tenantId, id: conversationId } },
+        data: { mode: 'HUMAN_ACTIVE', assignedStaffId: staff.id },
+        select: {
+          id: true,
+          status: true,
+          mode: true,
+          assignedStaffId: true,
+          closedAt: true,
+        },
+      });
+      await this.tenants.audit(tx, actor, tenantId, 'conversation.takeover', conversationId);
+      return conversation;
+    });
   }
 
   reactivateAI(actor: Actor, tenantId: string, conversationId: string) {
