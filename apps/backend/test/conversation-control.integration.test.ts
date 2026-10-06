@@ -215,7 +215,7 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     const afterTakeover = await admin.conversation.findUniqueOrThrow({
       where: { tenantId_id: { tenantId: tenant.id, id: conversationId } },
     });
-    assert.equal(afterTakeover.modeEpoch, before.modeEpoch + 1n);
+    assert.equal(afterTakeover.modeEpoch, before.modeEpoch + 4n);
 
     const dispatcherStore = new PrismaAIAutomaticOutboundStore(deps);
     assert.equal(await dispatcherStore.claim(intent.id, 0), null);
@@ -236,7 +236,7 @@ test('human takeover fences automatic outbound and supports reactivation and clo
           where: { tenantId_id: { tenantId: tenant.id, id: conversationId } },
         })
       ).modeEpoch,
-      before.modeEpoch + 1n,
+      before.modeEpoch + 2n,
     );
 
     const reactivated = await data<{
