@@ -215,7 +215,7 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     const afterTakeover = await admin.conversation.findUniqueOrThrow({
       where: { tenantId_id: { tenantId: tenant.id, id: conversationId } },
     });
-    assert.equal(afterTakeover.modeEpoch, before.modeEpoch + 4n);
+    assert.equal(afterTakeover.modeEpoch, before.modeEpoch + 2n);
 
     const dispatcherStore = new PrismaAIAutomaticOutboundStore(deps);
     assert.equal(await dispatcherStore.claim(intent.id, 0), null);
@@ -256,7 +256,7 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     const afterReactivation = await admin.conversation.findUniqueOrThrow({
       where: { tenantId_id: { tenantId: tenant.id, id: conversationId } },
     });
-    assert.equal(afterReactivation.modeEpoch, before.modeEpoch + 2n);
+    assert.equal(afterReactivation.modeEpoch, before.modeEpoch + 3n);
 
     const closed = await data<{
       status: string;
@@ -280,7 +280,7 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     const afterClose = await admin.conversation.findUniqueOrThrow({
       where: { tenantId_id: { tenantId: tenant.id, id: conversationId } },
     });
-    assert.equal(afterClose.modeEpoch, before.modeEpoch + 3n);
+    assert.equal(afterClose.modeEpoch, before.modeEpoch + 4n);
 
     const closedAgain = await data<{ closedAt: string | null }>(
       await call(
@@ -298,7 +298,7 @@ test('human takeover fences automatic outbound and supports reactivation and clo
           where: { tenantId_id: { tenantId: tenant.id, id: conversationId } },
         })
       ).modeEpoch,
-      before.modeEpoch + 3n,
+      before.modeEpoch + 4n,
     );
 
     assert.equal(
