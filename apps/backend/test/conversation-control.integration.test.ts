@@ -48,7 +48,7 @@ test('human takeover fences automatic outbound and supports reactivation and clo
   };
 
   const createActor = async (label: string) => {
-    const email = `conversation-control-${label}-${randomUUID()}@example.test`;
+    const email = `cc-${label}-${randomUUID()}@example.test`;
     const password = 'Conversation-control-123!';
     assert.equal(
       (
