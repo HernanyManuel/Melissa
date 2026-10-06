@@ -196,8 +196,14 @@ export class MessagingService {
         if (current.assignedStaffId !== staff.id) throw new ConflictException();
         return this.conversationControl(tx, tenantId, conversationId);
       }
-      if (!['AI_ACTIVE', 'WAITING_HUMAN', 'AI_PAUSED'].includes(current.mode))
-        throw new ConflictException();
+      if (!['AI_ACTIVE', 'WAITING_HUMAN'].includes(current.mode)) throw new ConflictException();
+      if (current.mode === 'AI_ACTIVE') {
+        await tx.conversation.update({
+          where: { tenantId_id: { tenantId, id: conversationId } },
+          data: { mode: 'WAITING_HUMAN' },
+          select: { id: true },
+        });
+      }
 
       const conversation = await tx.conversation.update({
         where: { tenantId_id: { tenantId, id: conversationId } },
