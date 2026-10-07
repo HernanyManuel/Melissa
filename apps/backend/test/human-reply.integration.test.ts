@@ -17,6 +17,7 @@ import {
 } from '../src/messaging/human-outbound-dispatcher';
 import { waitReady } from './wait-ready';
 
+// prettier-ignore
 test('manual reply is durable, fenced and persisted after provider acceptance', { timeout: 30000 }, async () => {
   const migrationUrl = process.env.MIGRATION_DATABASE_URL;
   assert(migrationUrl, 'human reply integration requires MIGRATION_DATABASE_URL');

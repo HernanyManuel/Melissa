@@ -358,12 +358,7 @@ export class MessagingService {
     });
   }
 
-  async reply(
-    actor: Actor,
-    tenantId: string,
-    conversationId: string,
-    input: ManualReplyDto,
-  ) {
+  async reply(actor: Actor, tenantId: string, conversationId: string, input: ManualReplyDto) {
     if (
       !input ||
       typeof input.text !== 'string' ||
@@ -471,13 +466,7 @@ export class MessagingService {
           },
         });
         await tx.humanOutboundDispatch.create({ data: { tenantId, id: intentId } });
-        await this.tenants.audit(
-          tx,
-          actor,
-          tenantId,
-          'conversation.manual_reply_queued',
-          intentId,
-        );
+        await this.tenants.audit(tx, actor, tenantId, 'conversation.manual_reply_queued', intentId);
         return {
           conflict: false as const,
           intentId,

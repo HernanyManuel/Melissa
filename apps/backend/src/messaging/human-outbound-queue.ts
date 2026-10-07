@@ -41,8 +41,7 @@ export async function startHumanOutboundQueue(
   const worker = new Worker<{ id: string; attempt: number }>(
     'human-outbound',
     async (job) => {
-      if (!isHumanOutboundJob(job.name, job.data))
-        throw new Error('Invalid human outbound job');
+      if (!isHumanOutboundJob(job.name, job.data)) throw new Error('Invalid human outbound job');
       await processor.process(job.data.id, job.data.attempt);
     },
     { connection, concurrency: 2, lockDuration: 30000, maxStalledCount: 2 },

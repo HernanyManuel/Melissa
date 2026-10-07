@@ -2,7 +2,10 @@ import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { isUUID } from 'class-validator';
 import { MessagingDeliveryUnknown } from '../channels/messaging-provider';
-import { MessagingProviderRegistry, ProviderChannel } from '../channels/messaging-provider-registry';
+import {
+  MessagingProviderRegistry,
+  ProviderChannel,
+} from '../channels/messaging-provider-registry';
 import { Dependencies } from '../dependencies';
 import { ConversationLock } from './conversation-lock';
 import { appendInboxEvent } from './inbox-event-store';
@@ -311,8 +314,7 @@ export class PrismaHumanOutboundStore implements HumanOutboundStore {
       WHERE tenant_id=${claim.tenantId}::uuid
         AND id=${claim.id}::uuid AND state='pending'
     `;
-    if (updated === 1)
-      await this.audit(tx, claim, `conversation.manual_reply_${reason}`);
+    if (updated === 1) await this.audit(tx, claim, `conversation.manual_reply_${reason}`);
   }
 
   private async deadLetter(
@@ -390,10 +392,7 @@ export class HumanOutboundDispatcher {
           text: claim.text,
         });
         providerAccepted = true;
-        if (
-          !delivery.providerMessageId ||
-          Number.isNaN(delivery.acceptedAt.getTime())
-        )
+        if (!delivery.providerMessageId || Number.isNaN(delivery.acceptedAt.getTime()))
           throw new MessagingDeliveryUnknown();
         await this.store.accept(claim, delivery);
       } catch (error) {
