@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 
 export const INBOX_EVENT_TYPES = [
   'message.received',
+  'message.sent',
   'conversation.handoff_requested',
   'conversation.takeover',
   'conversation.ai_reactivated',

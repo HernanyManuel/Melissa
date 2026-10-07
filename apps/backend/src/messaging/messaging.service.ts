@@ -6,10 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { TenantService } from '../tenancy/tenant.service';
 import { Actor } from '../identity/auth.service';
-import { MessagePageDto, MockInboundDto, ConversationQuery } from './dto';
+import { ConversationQuery, ManualReplyDto, MessagePageDto, MockInboundDto } from './dto';
 import { CONFIG, Configuration } from '../config';
 import { enqueueInbound } from './enqueue-inbound';
 import { checkedReceiptState } from './receipt-state';
@@ -22,6 +22,7 @@ interface ConversationControlRow {
   status: string;
   assignedStaffId: string | null;
   closedAt: Date | null;
+  modeEpoch: bigint;
 }
 
 @Injectable()
@@ -301,7 +302,8 @@ export class MessagingService {
     const [row] = await tx.$queryRaw<ConversationControlRow[]>`
       SELECT id::text, mode, status,
              assigned_staff_id::text AS "assignedStaffId",
-             closed_at AS "closedAt"
+             closed_at AS "closedAt",
+             mode_epoch AS "modeEpoch"
       FROM conversations
       WHERE tenant_id=${tenantId}::uuid AND id=${conversationId}::uuid
       FOR UPDATE
@@ -353,6 +355,142 @@ export class MessagingService {
         createdAt: row.createdAt.toISOString(),
       }));
     });
+  }
+
+  async reply(
+    actor: Actor,
+    tenantId: string,
+    conversationId: string,
+    input: ManualReplyDto,
+  ) {
+    if (
+      !input ||
+      typeof input.text !== 'string' ||
+      !input.text.trim() ||
+      Array.from(input.text).length > 4096 ||
+      /[\u0000\p{Surrogate}]/u.test(input.text)
+    )
+      throw new BadRequestException();
+
+    const result = await this.tenants.scoped(
+      actor,
+      tenantId,
+      'conversations:reply',
+      async (tx, role) => {
+        const previous = await tx.humanOutboundIntent.findUnique({
+          where: {
+            tenantId_actorId_requestId: {
+              tenantId,
+              actorId: actor.userId,
+              requestId: input.requestId,
+            },
+          },
+        });
+        if (previous) {
+          if (previous.conversationId !== conversationId || previous.contentText !== input.text) {
+            await this.tenants.audit(
+              tx,
+              actor,
+              tenantId,
+              'conversation.manual_reply_conflict',
+              previous.id,
+            );
+            return { conflict: true as const };
+          }
+          const dispatch = await tx.humanOutboundDispatch.findUnique({
+            where: { id: previous.id },
+            select: { state: true },
+          });
+          return {
+            conflict: false as const,
+            intentId: previous.id,
+            duplicate: true,
+            state: dispatch?.state ?? ('pending' as const),
+          };
+        }
+
+        const current = await this.lockConversation(tx, tenantId, conversationId);
+        if (
+          current.status === 'closed' ||
+          current.status === 'archived' ||
+          current.mode !== 'HUMAN_ACTIVE' ||
+          !current.assignedStaffId
+        )
+          throw new ConflictException();
+
+        if (role === 'staff') {
+          const assigned = await tx.staff.findFirst({
+            where: {
+              tenantId,
+              id: current.assignedStaffId,
+              active: true,
+              userId: actor.userId,
+            },
+            select: { id: true },
+          });
+          if (!assigned) throw new ForbiddenException();
+        }
+
+        const target = await tx.conversation.findUnique({
+          where: { tenantId_id: { tenantId, id: conversationId } },
+          select: {
+            customer: { select: { deletedAt: true } },
+            channelConnection: {
+              select: {
+                channelType: true,
+                mode: true,
+                status: true,
+                externalPhoneId: true,
+                credentialsReference: true,
+              },
+            },
+          },
+        });
+        if (
+          !target ||
+          target.customer.deletedAt ||
+          target.channelConnection.channelType !== 'whatsapp' ||
+          target.channelConnection.mode !== 'live' ||
+          target.channelConnection.status !== 'active' ||
+          !target.channelConnection.externalPhoneId.trim() ||
+          !target.channelConnection.credentialsReference?.trim()
+        )
+          throw new NotFoundException();
+
+        const intentId = randomUUID();
+        await tx.humanOutboundIntent.create({
+          data: {
+            tenantId,
+            id: intentId,
+            actorId: actor.userId,
+            requestId: input.requestId,
+            conversationId,
+            modeEpoch: current.modeEpoch,
+            contentText: input.text,
+          },
+        });
+        await tx.humanOutboundDispatch.create({ data: { tenantId, id: intentId } });
+        await this.tenants.audit(
+          tx,
+          actor,
+          tenantId,
+          'conversation.manual_reply_queued',
+          intentId,
+        );
+        return {
+          conflict: false as const,
+          intentId,
+          duplicate: false,
+          state: 'pending' as const,
+        };
+      },
+    );
+    if (result.conflict) throw new ConflictException();
+    return {
+      intentId: result.intentId,
+      duplicate: result.duplicate,
+      state: result.state,
+    };
   }
 
   messages(actor: Actor, tenantId: string, conversationId: string, page: MessagePageDto) {

@@ -2,6 +2,7 @@ import { TenantRole } from '@prisma/client';
 export type Permission =
   | 'messages:read'
   | 'conversations:takeover'
+  | 'conversations:reply'
   | 'channels:manage'
   | 'customers:read'
   | 'customers:write'
@@ -17,6 +18,7 @@ const permissions: Record<TenantRole, readonly Permission[]> = {
   owner: [
     'messages:read',
     'conversations:takeover',
+    'conversations:reply',
     'channels:manage',
     'customers:read',
     'customers:write',
@@ -32,6 +34,7 @@ const permissions: Record<TenantRole, readonly Permission[]> = {
   admin: [
     'messages:read',
     'conversations:takeover',
+    'conversations:reply',
     'channels:manage',
     'customers:read',
     'customers:write',
@@ -52,6 +55,7 @@ const permissions: Record<TenantRole, readonly Permission[]> = {
     'customers:write',
     'messages:read',
     'conversations:takeover',
+    'conversations:reply',
   ],
   staff: [
     'tenant:read',
@@ -59,6 +63,7 @@ const permissions: Record<TenantRole, readonly Permission[]> = {
     'customers:read',
     'messages:read',
     'conversations:takeover',
+    'conversations:reply',
   ],
   viewer: ['tenant:read', 'business:read'],
 };

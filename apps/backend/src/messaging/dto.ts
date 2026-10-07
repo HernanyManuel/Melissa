@@ -41,3 +41,17 @@ export class InboxEventQuery {
   @Matches(/^\d{1,19}$/)
   after?: string;
 }
+
+export class ManualReplyDto {
+  @ApiProperty({
+    format: 'uuid',
+    description: 'Stable UUID reused with the exact same text after an uncertain response.',
+  })
+  @IsUUID()
+  requestId!: string;
+
+  @ApiProperty({ minLength: 1, maxLength: 4096 })
+  @IsString()
+  @Length(1, 4096)
+  text!: string;
+}

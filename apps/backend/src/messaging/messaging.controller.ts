@@ -22,6 +22,7 @@ import {
   ConversationQuery,
   ConversationTakeoverDto,
   InboxEventQuery,
+  ManualReplyDto,
   MessagePageDto,
   MockInboundDto,
 } from './dto';
@@ -221,6 +222,22 @@ export class MessagingController {
   ) {
     return this.messaging.receipt(req.actor, tenant, id);
   }
+  @Post('conversations/:id/messages')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Queue a manual staff reply',
+    description:
+      'Requires HUMAN_ACTIVE. The requestId is idempotent per actor/tenant. HTTP 200 means durable queue acceptance or identical replay, not provider delivery.',
+  })
+  reply(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ManualReplyDto,
+  ) {
+    return this.messaging.reply(req.actor, tenant, id, body);
+  }
+
   @Get('conversations/:id/messages')
   messages(
     @Req() req: AuthRequest,
