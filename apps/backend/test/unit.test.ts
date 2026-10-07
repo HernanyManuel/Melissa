@@ -41,6 +41,7 @@ import './ai-turn-runtime.test';
 import './ai-outbound-dispatcher.test';
 import './ai-outbound-queue.test';
 import './ai-outbound-runtime.test';
+import './human-outbound-dispatcher.test';
 import './create-lead-tool.test';
 import './update-customer-tool.test';
 import { test } from 'node:test';
