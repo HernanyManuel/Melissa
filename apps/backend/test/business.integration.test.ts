@@ -271,13 +271,26 @@ test(
       );
       const conversationId = completed.message.conversationId;
       const messagePath = `/tenants/${tenantA.id}/conversations/${conversationId}/messages`;
-      const history = await data<{ items: { contentText: string }[]; next: null }>(
+      const history = await data<{ items: { id: string; contentText: string }[]; next: null }>(
         await call('GET', messagePath, undefined, actorA.access_token),
         200,
       );
       assert.equal(history.items.length, 1);
       assert.equal(history.items[0]!.contentText, inbound.text);
       assert.equal(history.next, null);
+      const inboundInboxEvents = await deps.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantA.id}, true)`;
+        return tx.$queryRaw<Array<{ eventType: string; messageId: string | null }>>`
+          SELECT event_type AS "eventType", message_id::text AS "messageId"
+          FROM inbox_events
+          WHERE tenant_id=${tenantA.id}::uuid
+            AND conversation_id=${conversationId}::uuid
+          ORDER BY sequence ASC
+        `;
+      });
+      assert.deepEqual(inboundInboxEvents, [
+        { eventType: 'message.received', messageId: history.items[0]!.id },
+      ]);
       assert.equal((await call('GET', messagePath, undefined, actorB.access_token)).status, 404);
       assert.equal(
         (await call('GET', `${messagePath}?after=${randomUUID()}`, undefined, actorA.access_token))

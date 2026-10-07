@@ -2,18 +2,29 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiResponse, ApiOperation, ApiOkResponse } from '@nestjs/swagger';
+import { BadRequestException } from '@nestjs/common';
+import { Response } from 'express';
+import { setTimeout as delay } from 'node:timers/promises';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { MessagingService } from './messaging.service';
-import { ConversationQuery, ConversationTakeoverDto, MessagePageDto, MockInboundDto } from './dto';
+import {
+  ConversationQuery,
+  ConversationTakeoverDto,
+  InboxEventQuery,
+  MessagePageDto,
+  MockInboundDto,
+} from './dto';
 import { ProcessingQuery, ProcessingPageDto } from './processing.dto';
 
 @ApiTags('Messaging sandbox')
@@ -89,6 +100,88 @@ export class MessagingController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.messaging.closeConversation(req.actor, tenant, id);
+  }
+
+  @Get('inbox/events')
+  @ApiOperation({
+    summary: 'Stream durable tenant-scoped Inbox events',
+    description:
+      'SSE stream with tenant-local monotonic IDs. Reconnect with Last-Event-ID or the initial after query to replay missed events.',
+  })
+  async inboxEvents(
+    @Req() req: AuthRequest,
+    @Res() response: Response,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Query() query: InboxEventQuery,
+    @Headers('last-event-id') lastEventId?: string,
+  ): Promise<void> {
+    let cursor = this.inboxCursor(lastEventId ?? query.after);
+    let events = await this.messaging.inboxEvents(req.actor, tenant, cursor);
+
+    response.status(200);
+    response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    response.setHeader('Cache-Control', 'no-cache, no-transform');
+    response.setHeader('Connection', 'keep-alive');
+    response.setHeader('X-Accel-Buffering', 'no');
+    response.flushHeaders();
+    response.write('retry: 2000\n\n');
+
+    let closed = false;
+    const closedSignal = new Promise<void>((resolve) => {
+      req.once('close', () => {
+        closed = true;
+        resolve();
+      });
+    });
+    let lastHeartbeat = Date.now();
+
+    while (!closed) {
+      for (const event of events) {
+        if (closed) break;
+        response.write(`id: ${event.sequence}\n`);
+        response.write(`event: ${event.eventType}\n`);
+        response.write(
+          `data: ${JSON.stringify({
+            conversationId: event.conversationId,
+            messageId: event.messageId,
+            createdAt: event.createdAt,
+          })}\n\n`,
+        );
+        cursor = BigInt(event.sequence);
+      }
+      if (closed) break;
+
+      if (events.length === 100) {
+        try {
+          events = await this.messaging.inboxEvents(req.actor, tenant, cursor);
+          continue;
+        } catch {
+          break;
+        }
+      }
+
+      if (Date.now() - lastHeartbeat >= 15_000) {
+        response.write(': keep-alive\n\n');
+        lastHeartbeat = Date.now();
+      }
+      await Promise.race([delay(1000), closedSignal]);
+      if (closed) break;
+      try {
+        events = await this.messaging.inboxEvents(req.actor, tenant, cursor);
+      } catch {
+        break;
+      }
+    }
+
+    if (!response.writableEnded) response.end();
+  }
+
+  private inboxCursor(value?: string): bigint {
+    if (value === undefined) return 0n;
+    if (!/^\d{1,19}$/.test(value)) throw new BadRequestException();
+    const cursor = BigInt(value);
+    if (cursor > 9_223_372_036_854_775_807n) throw new BadRequestException();
+    return cursor;
   }
 
   @Get('message-processing')

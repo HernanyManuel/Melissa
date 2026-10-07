@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class MockInboundDto {
@@ -30,4 +30,14 @@ export class ConversationQuery extends MessagePageDto {
 
 export class ConversationTakeoverDto {
   @ApiProperty({ format: 'uuid' }) @IsUUID() staffId!: string;
+}
+
+export class InboxEventQuery {
+  @ApiPropertyOptional({
+    description: 'Tenant-local durable event cursor. Omit or use 0 for the beginning.',
+    example: '42',
+  })
+  @IsOptional()
+  @Matches(/^\d{1,19}$/)
+  after?: string;
 }
