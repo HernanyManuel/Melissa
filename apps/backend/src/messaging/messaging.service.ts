@@ -14,6 +14,7 @@ import { CONFIG, Configuration } from '../config';
 import { enqueueInbound } from './enqueue-inbound';
 import { checkedReceiptState } from './receipt-state';
 import { ProcessingQuery, ProcessingPageDto } from './processing.dto';
+import { appendInboxEvent } from './inbox-event-store';
 
 interface ConversationControlRow {
   id: string;
@@ -217,6 +218,12 @@ export class MessagingService {
         },
       });
       await this.tenants.audit(tx, actor, tenantId, 'conversation.takeover', conversationId);
+      await appendInboxEvent(tx, {
+        tenantId,
+        conversationId,
+        eventType: 'conversation.takeover',
+        actorId: actor.userId,
+      });
       return conversation;
     });
   }
@@ -242,6 +249,12 @@ export class MessagingService {
         },
       });
       await this.tenants.audit(tx, actor, tenantId, 'conversation.ai_reactivated', conversationId);
+      await appendInboxEvent(tx, {
+        tenantId,
+        conversationId,
+        eventType: 'conversation.ai_reactivated',
+        actorId: actor.userId,
+      });
       return conversation;
     });
   }
@@ -270,6 +283,12 @@ export class MessagingService {
         },
       });
       await this.tenants.audit(tx, actor, tenantId, 'conversation.closed', conversationId);
+      await appendInboxEvent(tx, {
+        tenantId,
+        conversationId,
+        eventType: 'conversation.closed',
+        actorId: actor.userId,
+      });
       return conversation;
     });
   }
@@ -305,6 +324,34 @@ export class MessagingService {
         assignedStaffId: true,
         closedAt: true,
       },
+    });
+  }
+
+  inboxEvents(actor: Actor, tenantId: string, after: bigint) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      const rows = await tx.$queryRaw<
+        Array<{
+          sequence: string;
+          eventType: string;
+          conversationId: string;
+          messageId: string | null;
+          createdAt: Date;
+        }>
+      >`
+        SELECT sequence::text AS sequence,
+               event_type AS "eventType",
+               conversation_id::text AS "conversationId",
+               message_id::text AS "messageId",
+               created_at AS "createdAt"
+        FROM inbox_events
+        WHERE tenant_id=${tenantId}::uuid AND sequence > ${after}
+        ORDER BY sequence ASC
+        LIMIT 100
+      `;
+      return rows.map((row) => ({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+      }));
     });
   }
 
