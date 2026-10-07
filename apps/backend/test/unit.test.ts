@@ -79,6 +79,12 @@ test('conversation takeover permission excludes viewers', () => {
   assert(!allows('viewer', 'conversations:takeover'));
 });
 
+test('conversation reply permission excludes viewers', () => {
+  for (const role of ['owner', 'admin', 'manager', 'staff'] as const)
+    assert(allows(role, 'conversations:reply'));
+  assert(!allows('viewer', 'conversations:reply'));
+});
+
 test('customer permissions grant least privilege by role', () => {
   for (const role of ['owner', 'admin', 'manager'] as const) {
     assert(allows(role, 'customers:read'));
