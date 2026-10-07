@@ -156,11 +156,13 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
       data: {
         tenantId: tenant.id,
         id: channelId,
-        channelType: 'test',
+        channelType: 'webchat',
         mode: 'live',
         externalAccountId: randomUUID(),
         externalPhoneId: randomUUID(),
         displayName: 'Inbox SSE channel',
+        credentialsReference: 'secret://test/channel',
+        webhookSecretReference: 'secret://test/webhook',
       },
     });
     await admin.customer.create({
