@@ -1,12 +1,14 @@
 # Estado do projeto
 
-## Atualização Phase 8 — Controlo humano de conversas (schema 54)
+## Atualização Phase 8 — Controlo humano + eventos real-time duráveis (schema 55)
 
-Primeira fundação do Inbox implementada no PR #7: `assigned_staff_id` tenant-scoped, `closed_at`, permissão `conversations:takeover` e comandos autenticados de takeover, reativação da IA e fecho. Takeover preserva o grafo `AI_ACTIVE -> WAITING_HUMAN -> HUMAN_ACTIVE`; cada mudança real de modo avança o `mode_epoch`, e o dispatcher existente volta a verificar modo/epoch antes de enviar. Replays do mesmo takeover/fecho são idempotentes e mutações reais são auditadas. Ver [ADR-076](decisions/ADR-076-human-conversation-control.md).
+A fundação do Inbox no PR #7 inclui agora controlo humano e um feed SSE durável tenant-scoped. Schema 54 introduziu `assigned_staff_id`, `closed_at`, a permissão `conversations:takeover` e os comandos autenticados de takeover, reativação da IA e fecho. Takeover preserva o grafo `AI_ACTIVE -> WAITING_HUMAN -> HUMAN_ACTIVE`; cada mudança real de modo avança `mode_epoch`, e o dispatcher volta a verificar modo/epoch antes de qualquer envio automático. Ver [ADR-076](decisions/ADR-076-human-conversation-control.md).
 
-A integração HTTP com PostgreSQL/RLS e Redis reais prova isolamento cross-tenant, staff assignment, epochs, reativação/fecho e, criticamente, que um outbound AI persistido antes do takeover é rejeitado antes de provider send. O workflow `37536138306` ficou integralmente verde no commit `9a6c4abea80bad0c096550ec013ec41f2388b353`: backend, Compose e Flutter. Durante a validação surgiu o advisory crítico `proxy-addr <2.0.8`; o workspace passou a forçar `2.0.8` e o audit de produção voltou a verde sem reduzir o gate.
+Schema 55 introduz `inbox_events`: log mínimo e durável com sequência monotónica por tenant. O endpoint autenticado `GET /api/v1/tenants/:tenantId/inbox/events` usa SSE, aceita cursor inicial `after` e recupera eventos perdidos através do header padrão `Last-Event-ID`. O payload real-time contém apenas tipo, conversation/message IDs e timestamp; conteúdo continua atrás dos endpoints REST existentes. Mensagens inbound, handoff da IA, takeover, reativação e fecho escrevem o evento na mesma transação da mutação original. Ver [ADR-077](decisions/ADR-077-durable-inbox-event-stream.md).
 
-P8 continua em progresso: faltam WebSocket/SSE com recuperação após reconexão, isolamento real-time, notificações, resposta manual e UI Inbox completa. O gate externo de P7 para Google Calendar com credenciais reais continua igualmente aberto.
+A integração com PostgreSQL/RLS e worker real prova replay após reconexão, isolamento cross-tenant, validação de cursor, evento de mensagem inbound e ausência de duplicação em replay de handoff. O workflow `37700844071` ficou integralmente verde no commit `fe7e327365f680006e699db9b179b7bc90ef660d`: migrations/schema 55, formatter, lint, typecheck, unitários, integração completa, restart/Redis recovery, OpenAPI, audit de dependências de produção, Compose e Flutter.
+
+P8 continua em progresso: faltam resposta manual de staff, notificações, notas/tags e UI Inbox completa. O gate externo de P7 para Google Calendar com credenciais reais continua aberto.
 
 ## Atualização Phase 5/P7 — Rotação da chave persistente de credenciais Calendar (schema 53)
 
