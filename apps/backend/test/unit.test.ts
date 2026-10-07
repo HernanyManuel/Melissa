@@ -42,6 +42,7 @@ import './ai-outbound-dispatcher.test';
 import './ai-outbound-queue.test';
 import './ai-outbound-runtime.test';
 import './human-outbound-dispatcher.test';
+import './human-outbound-queue.test';
 import './create-lead-tool.test';
 import './update-customer-tool.test';
 import { test } from 'node:test';
@@ -131,6 +132,7 @@ test('WhatsApp HTTP is opt-in and requires complete server configuration', () =>
 test('automatic AI outbound is disabled by default and requires complete secret routing', () => {
   const config = parseConfig(base);
   assert.equal(config.AI_OUTBOUND_WORKER_ENABLED, 'false');
+  assert.equal(config.HUMAN_OUTBOUND_WORKER_ENABLED, 'false');
   assert.equal(config.SECRET_PROVIDER, 'disabled');
   assert.throws(() => parseConfig({ ...base, AI_OUTBOUND_WORKER_ENABLED: 'true' }));
   assert.throws(() =>
@@ -150,6 +152,15 @@ test('automatic AI outbound is disabled by default and requires complete secret 
   });
   assert.equal(enabled.AI_OUTBOUND_WORKER_ENABLED, 'true');
   assert.equal(enabled.SECRET_PROVIDER, 'mounted-file');
+  const humanEnabled = parseConfig({
+    ...base,
+    SECRET_PROVIDER: 'mounted-file',
+    SECRET_MOUNT_DIRECTORY: '/run/secrets/melissa',
+    HUMAN_OUTBOUND_WORKER_ENABLED: 'true',
+    WHATSAPP_MESSAGING_API_VERSION: 'v23.0',
+  });
+  assert.equal(humanEnabled.HUMAN_OUTBOUND_WORKER_ENABLED, 'true');
+  assert.equal(humanEnabled.AI_OUTBOUND_WORKER_ENABLED, 'false');
 });
 
 test('calendar sync worker is disabled by default and requires mounted secrets', () => {

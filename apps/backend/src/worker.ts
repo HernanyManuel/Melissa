@@ -20,6 +20,7 @@ import { createMalwareScanner } from './storage/malware-scanner-factory';
 import { createSecretResolver } from './secrets/secret-resolver-factory';
 import { startAIAutomaticOutboundRuntime } from './ai/ai-outbound-runtime';
 import { startAITurnRuntime } from './ai/ai-turn-runtime';
+import { startHumanOutboundRuntime } from './messaging/human-outbound-runtime';
 import { startBookingCalendarRuntime } from './calendar/booking-calendar-runtime';
 import { startCalendarSyncRuntime } from './calendar/calendar-sync-runtime';
 import { startCalendarSyncDispatcher } from './calendar/calendar-sync-dispatcher';
@@ -76,6 +77,17 @@ async function bootstrap(): Promise<void> {
       secretResolver,
     });
   }
+  let stopHumanOutbound: () => Promise<void> = async () => undefined;
+  if (config.HUMAN_OUTBOUND_WORKER_ENABLED === 'true') {
+    const secretResolver = await createSecretResolver(config);
+    if (!secretResolver || !config.WHATSAPP_MESSAGING_API_VERSION)
+      throw new Error('Incomplete human outbound dependencies');
+    stopHumanOutbound = await startHumanOutboundRuntime(deps, {
+      redisUrl: config.REDIS_URL,
+      whatsappApiVersion: config.WHATSAPP_MESSAGING_API_VERSION,
+      secretResolver,
+    });
+  }
   let stopCalendarSync: () => Promise<void> = async () => undefined;
   let stopCalendarSyncDispatcher: () => Promise<void> = async () => undefined;
   let stopBookingCalendar: () => Promise<void> = async () => undefined;
@@ -104,6 +116,7 @@ async function bootstrap(): Promise<void> {
     await stopBookingCalendar();
     await stopCalendarSyncDispatcher();
     await stopCalendarSync();
+    await stopHumanOutbound();
     await stopAIOutbound();
     await stopMedia();
     await stopOutbound();
