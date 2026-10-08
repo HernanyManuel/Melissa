@@ -31,6 +31,7 @@ IdentityApi apiFor(Future<http.Response> Function(http.Request) route) =>
       if (request.url.path.endsWith('/auth/refresh')) {
         return http.Response('{"access_token":"access","csrf_token":"csrf"}', 200);
       }
+      if (request.url.path.endsWith('/staff')) return http.Response('[]', 200);
       return route(request);
     }));
 
