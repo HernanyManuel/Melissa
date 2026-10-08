@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../identity/api.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'outbound_page.dart';
+import 'human_controls.dart';
 
 class ConversationsPage extends StatefulWidget {
   const ConversationsPage({super.key, required this.tenantId, this.api});
@@ -95,6 +96,14 @@ class _ConversationsPageState extends State<ConversationsPage> {
     if (mounted && generation == messageGeneration) setState(() => reading = false);
   }
 
+  void applyConversationControl(Map<String, dynamic> update) {
+    if (!mounted || selected?['id'] != update['id']) return;
+    setState(() {
+      selected = update;
+      conversations = conversations.map((row) => row['id'] == update['id'] ? update : row).toList();
+    });
+  }
+
   Widget errorPanel(VoidCallback retry) {
     final l = AppLocalizations.of(context)!;
     return Padding(padding: const EdgeInsets.all(16), child: Column(children: [
@@ -138,7 +147,16 @@ class _ConversationsPageState extends State<ConversationsPage> {
         title: Text(selected!['customer']['displayName'] as String),
         trailing: IconButton(tooltip: l.retry, onPressed: reading ? null : () => open(selected!), icon: const Icon(Icons.refresh)),
       ),
-      Padding(padding: const EdgeInsets.all(12), child: Text(l.readOnlyConversation)),
+      if (selected!['mode'] is String)
+        ConversationHumanControls(
+          key: ValueKey('${widget.tenantId}/${selected!['id']}'),
+          tenantId: widget.tenantId,
+          conversation: selected!,
+          api: api,
+          onChanged: applyConversationControl,
+          onRevoked: () => load(),
+        )
+      else Padding(padding: const EdgeInsets.all(12), child: Text(l.readOnlyConversation)),
       if (selected!['channelConnection']['mode'] == 'mock' && selected!['channelConnectionId'] is String)
         TextButton.icon(icon: const Icon(Icons.science_outlined), label: Text(l.outboundTitle), onPressed: reading || messageError ? null : () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => OutboundPage(tenantId: widget.tenantId, conversationId: selected!['id'] as String, channelId: selected!['channelConnectionId'] as String, api: api)))),
       if (reading) const LinearProgressIndicator(),
