@@ -129,6 +129,51 @@ void main() {
     }
   });
 
+  testWidgets('SSE burst keeps both refreshes when the first REST snapshot is slow', (tester) async {
+    final events = StreamController<InboxEvent>.broadcast();
+    addTearDown(events.close);
+    final delayed = Completer<http.Response>();
+    var listRequests = 0;
+    final api = apiFor((request) async {
+      if (request.url.path.endsWith('/conversations')) {
+        listRequests++;
+        if (listRequests == 2) return delayed.future;
+        return page([conversation('A'), conversation('B')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api, (_, __) => events.stream));
+    await tester.pumpAndSettle();
+    expect(listRequests, 1);
+
+    events.add(const InboxEvent(
+      sequence: '1', type: 'message.received', conversationId: 'A',
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(listRequests, 2);
+
+    events.add(const InboxEvent(
+      sequence: '2', type: 'message.received', conversationId: 'B',
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    // The second event must not start an overlapping REST snapshot.
+    expect(listRequests, 2);
+
+    delayed.complete(page([conversation('A'), conversation('B')]));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpAndSettle();
+    // Buffered second event triggers the next authorized REST refresh.
+    expect(listRequests, 3);
+    expect(find.text('Cliente A'), findsOneWidget);
+    expect(find.text('Cliente B'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('tenant change resets event cursor and hides previous customer data', (tester) async {
     final streams = <StreamController<InboxEvent>>[];
     final captured = <String>[];
