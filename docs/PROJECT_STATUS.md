@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Resposta manual durável e fenced (schema 56)
+
+A terceira fatia do PR #7 implementa o backend de resposta humana por `POST /api/v1/tenants/:tenantId/conversations/:id/messages`. A permissão `conversations:reply` é permitida a owner/admin/manager/staff, não a viewer. O envio exige `HUMAN_ACTIVE` e atribuição válida; staff só responde pela própria identidade. O `requestId` é idempotente por tenant/ator e o HTTP 200 confirma apenas persistência da intenção, nunca a entrega. Ver [ADR-078](decisions/ADR-078-durable-fenced-human-replies.md).
+
+O schema 56 adiciona `human_outbound_intents`, `human_outbound_dispatch` e `human_outbound_dead_letters`, com RLS/grants mínimos. O dispatcher revalida modo, `mode_epoch`, atribuição e canal WhatsApp live antes de chamar o provider: reativar a IA torna obsoletas as intenções humanas anteriores. Após aceitação do provider, o backend guarda a mensagem outbound de staff e publica `message.sent` no Inbox. O worker está desligado por omissão (`HUMAN_OUTBOUND_WORKER_ENABLED=false`) e não usa fallback mock silencioso.
+
+O workflow [37842750417](https://github.com/HernanyManuel/Melissa/actions/runs/37842750417) ficou integralmente verde no commit `925f56f17066c08157ffe1d9e625ff02c5cf0eb4`. Foram validados migration/readiness schema 56, formatter, lint, typecheck, unitários, integração PostgreSQL/RLS da resposta manual (incluindo idempotência e fencing), worker real/recovery Redis, OpenAPI, audit de dependências, Compose e Flutter. O bloqueio de grant Prisma para `created_at` e campos de inicialização do dispatch foi corrigido com privilégios de coluna restritos.
+
+P8 continua incompleto: faltam UI Flutter do Inbox e composer humano, consumo SSE na UI, notificações, notas/tags e E2E. Não houve validação WhatsApp live com credenciais reais nem merge/deploy. O gate externo P7/Google Calendar continua aberto.
+
 ## Atualização Phase 8 — Controlo humano + eventos real-time duráveis (schema 55)
 
 A fundação do Inbox no PR #7 inclui agora controlo humano e um feed SSE durável tenant-scoped. Schema 54 introduziu `assigned_staff_id`, `closed_at`, a permissão `conversations:takeover` e os comandos autenticados de takeover, reativação da IA e fecho. Takeover preserva o grafo `AI_ACTIVE -> WAITING_HUMAN -> HUMAN_ACTIVE`; cada mudança real de modo avança `mode_epoch`, e o dispatcher volta a verificar modo/epoch antes de qualquer envio automático. Ver [ADR-076](decisions/ADR-076-human-conversation-control.md).
@@ -8,7 +18,7 @@ Schema 55 introduz `inbox_events`: log mínimo e durável com sequência monotó
 
 A integração com PostgreSQL/RLS e worker real prova replay após reconexão, isolamento cross-tenant, validação de cursor, evento de mensagem inbound e ausência de duplicação em replay de handoff. O workflow `37700844071` ficou integralmente verde no commit `fe7e327365f680006e699db9b179b7bc90ef660d`: migrations/schema 55, formatter, lint, typecheck, unitários, integração completa, restart/Redis recovery, OpenAPI, audit de dependências de produção, Compose e Flutter.
 
-P8 continua em progresso: faltam resposta manual de staff, notificações, notas/tags e UI Inbox completa. O gate externo de P7 para Google Calendar com credenciais reais continua aberto.
+P8 continua em progresso: a resposta manual de staff já foi implementada na fatia seguinte (schema 56, descrita acima), mas faltam notificações, notas/tags e UI Inbox completa. O gate externo de P7 para Google Calendar com credenciais reais continua aberto.
 
 ## Atualização Phase 5/P7 — Rotação da chave persistente de credenciais Calendar (schema 53)
 
