@@ -89,12 +89,12 @@ void main() {
       return page([]);
     });
     addTearDown(api.dispose);
-    final source = (String tenant, String? after) {
+    Stream<InboxEvent> source(String tenant, String? after) {
       cursors.add(after);
       final session = StreamController<InboxEvent>();
       sessions.add(session);
       return session.stream;
-    };
+    }
     await tester.pumpWidget(screen(api, source));
     await tester.pumpAndSettle();
     sessions.single.add(const InboxEvent(
@@ -138,12 +138,12 @@ void main() {
       return page([]);
     });
     addTearDown(api.dispose);
-    final source = (String tenant, String? after) {
+    Stream<InboxEvent> source(String tenant, String? after) {
       captured.add('$tenant:${after ?? 'start'}');
       final stream = StreamController<InboxEvent>();
       streams.add(stream);
       return stream.stream;
-    };
+    }
     await tester.pumpWidget(screen(api, source));
     await tester.pumpAndSettle();
     streams.first.add(const InboxEvent(
