@@ -38,7 +38,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
   int listGeneration = 0;
   int messageGeneration = 0;
   int streamGeneration = 0;
-  int updateGeneration = 0;
   int reconnectAttempts = 0;
   bool streamRevoked = false;
   String? eventCursor;
@@ -81,7 +80,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   void _stopInbox() {
     streamGeneration++;
-    updateGeneration++;
     inboxSubscription?.cancel();
     inboxSubscription = null;
     reconnectTimer?.cancel();
@@ -138,8 +136,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
   void _scheduleReconnect(int version) {
     if (!mounted || version != streamGeneration || streamRevoked ||
         !widget.realtimeEnabled || reconnectTimer != null) return;
-    final seconds = (1 << reconnectAttempts.clamp(0, 4)).clamp(1, 16);
-    reconnectAttempts = (reconnectAttempts + 1).clamp(0, 4);
+    final seconds = 1 << (reconnectAttempts < 4 ? reconnectAttempts : 4);
+    if (reconnectAttempts < 4) reconnectAttempts++;
     reconnectTimer = Timer(Duration(seconds: seconds), () {
       reconnectTimer = null;
       if (mounted && version == streamGeneration) _connectInbox();
