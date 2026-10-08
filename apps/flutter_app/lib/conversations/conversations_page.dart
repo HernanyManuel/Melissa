@@ -41,6 +41,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   int reconnectAttempts = 0;
   int refreshGeneration = 0;
   int refreshAttempts = 0;
+  int? activeRefreshStream;
   bool streamRevoked = false;
   String? eventCursor;
   StreamSubscription<InboxEvent>? inboxSubscription;
@@ -84,6 +85,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   void _stopInbox() {
     streamGeneration++;
     refreshGeneration++;
+    activeRefreshStream = null;
     inboxSubscription?.cancel();
     inboxSubscription = null;
     reconnectTimer?.cancel();
@@ -168,6 +170,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
   Future<void> _refreshFromInboxEvents() async {
     if (!mounted || changedConversations.isEmpty || streamRevoked) return;
     if (loading) return; // load() retries buffered events on completion.
+    // Never allow overlapping REST snapshots for this tenant to discard an
+    // earlier affected conversation. A tenant switch resets this generation.
+    if (activeRefreshStream == streamGeneration) return;
+    final activeStream = streamGeneration;
+    activeRefreshStream = activeStream;
     final affected = Set<String>.of(changedConversations);
     changedConversations.clear();
     final refreshVersion = ++refreshGeneration;
@@ -253,9 +260,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
         }
       }
     } finally {
-      if (mounted && refreshRetryTimer == null &&
-          changedConversations.isNotEmpty) {
-        _scheduleInboxRefresh();
+      if (activeRefreshStream == activeStream) {
+        activeRefreshStream = null;
+        if (mounted && refreshRetryTimer == null &&
+            changedConversations.isNotEmpty) {
+          _scheduleInboxRefresh();
+        }
       }
     }
   }
