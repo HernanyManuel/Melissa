@@ -104,11 +104,12 @@ CREATE POLICY human_outbound_dead_letters_tenant_scope ON human_outbound_dead_le
 
 GRANT SELECT ON human_outbound_intents TO melissa_runtime;
 GRANT INSERT
-  (tenant_id, id, actor_id, request_id, conversation_id, mode_epoch, content_text)
+  (tenant_id, id, actor_id, request_id, conversation_id, mode_epoch, content_text, created_at)
   ON human_outbound_intents TO melissa_runtime;
 
 GRANT SELECT ON human_outbound_dispatch TO melissa_runtime;
-GRANT INSERT (tenant_id, id) ON human_outbound_dispatch TO melissa_runtime;
+GRANT INSERT (tenant_id, id, state, attempts, next_attempt_at)
+  ON human_outbound_dispatch TO melissa_runtime;
 GRANT UPDATE
   (state, attempts, next_attempt_at, provider_message_id, accepted_at)
   ON human_outbound_dispatch TO melissa_runtime;
