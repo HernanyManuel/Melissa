@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Inbox Flutter com SSE/replay e refresh REST
+
+A UI de conversas subscreve agora `GET /api/v1/tenants/:tenantId/inbox/events` através de um stream SSE autenticado, validando eventos mínimos e sequência monotónica por tenant. Na reconexão envia o último cursor via `Last-Event-ID`/`after`, ignora replay duplicado e aplica backoff. Mudança de tenant ou revogação de acesso cancela a subscrição e descarta o estado sensível.
+
+Cada evento força uma nova leitura REST autorizada: a lista e o histórico da conversa selecionada atualizam sem trocar a seleção. Eventos são agrupados, refreshes REST serializados por tenant e a lista de IDs afetados é preservada para retry após falhas temporárias. Um teste específico prova que a chegada de dois eventos durante uma consulta REST lenta não perde a segunda atualização. Ver [ADR-080](decisions/ADR-080-flutter-inbox-sse-replay.md).
+
+O workflow [37849570752](https://github.com/HernanyManuel/Melissa/actions/runs/37849570752) passou integralmente no commit funcional `84fca5867ca0034db9a6fd7bbfb643b444052b3e`: Flutter analyze/test/build web, backend e Docker Compose. O workflow [37846050931](https://github.com/HernanyManuel/Melissa/actions/runs/37846050931) já tinha validado os testes de parser, cursor, autenticação, replay, reconexão, atualização e troca de tenant.
+
+Continuam por implementar: persistência de cursor entre sessões, reconciliação/recuperação da chave de retry de resposta manual após reload, notificações, unread count, notas/tags, painel de cliente completo e E2E real. As leituras de histórico já paginado estão limitadas à profundidade carregada (máximo de 10 páginas nesta fatia), sem snapshot transacional global. Não houve validação com provider WhatsApp live, merge ou deploy; o gate externo P7 para credenciais reais Google Calendar continua aberto.
+
 ## Atualização Phase 8 — Primeira fatia de UI Flutter para controlo humano
 
 A interface de conversas inclui agora `ConversationHumanControls`, com indicação do modo, seleção de colaborador ativo, takeover, reativação da IA e fecho. Para conversas `HUMAN_ACTIVE` atribuídas e em canal WhatsApp live, há composer ligado a `POST /api/v1/tenants/:tenantId/conversations/:id/messages`; respostas incertas podem ser repetidas explicitamente com o mesmo `requestId` e o mesmo texto, sem criar uma nova intenção. Um resultado `pending` representa fila durável, `accepted` apenas aceitação pelo provider, nunca entrega. Ver [ADR-079](decisions/ADR-079-incremental-flutter-inbox-controls.md).
