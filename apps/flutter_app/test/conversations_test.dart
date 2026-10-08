@@ -8,7 +8,7 @@ import 'package:melissa/conversations/conversations_page.dart';
 import 'package:melissa/identity/api.dart';
 import 'package:melissa/l10n/generated/app_localizations.dart';
 
-Widget screen(IdentityApi api) => MaterialApp(locale: const Locale('pt'), localizationsDelegates: AppLocalizations.localizationsDelegates, supportedLocales: AppLocalizations.supportedLocales, home: ConversationsPage(tenantId: 'tenant', api: api));
+Widget screen(IdentityApi api) => MaterialApp(locale: const Locale('pt'), localizationsDelegates: AppLocalizations.localizationsDelegates, supportedLocales: AppLocalizations.supportedLocales, home: ConversationsPage(tenantId: 'tenant', api: api, realtimeEnabled: false));
 http.Response page(List<Object> items, [String? next]) => http.Response(jsonEncode({'items': items, 'next': next}), 200, headers: {'content-type': 'application/json; charset=utf-8'});
 Map<String, Object> conversation(String id) => {'id': id, 'customer': {'displayName': 'Cliente $id'}, 'channelConnection': {'displayName': 'Sandbox', 'mode': 'mock'}};
 Map<String, Object> message(String text) => {'contentText': text, 'direction': 'inbound', 'createdAt': '2026-09-02T12:00:00Z'};
