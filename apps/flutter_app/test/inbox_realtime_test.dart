@@ -67,6 +67,7 @@ void main() {
     events.add(const InboxEvent(
       sequence: '1', type: 'message.received', conversationId: 'A',
     ));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpAndSettle();
     expect(find.text('Segunda'), findsOneWidget);
@@ -98,6 +99,7 @@ void main() {
     sessions.single.add(const InboxEvent(
       sequence: '42', type: 'conversation.takeover', conversationId: 'A',
     ));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpAndSettle();
     final beforeReplay = listRequests;
@@ -108,15 +110,18 @@ void main() {
     sessions.last.add(const InboxEvent(
       sequence: '42', type: 'conversation.takeover', conversationId: 'A',
     ));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
     expect(listRequests, beforeReplay);
     sessions.last.add(const InboxEvent(
       sequence: '43', type: 'conversation.closed', conversationId: 'A',
     ));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpAndSettle();
     expect(listRequests, greaterThan(beforeReplay));
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
     for (final session in sessions) {
       if (!session.isClosed) await session.close();
     }
@@ -143,6 +148,7 @@ void main() {
     streams.first.add(const InboxEvent(
       sequence: '9', type: 'message.received', conversationId: 'A',
     ));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpAndSettle();
     await tester.pumpWidget(screen(api, source, tenant: 'tenant-2'));
@@ -150,6 +156,7 @@ void main() {
     expect(captured, ['tenant-1:start', 'tenant-2:start']);
     expect(find.text('Cliente A'), findsNothing);
     expect(find.text('Cliente B'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
     for (final stream in streams) {
       if (!stream.isClosed) await stream.close();
     }
