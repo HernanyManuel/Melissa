@@ -125,7 +125,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (!mounted || version != streamGeneration || streamRevoked) return;
       if (!validInboxCursor(event.sequence) ||
           (eventCursor != null &&
-              BigInt.parse(event.sequence) <= BigInt.parse(eventCursor!))) return;
+              BigInt.parse(event.sequence) <= BigInt.parse(eventCursor!))) {
+        return;
+      }
       eventCursor = event.sequence;
       reconnectAttempts = 0;
       changedConversations.add(event.conversationId);
@@ -142,7 +144,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   void _scheduleReconnect(int version) {
     if (!mounted || version != streamGeneration || streamRevoked ||
-        !widget.realtimeEnabled || reconnectTimer != null) return;
+        !widget.realtimeEnabled || reconnectTimer != null) {
+      return;
+    }
     final seconds = 1 << (reconnectAttempts < 4 ? reconnectAttempts : 4);
     if (reconnectAttempts < 4) reconnectAttempts++;
     reconnectTimer = Timer(Duration(seconds: seconds), () {
@@ -214,7 +218,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (!mounted || streamVersion != streamGeneration ||
           refreshVersion != refreshGeneration ||
           listVersion != listGeneration || searchAtStart != searchQuery ||
-          tenant != widget.tenantId) return;
+          tenant != widget.tenantId) {
+        return;
+      }
       refreshAttempts = 0;
       refreshRetryTimer?.cancel();
       refreshRetryTimer = null;
@@ -248,7 +254,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
       }
     } finally {
       if (mounted && refreshRetryTimer == null &&
-          changedConversations.isNotEmpty) _scheduleInboxRefresh();
+          changedConversations.isNotEmpty) {
+        _scheduleInboxRefresh();
+      }
     }
   }
 
