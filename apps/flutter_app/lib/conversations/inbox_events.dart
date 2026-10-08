@@ -29,6 +29,7 @@ Stream<InboxEvent> parseInboxEvents(Stream<List<int>> bytes) async* {
   final data = <String>[];
 
   await for (final line in bytes
+      .map<List<int>>((chunk) => chunk)
       .transform(utf8.decoder)
       .transform(const LineSplitter())) {
     if (line.length > 8192) throw const FormatException('Inbox SSE line too long');
