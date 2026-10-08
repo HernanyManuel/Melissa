@@ -39,11 +39,14 @@ class _ConversationsPageState extends State<ConversationsPage> {
   int messageGeneration = 0;
   int streamGeneration = 0;
   int reconnectAttempts = 0;
+  int refreshGeneration = 0;
+  int refreshAttempts = 0;
   bool streamRevoked = false;
   String? eventCursor;
   StreamSubscription<InboxEvent>? inboxSubscription;
   Timer? reconnectTimer;
   Timer? updateTimer;
+  Timer? refreshRetryTimer;
   final Set<String> changedConversations = {};
   String get base => '/tenants/${widget.tenantId}/conversations';
 
@@ -80,12 +83,16 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   void _stopInbox() {
     streamGeneration++;
+    refreshGeneration++;
     inboxSubscription?.cancel();
     inboxSubscription = null;
     reconnectTimer?.cancel();
     reconnectTimer = null;
     updateTimer?.cancel();
     updateTimer = null;
+    refreshRetryTimer?.cancel();
+    refreshRetryTimer = null;
+    refreshAttempts = 0;
     changedConversations.clear();
     eventCursor = null;
     reconnectAttempts = 0;
@@ -159,6 +166,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     if (loading) return; // load() retries buffered events on completion.
     final affected = Set<String>.of(changedConversations);
     changedConversations.clear();
+    final refreshVersion = ++refreshGeneration;
     final streamVersion = streamGeneration;
     final listVersion = listGeneration;
     final selectedId = selected?['id'] as String?;
@@ -204,8 +212,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
         }
       }
       if (!mounted || streamVersion != streamGeneration ||
+          refreshVersion != refreshGeneration ||
           listVersion != listGeneration || searchAtStart != searchQuery ||
           tenant != widget.tenantId) return;
+      refreshAttempts = 0;
+      refreshRetryTimer?.cancel();
+      refreshRetryTimer = null;
       setState(() {
         conversations = updated;
         conversationNext = newNext;
@@ -222,10 +234,21 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (!mounted || streamVersion != streamGeneration || tenant != widget.tenantId) return;
       if (error is ApiFailure && [401, 403, 404].contains(error.status)) {
         _revokeInbox();
+      } else if (refreshVersion == refreshGeneration) {
+        // Do not advance the displayed view permanently past an unrefreshed event.
+        changedConversations.addAll(affected);
+        if (refreshRetryTimer == null) {
+          final seconds = 1 << (refreshAttempts < 4 ? refreshAttempts : 4);
+          if (refreshAttempts < 4) refreshAttempts++;
+          refreshRetryTimer = Timer(Duration(seconds: seconds), () {
+            refreshRetryTimer = null;
+            _scheduleInboxRefresh();
+          });
+        }
       }
-      // Transient failures retain the last authorized view until another event or refresh.
     } finally {
-      if (mounted && changedConversations.isNotEmpty) _scheduleInboxRefresh();
+      if (mounted && refreshRetryTimer == null &&
+          changedConversations.isNotEmpty) _scheduleInboxRefresh();
     }
   }
 
