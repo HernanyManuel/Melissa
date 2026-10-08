@@ -1,5 +1,13 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Primeira fatia de UI Flutter para controlo humano
+
+A interface de conversas inclui agora `ConversationHumanControls`, com indicação do modo, seleção de colaborador ativo, takeover, reativação da IA e fecho. Para conversas `HUMAN_ACTIVE` atribuídas e em canal WhatsApp live, há composer ligado a `POST /api/v1/tenants/:tenantId/conversations/:id/messages`; respostas incertas podem ser repetidas explicitamente com o mesmo `requestId` e o mesmo texto, sem criar uma nova intenção. Um resultado `pending` representa fila durável, `accepted` apenas aceitação pelo provider, nunca entrega. Ver [ADR-079](decisions/ADR-079-incremental-flutter-inbox-controls.md).
+
+O workflow [37844039975](https://github.com/HernanyManuel/Melissa/actions/runs/37844039975) ficou integralmente verde no commit `e1327e8c43b234db270241b8aee1c7495a91a9d3`: Flutter gen-l10n/analyze/test/build web, backend migrations/unitários/integração/recovery/OpenAPI/audit e Compose. Novos testes Flutter provam takeover, retry com chave/payload estáveis, fecho, bloqueio de composer em canal mock e descarte de resposta HTTP tardia após mudar de conversa. O falhanço Calendar observado no workflow documental anterior não se repetiu.
+
+A UI continua parcial: falta consumo SSE/reconnect na UI, painel de cliente, notificações, notas/tags, unread count, E2E e recuperação do requestId após navegação/reload. A chave de retry permanece apenas em memória no widget; não se deve reenviar com chave nova após um resultado incerto sem consultar o histórico/estado. Não foi validado WhatsApp live com credenciais reais, nem feito merge/deploy; o gate P7/Google Calendar real continua aberto.
+
 ## Atualização Phase 8 — Resposta manual durável e fenced (schema 56)
 
 A terceira fatia do PR #7 implementa o backend de resposta humana por `POST /api/v1/tenants/:tenantId/conversations/:id/messages`. A permissão `conversations:reply` é permitida a owner/admin/manager/staff, não a viewer. O envio exige `HUMAN_ACTIVE` e atribuição válida; staff só responde pela própria identidade. O `requestId` é idempotente por tenant/ator e o HTTP 200 confirma apenas persistência da intenção, nunca a entrega. Ver [ADR-078](decisions/ADR-078-durable-fenced-human-replies.md).
