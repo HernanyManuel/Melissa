@@ -74,6 +74,7 @@ void main() {
     expect(find.text('Cliente A'), findsWidgets);
     expect(find.text('Outra'), findsNothing);
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('reconnect resumes from last applied cursor and ignores replay', (tester) async {
@@ -123,7 +124,7 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     for (final session in sessions) {
-      if (!session.isClosed) await session.close();
+      if (!session.isClosed) unawaited(session.close());
     }
   });
 
@@ -158,7 +159,7 @@ void main() {
     expect(find.text('Cliente B'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     for (final stream in streams) {
-      if (!stream.isClosed) await stream.close();
+      if (!stream.isClosed) unawaited(stream.close());
     }
     expect(tester.takeException(), isNull);
   });
