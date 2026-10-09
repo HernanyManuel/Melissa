@@ -434,12 +434,21 @@ export class MessagingService {
     return 'prepared' as const;
   }
 
-  private findManualIntent(
+  private async findManualIntent(
     tx: Prisma.TransactionClient,
     actor: Actor,
     tenantId: string,
     requestId: string,
   ) {
+    // Keep this parent locked through confirm, abandon, and retention. Without
+    // FOR UPDATE a concurrent scrub could remove text before a dispatch insert.
+    await tx.$queryRaw`
+      SELECT id FROM human_outbound_intents
+      WHERE tenant_id=${tenantId}::uuid
+        AND actor_id=${actor.userId}::uuid
+        AND request_id=${requestId}::uuid
+      FOR UPDATE
+    `;
     return tx.humanOutboundIntent.findUnique({
       where: {
         tenantId_actorId_requestId: { tenantId, actorId: actor.userId, requestId },
@@ -613,7 +622,11 @@ export class MessagingService {
 
       const result = await tx.humanOutboundIntent.updateMany({
         where: { tenantId, id: intent.id, actorId: actor.userId, abandonedAt: null },
-        data: { abandonedAt: new Date() },
+        data: {
+          abandonedAt: new Date(),
+          contentText: '[redacted]',
+          redactedAt: new Date(),
+        },
       });
       if (result.count !== 1) throw new ConflictException();
       await this.tenants.audit(
@@ -646,6 +659,7 @@ export class MessagingService {
           contentText: true,
           createdAt: true,
           abandonedAt: true,
+          redactedAt: true,
         },
       });
       if (!intent) return { item: null };
@@ -658,7 +672,7 @@ export class MessagingService {
         item: {
           intentId: intent.id,
           requestId: intent.requestId,
-          text: intent.contentText,
+          text: intent.redactedAt ? null : intent.contentText,
           state: dispatch?.state ?? this.preparationState(intent),
           createdAt: intent.createdAt,
         },
