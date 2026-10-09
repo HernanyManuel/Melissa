@@ -270,7 +270,8 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
     };
     const ownerUnread = await list(owner.access_token);
     const foreignUnread = await list(foreign.access_token);
-    assert.equal(ownerUnread?.unreadCount, 2);
+    assert(ownerUnread);
+    assert.equal(ownerUnread.unreadCount, 2);
     assert.equal(ownerUnread.unreadUpTo, '4');
     assert.equal(foreignUnread?.unreadCount, 2);
     const readPath = `${controlPath}/read`;
