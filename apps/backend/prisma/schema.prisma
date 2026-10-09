@@ -375,6 +375,24 @@ model Conversation {
   @@map("conversations")
 }
 
+// Immutable notes visible only through authorized tenant-scoped APIs.
+// No relation to Message, external_event, or any outbound dispatch.
+model ConversationInternalNote {
+  id             String       @unique @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  actorId        String       @map("actor_id") @db.Uuid
+  requestId      String       @map("request_id") @db.Uuid
+  contentText    String       @map("content_text") @db.VarChar(2000)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([tenantId, id])
+  @@unique([tenantId, actorId, requestId], map: "conversation_internal_notes_request_key")
+  @@index([tenantId, conversationId, createdAt(sort: Desc), id(sort: Desc)], map: "conversation_internal_notes_page_idx")
+  @@map("conversation_internal_notes")
+}
+
 model AiTurn {
   id             String        @default(uuid()) @db.Uuid
   tenantId       String        @map("tenant_id") @db.Uuid
