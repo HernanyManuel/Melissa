@@ -150,6 +150,12 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
       200,
     );
 
+    const latestPath = `${controlPath}/manual-replies/latest`;
+    assert.equal(
+      await data<null>(await call('GET', latestPath, undefined, owner.access_token), 200),
+      null,
+    );
+    assert.equal((await call('GET', latestPath, undefined, foreign.access_token)).status, 404);
     const firstRequestId = randomUUID();
     const firstText = 'Resposta manual confirmada';
     const first = await data<{
@@ -167,7 +173,24 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
     );
     assert.equal(first.duplicate, false);
     assert.equal(first.state, 'pending');
-
+    const latest = await data<{
+      intentId: string;
+      requestId: string;
+      text: string;
+      state: string;
+    }>(await call('GET', latestPath, undefined, owner.access_token), 200);
+    assert.deepEqual(
+      { intentId: latest.intentId, requestId: latest.requestId, text: latest.text, state: latest.state },
+      { intentId: first.intentId, requestId: firstRequestId, text: firstText, state: 'pending' },
+    );
+    assert.equal(Object.keys(latest).sort().join(','), 'createdAt,intentId,requestId,state,text');
+    await admin.membership.create({
+      data: { tenantId: tenant.id, userId: foreign.userId, role: 'staff' },
+    });
+    assert.equal(
+      await data<null>(await call('GET', latestPath, undefined, foreign.access_token), 200),
+      null,
+    );
     const replay = await data<{ intentId: string; duplicate: boolean; state: string }>(
       await call(
         'POST',
@@ -213,6 +236,13 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
       200,
     );
     assert.equal(second.state, 'pending');
+    const latestAfterSecond = await data<{ intentId: string; text: string; state: string }>(
+      await call('GET', latestPath, undefined, owner.access_token),
+      200,
+    );
+    assert.equal(latestAfterSecond.intentId, second.intentId);
+    assert.equal(latestAfterSecond.text, 'Será invalidada pela reativação');
+    assert.equal(latestAfterSecond.state, 'pending');
 
     let sends = 0;
     const provider: MessagingProvider = {
@@ -309,6 +339,12 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
       where: { id: second.intentId },
     });
     assert.equal(secondDispatch.state, 'rejected');
+    const afterReactivation = await data<{ intentId: string; state: string }>(
+      await call('GET', latestPath, undefined, owner.access_token),
+      200,
+    );
+    assert.equal(afterReactivation.intentId, second.intentId);
+    assert.equal(afterReactivation.state, 'rejected');
 
     assert.equal(
       (
