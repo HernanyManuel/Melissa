@@ -56,10 +56,6 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
-      - name: Diagnostic Prettier diff (temporary)
-        run: |
-          pnpm exec prettier apps/backend/src/messaging/messaging.service.ts > /tmp/messaging-service-formatted.ts
-          diff -u apps/backend/src/messaging/messaging.service.ts /tmp/messaging-service-formatted.ts || true
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
