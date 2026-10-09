@@ -186,5 +186,6 @@
   "inboxPreparationExpired": "Die Vorbereitung ist nach 24 Stunden abgelaufen. Sie wurde nicht versendet.",
   "inboxPreparationAbandoned": "Vorbereitung verworfen. Es wurde keine Nachricht versendet.",
   "inboxAbandonPreparation": "Vorbereitung verwerfen",
-  "inboxMarkRead": "Als gelesen markieren"
+  "inboxMarkRead": "Als gelesen markieren",
+  "inboxNewMessageAlert": "Neue eingehende Nachrichten"
 }
