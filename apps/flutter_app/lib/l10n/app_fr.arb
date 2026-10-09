@@ -193,5 +193,8 @@
   "inboxInternalNoteHint": "Écrire une note interne",
   "inboxAddInternalNote": "Enregistrer la note",
   "inboxRetryInternalNote": "Réessayer la même note",
-  "inboxInternalNoteUncertain": "Confirmation incertaine. La nouvelle tentative conserve la même note et clé."
+  "inboxInternalNoteUncertain": "Confirmation incertaine. La nouvelle tentative conserve la même note et clé.",
+  "inboxTags": "Étiquettes",
+  "inboxNewTag": "Nouvelle étiquette",
+  "inboxCreateTag": "Créer une étiquette"
 }
