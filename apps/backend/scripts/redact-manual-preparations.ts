@@ -1,8 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import {
-  pendingRedactionCount,
-  redactExpiredPreparations,
-} from '../src/messaging/manual-reply-retention';
+import { pendingRedactionCount, redactExpiredPreparations } from '../src/messaging/manual-reply-retention';
 
 async function main(): Promise<void> {
   // No implicit mutations; operators must supply both privileged connection
@@ -21,9 +18,7 @@ async function main(): Promise<void> {
     }
     const scrubbed = await redactExpiredPreparations(db, 500);
     const remaining = await pendingRedactionCount(db);
-    process.stdout.write(
-      `redacted: ${scrubbed} prepared messages; ${remaining} remain eligible\n`,
-    );
+    process.stdout.write(`redacted: ${scrubbed} prepared messages; ${remaining} remain eligible\n`);
   } finally {
     await db.$disconnect();
   }
