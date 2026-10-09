@@ -182,5 +182,8 @@
   "inboxCheckPrevious": "Verifica risposta precedente",
   "inboxRecovered": "Risposta precedente recuperata. Nessun nuovo invio è stato effettuato.",
   "inboxPrepared": "Risposta preparata sul server. Non è ancora stata messa in coda per l'invio.",
-  "inboxConfirmSend": "Conferma invio risposta"
+  "inboxConfirmSend": "Conferma invio risposta",
+  "inboxPreparationExpired": "La preparazione è scaduta dopo 24 ore. Non è stata inviata.",
+  "inboxPreparationAbandoned": "Preparazione abbandonata. Nessun messaggio è stato inviato.",
+  "inboxAbandonPreparation": "Abbandona preparazione"
 }
