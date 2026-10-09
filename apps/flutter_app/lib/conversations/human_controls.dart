@@ -38,13 +38,19 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
   bool blocked = false;
   bool actionFailed = false;
   int generation = 0;
+  int receiptGeneration = 0;
+  bool reconciling = false;
+  bool reconcileFailed = false;
+  bool recovered = false;
 
   String get conversationId => widget.conversation['id'] as String;
   String get mode => widget.conversation['mode'] as String? ?? '';
   bool get canTakeover => mode == 'AI_ACTIVE' || mode == 'WAITING_HUMAN';
-  bool get canReply => mode == 'HUMAN_ACTIVE' &&
-      widget.conversation['assignedStaffId'] is String &&
-      (widget.conversation['channelConnection'] as Map?)?['mode'] == 'live';
+  bool replyAvailable(Map<String, dynamic> conversation) =>
+      conversation['mode'] == 'HUMAN_ACTIVE' &&
+      conversation['assignedStaffId'] is String &&
+      (conversation['channelConnection'] as Map?)?['mode'] == 'live';
+  bool get canReply => replyAvailable(widget.conversation);
   bool get closed => mode == 'CLOSED' ||
       widget.conversation['status'] == 'closed' ||
       widget.conversation['status'] == 'archived';
@@ -54,6 +60,7 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
   void initState() {
     super.initState();
     if (canTakeover) fetchStaff();
+    if (canReply) recoverLatest();
   }
 
   @override
@@ -62,6 +69,7 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
     if (oldWidget.tenantId != widget.tenantId ||
         oldWidget.conversation['id'] != widget.conversation['id']) {
       generation++;
+      receiptGeneration++;
       staff = [];
       selectedStaffId = null;
       pending = null;
@@ -72,18 +80,28 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
       retryableError = false;
       actionFailed = false;
       staffBusy = false;
+      reconciling = false;
+      reconcileFailed = false;
+      recovered = false;
       if (canTakeover) fetchStaff();
+      if (canReply) recoverLatest();
     } else if (!canReply && mode != 'HUMAN_ACTIVE') {
       pending = null;
       replyState = null;
       blocked = false;
       retryableError = false;
+      recovered = false;
+      reconcileFailed = false;
+      receiptGeneration++;
+    } else if (canReply && !replyAvailable(oldWidget.conversation)) {
+      recoverLatest();
     }
   }
 
   @override
   void dispose() {
     generation++;
+    receiptGeneration++;
     reply.dispose();
     super.dispose();
   }
@@ -148,8 +166,61 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
     }
   }
 
+
+  /// Reconcile only committed intents belonging to the signed-in operator.
+  /// An absent row is not proof that a network-uncertain POST cannot still commit.
+  Future<void> recoverLatest() async {
+    if (!canReply || reconciling) return;
+    final version = ++receiptGeneration;
+    setState(() { reconciling = true; reconcileFailed = false; });
+    try {
+      if (!widget.api.authenticated) await widget.api.refresh();
+      final response = await widget.api.request(
+        'GET', '$path/manual-replies/latest',
+      ) as Map<String, dynamic>;
+      if (!mounted || version != receiptGeneration || !canReply) return;
+      final item = response['item'];
+      if (item != null &&
+          (item is! Map<String, dynamic> ||
+              item['intentId'] is! String ||
+              item['requestId'] is! String ||
+              item['text'] is! String ||
+              !{'pending', 'accepted', 'rejected', 'failed'}.contains(item['state']))) {
+        throw const FormatException('Invalid manual reply recovery');
+      }
+      if (item != null &&
+          pending != null &&
+          (item['requestId'] != pending!['requestId'] ||
+              item['text'] != pending!['text'])) {
+        // Never replace an unresolved in-memory attempt with an older receipt.
+        return;
+      }
+      setState(() {
+        if (item != null) {
+          pending = {
+            'requestId': item['requestId'] as String,
+            'text': item['text'] as String,
+          };
+          replyState = item['state'] as String;
+          reply.text = item['text'] as String;
+          retryableError = false;
+          recovered = true;
+        }
+      });
+    } catch (error) {
+      if (!mounted || version != receiptGeneration) return;
+      setState(() => reconcileFailed = true);
+      revoked(error);
+    } finally {
+      if (mounted && version == receiptGeneration) {
+        setState(() => reconciling = false);
+      }
+    }
+  }
+
   Future<void> send() async {
-    if (busy || blocked || !canReply) return;
+    if (busy || reconciling || (reconcileFailed && pending == null) ||
+        blocked || !canReply) return;
     if (pending == null) {
       if (reply.text.trim().isEmpty || reply.text.runes.length > 4096) return;
       pending = {'requestId': simulationId(), 'text': reply.text};
@@ -167,6 +238,7 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
       }
       setState(() {
         replyState = result['state'] as String;
+        recovered = false;
         // Keep the exact key/payload until the operator explicitly starts another reply.
         retryableError = false;
       });
@@ -179,6 +251,11 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
         }
       });
       revoked(error);
+      if (error is! ApiFailure ||
+          ![400, 401, 403, 404, 409].contains(error.status)) {
+        // Read-only check; never automatically submit a second POST.
+        await recoverLatest();
+      }
     } finally {
       if (mounted && version == generation) setState(() => busy = false);
     }
@@ -190,6 +267,7 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
       replyState = null;
       retryableError = false;
       blocked = false;
+      recovered = false;
       reply.clear();
     });
   }
@@ -242,18 +320,34 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
         ],
         if (canReply) ...[
           Text(l.inboxManualHint),
+          if (reconciling) ...[
+            const LinearProgressIndicator(),
+            Text(l.inboxReconciling),
+          ],
+          if (reconcileFailed) ...[
+            Text(l.inboxReconcileFailed),
+            TextButton(
+              onPressed: busy || reconciling ? null : recoverLatest,
+              child: Text(l.inboxCheckPrevious),
+            ),
+          ],
+          if (recovered) Text(l.inboxRecovered),
+          if (recovered && pending != null)
+            SelectableText(pending!['text']!),
+
           const SizedBox(height: 8),
           if (pending == null) TextField(
             key: const Key('inbox-compose'),
             controller: reply,
-            enabled: !busy,
+            enabled: !busy && !reconciling && !reconcileFailed,
             minLines: 2,
             maxLines: 5,
             maxLength: 4096,
             decoration: InputDecoration(labelText: l.inboxReply),
           ),
           if (replyState == null) FilledButton.icon(
-            onPressed: busy || blocked ? null : send,
+            onPressed: busy || reconciling ||
+                (reconcileFailed && pending == null) || blocked ? null : send,
             icon: const Icon(Icons.send_outlined),
             label: Text(pending == null ? l.inboxReply : l.inboxRetrySame),
           ),
@@ -262,7 +356,8 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
               replyState == 'pending' ? l.inboxQueued :
               replyState == 'accepted' ? l.inboxAccepted : l.inboxNotSent,
             )),
-            TextButton(onPressed: busy ? null : newReply, child: Text(l.inboxNewReply)),
+            TextButton(onPressed: busy || reconciling || reconcileFailed ? null : newReply,
+                child: Text(l.inboxNewReply)),
           ],
           if (retryableError) Text(blocked ? l.inboxBlocked : l.inboxUncertain),
         ],
