@@ -295,6 +295,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('redacted abandoned receipt hides text and cannot send', (tester) async {
+    var sends = 0;
+    final api = fake((request) async {
+      if (request.method == 'POST' && request.url.path.endsWith('/messages')) sends++;
+      return jsonResponse({}, 404);
+    }, latest: (_) async => jsonResponse({'item': {
+      'intentId': 'tombstone-1',
+      'requestId': '30b17e74-a4fc-4b17-abcf-fad2bebfb52b',
+      'text': null,
+      'state': 'abandoned',
+      'createdAt': '2026-10-09T07:00:00Z',
+    }}));
+    addTearDown(api.dispose);
+    await tester.pumpWidget(frame(api, conversation('convo-a', 'HUMAN_ACTIVE')));
+    await tester.pumpAndSettle();
+    expect(find.text('Preparação abandonada. Nenhuma mensagem foi enviada.'),
+      findsOneWidget);
+    expect(find.byKey(const Key('inbox-compose')), findsNothing);
+    expect(find.text('Confirmar envio da resposta'), findsNothing);
+    expect(sends, 0);
+    await tester.tap(find.text('Nova resposta'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('inbox-compose')), findsOneWidget);
+    expect(sends, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('expired preparation cannot be confirmed or automatically sent', (tester) async {
     var sends = 0;
     final api = fake((request) async {
