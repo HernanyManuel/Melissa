@@ -430,8 +430,7 @@ export class MessagingService {
 
   private preparationState(intent: { createdAt: Date; abandonedAt: Date | null }) {
     if (intent.abandonedAt) return 'abandoned' as const;
-    if (intent.createdAt.getTime() <= Date.now() - PREPARED_REPLY_TTL_MS)
-      return 'expired' as const;
+    if (intent.createdAt.getTime() <= Date.now() - PREPARED_REPLY_TTL_MS) return 'expired' as const;
     return 'prepared' as const;
   }
 
