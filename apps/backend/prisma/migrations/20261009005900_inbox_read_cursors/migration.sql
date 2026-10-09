@@ -29,7 +29,7 @@ CREATE POLICY inbox_read_cursors_actor_scope ON inbox_read_cursors TO melissa_ru
   );
 
 GRANT SELECT ON inbox_read_cursors TO melissa_runtime;
-GRANT INSERT (tenant_id, actor_id, conversation_id, last_read_sequence)
+GRANT INSERT (tenant_id, actor_id, conversation_id, last_read_sequence, updated_at)
   ON inbox_read_cursors TO melissa_runtime;
 GRANT UPDATE (last_read_sequence, updated_at) ON inbox_read_cursors TO melissa_runtime;
 
