@@ -499,19 +499,19 @@ export class MessagingService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: { id: true, requestId: true, contentText: true, createdAt: true },
       });
-      if (!intent) return null;
+      if (!intent) return { item: null };
       const dispatch = await tx.humanOutboundDispatch.findUnique({
         where: { id: intent.id },
         select: { state: true },
       });
       if (!dispatch) throw new ServiceUnavailableException();
-      return {
+      return { item: {
         intentId: intent.id,
         requestId: intent.requestId,
         text: intent.contentText,
         state: dispatch.state,
         createdAt: intent.createdAt,
-      };
+      } };
     });
   }
 
