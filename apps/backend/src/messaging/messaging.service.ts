@@ -314,6 +314,78 @@ export class MessagingService {
     });
   }
 
+  listConversationTags(actor: Actor, tenantId: string, conversationId: string) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      const exists = await tx.conversation.findUnique({
+        where: { tenantId_id: { tenantId, id: conversationId } },
+        select: { id: true },
+      });
+      if (!exists) throw new NotFoundException();
+      const [available, applied] = await Promise.all([
+        tx.conversationTag.findMany({
+          where: { tenantId }, select: { id: true, name: true },
+          orderBy: { name: 'asc' }, take: 100,
+        }),
+        tx.conversationTagLink.findMany({
+          where: { tenantId, conversationId }, select: { tagId: true },
+        }),
+      ]);
+      return { available, applied: applied.map((row) => row.tagId) };
+    });
+  }
+
+  createConversationTag(actor: Actor, tenantId: string, name: string) {
+    const normalized = name.trim();
+    if (normalized.length < 1 || normalized.length > 40) throw new BadRequestException();
+    return this.tenants.scoped(actor, tenantId, 'conversations:takeover', async (tx) => {
+      const existing = await tx.conversationTag.findUnique({
+        where: { tenantId_name: { tenantId, name: normalized } },
+      });
+      if (existing) return { item: existing, duplicate: true };
+      const item = await tx.conversationTag.create({
+        data: { tenantId, id: randomUUID(), name: normalized },
+      });
+      await this.tenants.audit(tx, actor, tenantId, 'conversation.tag_created', item.id);
+      return { item, duplicate: false };
+    });
+  }
+
+  setConversationTag(
+    actor: Actor,
+    tenantId: string,
+    conversationId: string,
+    tagId: string,
+    attached: boolean,
+  ) {
+    return this.tenants.scoped(actor, tenantId, 'conversations:takeover', async (tx) => {
+      const [conversation, tag] = await Promise.all([
+        tx.conversation.findUnique({
+          where: { tenantId_id: { tenantId, id: conversationId } }, select: { id: true },
+        }),
+        tx.conversationTag.findUnique({
+          where: { tenantId_id: { tenantId, id: tagId } }, select: { id: true },
+        }),
+      ]);
+      if (!conversation || !tag) throw new NotFoundException();
+      const where = { tenantId_conversationId_tagId: { tenantId, conversationId, tagId } };
+      const existing = await tx.conversationTagLink.findUnique({ where });
+      if (attached && !existing) {
+        await tx.conversationTagLink.create({
+          data: { tenantId, conversationId, tagId, actorId: actor.userId },
+        });
+      } else if (!attached && existing) {
+        await tx.conversationTagLink.delete({ where });
+      } else {
+        return { attached, duplicate: true };
+      }
+      await this.tenants.audit(
+        tx, actor, tenantId, attached ? 'conversation.tag_attached' : 'conversation.tag_detached',
+        conversationId,
+      );
+      return { attached, duplicate: false };
+    });
+  }
+
   async markConversationRead(actor: Actor, tenantId: string, conversationId: string, upTo: string) {
     if (!/^[1-9]\d{0,18}$/.test(upTo) || BigInt(upTo) > 9_223_372_036_854_775_807n)
       throw new BadRequestException();
