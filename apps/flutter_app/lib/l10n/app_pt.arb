@@ -193,5 +193,8 @@
   "inboxInternalNoteHint": "Escrever nota interna",
   "inboxAddInternalNote": "Guardar nota",
   "inboxRetryInternalNote": "Repetir a mesma nota",
-  "inboxInternalNoteUncertain": "Não foi possível confirmar. Repetir mantém a mesma nota e chave."
+  "inboxInternalNoteUncertain": "Não foi possível confirmar. Repetir mantém a mesma nota e chave.",
+  "inboxTags": "Etiquetas",
+  "inboxNewTag": "Nova etiqueta",
+  "inboxCreateTag": "Criar etiqueta"
 }
