@@ -44,6 +44,9 @@ class _ConversationTagsState extends State<ConversationTags> {
     if (oldWidget.tenantId != widget.tenantId ||
         oldWidget.conversationId != widget.conversationId) {
       generation++;
+      loading = false;
+      busy = false;
+      failed = false;
       available = [];
       applied = {};
       name.clear();
@@ -85,6 +88,8 @@ class _ConversationTagsState extends State<ConversationTags> {
   Future<void> changeTag(String tagId, bool attach) async {
     if (loading || busy) return;
     final version = generation;
+    final tenant = widget.tenantId;
+    final conversation = widget.conversationId;
     setState(() { busy = true; failed = false; });
     try {
       final response = await widget.api.request(
@@ -99,7 +104,9 @@ class _ConversationTagsState extends State<ConversationTags> {
     } catch (_) {
       if (mounted && version == generation) setState(() => failed = true);
     } finally {
-      if (mounted && version == generation) setState(() => busy = false);
+      if (mounted && tenant == widget.tenantId && conversation == widget.conversationId) {
+        setState(() => busy = false);
+      }
     }
   }
 
@@ -108,6 +115,8 @@ class _ConversationTagsState extends State<ConversationTags> {
     final original = name.text.trim();
     if (original.isEmpty || original.runes.length > 40) return;
     final version = generation;
+    final tenant = widget.tenantId;
+    final conversation = widget.conversationId;
     setState(() { busy = true; failed = false; });
     try {
       final response = await widget.api.request(
@@ -124,7 +133,9 @@ class _ConversationTagsState extends State<ConversationTags> {
     } catch (_) {
       if (mounted && version == generation) setState(() => failed = true);
     } finally {
-      if (mounted && version == generation) setState(() => busy = false);
+      if (mounted && tenant == widget.tenantId && conversation == widget.conversationId) {
+        setState(() => busy = false);
+      }
     }
   }
 
