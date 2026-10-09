@@ -38,7 +38,7 @@ CREATE POLICY conversation_internal_notes_tenant_scope
   );
 
 GRANT SELECT ON conversation_internal_notes TO melissa_runtime;
-GRANT INSERT (tenant_id, id, conversation_id, actor_id, request_id, content_text)
+GRANT INSERT (tenant_id, id, conversation_id, actor_id, request_id, content_text, created_at)
   ON conversation_internal_notes TO melissa_runtime;
 -- Deliberately no UPDATE, DELETE, TRUNCATE, or REFERENCES grants.
 
