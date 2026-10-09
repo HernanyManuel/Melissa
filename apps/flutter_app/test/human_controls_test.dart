@@ -20,13 +20,18 @@ http.Response jsonResponse(Object body, [int status = 200]) =>
     http.Response(jsonEncode(body), status,
       headers: {'content-type': 'application/json; charset=utf-8'});
 
-IdentityApi fake(Future<http.Response> Function(http.Request) handle) =>
+IdentityApi fake(Future<http.Response> Function(http.Request) handle, {
+  Future<http.Response> Function(http.Request)? latest,
+}) =>
     IdentityApi(client: MockClient((request) async {
       if (request.url.path.endsWith('/auth/csrf')) {
         return jsonResponse({'csrf_token': 'csrf'});
       }
       if (request.url.path.endsWith('/auth/refresh')) {
         return jsonResponse({'access_token': 'test', 'csrf_token': 'csrf'});
+      }
+      if (request.url.path.endsWith('/manual-replies/latest')) {
+        return latest == null ? jsonResponse({'item': null}) : latest(request);
       }
       return handle(request);
     }));
@@ -118,6 +123,96 @@ void main() {
     expect(commands, ['takeover', 'reactivate']);
     expect(find.byKey(const Key('inbox-compose')), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+
+  testWidgets('restores own durable reply after widget reload without a POST', (tester) async {
+    var sent = 0;
+    final api = fake((request) async {
+      if (request.method == 'POST' && request.url.path.endsWith('/messages')) {
+        sent++;
+        return jsonResponse({'intentId': 'new-intent', 'state': 'pending'});
+      }
+      return jsonResponse({}, 404);
+    }, latest: (_) async => jsonResponse({'item': {
+      'intentId': 'prior-intent',
+      'requestId': '78c98362-e381-4c1d-b0fb-2a3fa06c2b38',
+      'text': 'Mensagem anterior',
+      'state': 'pending',
+      'createdAt': '2026-10-09T07:00:00Z',
+    }}));
+    addTearDown(api.dispose);
+    await tester.pumpWidget(frame(api, conversation('convo-a', 'HUMAN_ACTIVE')));
+    await tester.pumpAndSettle();
+    expect(sent, 0);
+    expect(find.text('Mensagem anterior'), findsOneWidget);
+    expect(find.text('Resposta anterior recuperada. Não foi efetuado um novo envio.'),
+      findsOneWidget);
+    expect(find.byKey(const Key('inbox-compose')), findsNothing);
+    // Recreating the page must not automatically replay the prior POST.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(frame(api, conversation('convo-a', 'HUMAN_ACTIVE')));
+    await tester.pumpAndSettle();
+    expect(sent, 0);
+    expect(find.text('Mensagem anterior'), findsOneWidget);
+    await tester.tap(find.text('Nova resposta'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('inbox-compose')), findsOneWidget);
+    expect(sent, 0);
+  });
+
+  testWidgets('uncertain POST reconciles to existing intent without resending', (tester) async {
+    Map<String, dynamic>? written;
+    var writes = 0;
+    final api = fake((request) async {
+      if (request.method == 'POST' && request.url.path.endsWith('/messages')) {
+        writes++;
+        written = jsonDecode(request.body) as Map<String, dynamic>;
+        return jsonResponse({'error': 'TEMPORARILY_UNAVAILABLE'}, 503);
+      }
+      return jsonResponse({}, 404);
+    }, latest: (_) async => jsonResponse({'item': written == null ? null : {
+      'intentId': 'persisted-intent',
+      'requestId': written!['requestId'],
+      'text': written!['text'],
+      'state': 'pending',
+      'createdAt': '2026-10-09T07:00:00Z',
+    }}));
+    addTearDown(api.dispose);
+    await tester.pumpWidget(frame(api, conversation('convo-a', 'HUMAN_ACTIVE')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('inbox-compose')), 'Comprovadamente persistida');
+    await tester.tap(find.text('Resposta manual').last);
+    await tester.pumpAndSettle();
+    expect(writes, 1);
+    expect(find.text('Resposta guardada na fila. Ainda não foi confirmada pelo WhatsApp.'),
+      findsOneWidget);
+    expect(find.text('Comprovadamente persistida'), findsOneWidget);
+    expect(find.text('Resultado incerto. Repete apenas com a mesma chave e texto.'),
+      findsNothing);
+  });
+
+  testWidgets('a failed initial check blocks new sends until GET succeeds', (tester) async {
+    var denied = true;
+    var sends = 0;
+    final api = fake((request) async {
+      if (request.method == 'POST' && request.url.path.endsWith('/messages')) {
+        sends++;
+      }
+      return jsonResponse({}, 404);
+    }, latest: (_) async => denied ? jsonResponse({}, 503) :
+      jsonResponse({'item': null}));
+    addTearDown(api.dispose);
+    await tester.pumpWidget(frame(api, conversation('convo-a', 'HUMAN_ACTIVE')));
+    await tester.pumpAndSettle();
+    expect(find.text('Não foi possível consultar a resposta anterior. Verifica novamente antes de criar outra.'),
+      findsOneWidget);
+    expect(tester.widget<TextField>(find.byKey(const Key('inbox-compose'))).enabled, false);
+    denied = false;
+    await tester.tap(find.text('Verificar resposta anterior'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(find.byKey(const Key('inbox-compose'))).enabled, true);
+    expect(sends, 0);
   });
 
   testWidgets('mock human conversation never exposes live composer and can close', (tester) async {
