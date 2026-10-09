@@ -182,5 +182,8 @@
   "inboxCheckPrevious": "Check previous reply",
   "inboxRecovered": "Previous reply recovered. No new send was made.",
   "inboxPrepared": "Reply prepared on the server. It has not been queued for sending.",
-  "inboxConfirmSend": "Confirm sending reply"
+  "inboxConfirmSend": "Confirm sending reply",
+  "inboxPreparationExpired": "Preparation expired after 24 hours. It was not sent.",
+  "inboxPreparationAbandoned": "Preparation abandoned. No message was sent.",
+  "inboxAbandonPreparation": "Abandon preparation"
 }
