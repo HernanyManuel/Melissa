@@ -1,5 +1,13 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Avisos visuais de novas mensagens no inbox
+
+O Flutter mostra agora um aviso transitório no topo da lista e na AppBar quando o contador `unreadCount` de uma conversa **aumenta após atualização REST autorizada** em resposta a um evento SSE. Um evento SSE isolado não basta para notificar, e a primeira listagem não gera avisos retroativos. O indicador conta **conversas com incrementos observados na sessão**, não mensagens totais por ler. Os avisos desaparecem após confirmação de leitura ou após a API indicar `unreadCount=0`; os estados são limpos na mudança de tenant ou revogação de acesso. Traduções disponíveis em pt/en/es/fr/it/de.
+
+**CI funcional:** [37960714885](https://github.com/HernanyManuel/Melissa/actions/runs/37960714885) integralmente verde (backend/integração e worker, Flutter analyze/test/build web, Compose), com teste Flutter de novo aviso confirmado por REST e remoção após «Marcar como lida». [ADR-086](decisions/ADR-086-inbox-verified-in-app-alerts.md).
+
+**Limites:** apenas UI da sessão atual; não há push, notificações do navegador, sons, e-mail ou alertas fora do inbox. Só são contabilizadas conversas carregadas no filtro/páginas visíveis. A funcionalidade não exige migração nova, merge, deploy ou ativação do WhatsApp live.
+
 ## Atualização Phase 8 — Inbox com mensagens não lidas por operador
 
 A migração **59** criou `inbox_read_cursors` com isolamento RLS por **tenant e ator**, e o health check exige `schema_version=59`. A listagem de conversas calcula `unreadCount` e `unreadUpTo` apenas com eventos duráveis `message.received`, sem examinar o conteúdo das mensagens. O `POST /conversations/:id/read` exige permissão `messages:read`, aceita `{upTo: "42"}`, valida que o número é um evento de entrada na mesma conversa e avança o cursor idempotente/monotonicamente; qualquer mensagem posterior permanece não lida. O avanço publica um evento SSE `conversation.read` (sem texto/ator no payload) para atualização de outros separadores.
