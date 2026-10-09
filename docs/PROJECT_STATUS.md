@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Inbox com mensagens não lidas por operador
+
+A migração **59** criou `inbox_read_cursors` com isolamento RLS por **tenant e ator**, e o health check exige `schema_version=59`. A listagem de conversas calcula `unreadCount` e `unreadUpTo` apenas com eventos duráveis `message.received`, sem examinar o conteúdo das mensagens. O `POST /conversations/:id/read` exige permissão `messages:read`, aceita `{upTo: "42"}`, valida que o número é um evento de entrada na mesma conversa e avança o cursor idempotente/monotonicamente; qualquer mensagem posterior permanece não lida. O avanço publica um evento SSE `conversation.read` (sem texto/ator no payload) para atualização de outros separadores.
+
+O Flutter mostra badges nas conversas com mensagens não lidas e disponibiliza «Marcar como lida» **explicitamente** após carregar o histórico, nunca automaticamente ao abrir uma página de mensagens que pode estar incompleta. Testes HTTP/RLS validam o isolamento entre operadores e tenants, exclusão de eventos de saída, rejeição de cursores inválidos, replay idempotente e novas entradas; teste Flutter cobre badge e ação de leitura.
+
+**CI funcional:** [37953921259](https://github.com/HernanyManuel/Melissa/actions/runs/37953921259) **integralmente verde** (backend com PostgreSQL/worker, Flutter analyze/test/build web, Compose). [ADR-085](decisions/ADR-085-operator-scoped-unread-inbox.md).
+
+**Limites:** contagem de eventos recebidos ainda por confirmar pelo operador, não garantia de visualização ou tratamento; abrir histórico paginado não marca automaticamente. Sem notificações browser/push/sonoras, preferências de alertas, notas/tags ou painel completo de cliente. Sem ativar WhatsApp live, merge, deploy ou E2E Meta real. Permanecem as restrições de retenção de ADR-084.
+
 ## Atualização Phase 8 — Expurgo do texto de preparações humanas
 
 A migração **58** introduz `human_outbound_intents.redacted_at`, um marcador de expurgo `[redacted]` e uma trigger PostgreSQL que rejeita alterações arbitrárias de texto, reversão de expurgo ou expurgo de qualquer intenção com dispatch. Ao **abandonar** uma preparação, o backend substitui o texto e guarda a data de expurgo na mesma transação, mantendo o identificador e metadados para impedir reenvio. O `GET /manual-replies/latest` devolve `text:null` para intenções expurgadas; o Flutter mostra o estado terminal sem revelar texto nem permitir envio automático.
