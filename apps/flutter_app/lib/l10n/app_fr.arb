@@ -176,5 +176,9 @@
   "inboxNotSent": "Réponse rejetée ou échouée. Vérifiez le statut avant de renvoyer.",
   "inboxNewReply": "Nouvelle réponse",
   "inboxBlocked": "Demande bloquée. Vérifiez les autorisations et l’état.",
-  "inboxUncertain": "Résultat incertain. Réessayez uniquement avec la même clé et le même texte."
+  "inboxUncertain": "Résultat incertain. Réessayez uniquement avec la même clé et le même texte.",
+  "inboxReconciling": "Vérification des réponses précédentes…",
+  "inboxReconcileFailed": "Impossible de vérifier la réponse précédente. Réessayez avant d'en créer une autre.",
+  "inboxCheckPrevious": "Vérifier la réponse précédente",
+  "inboxRecovered": "Réponse précédente récupérée. Aucun nouvel envoi n'a été effectué."
 }
