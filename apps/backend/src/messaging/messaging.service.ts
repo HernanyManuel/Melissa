@@ -17,6 +17,8 @@ import { checkedReceiptState } from './receipt-state';
 import { ProcessingQuery, ProcessingPageDto } from './processing.dto';
 import { appendInboxEvent } from './inbox-event-store';
 
+const PREPARED_REPLY_TTL_MS = 24 * 60 * 60 * 1000;
+
 interface ConversationControlRow {
   id: string;
   mode: string;
@@ -426,6 +428,13 @@ export class MessagingService {
     return current;
   }
 
+  private preparationState(intent: { createdAt: Date; abandonedAt: Date | null }) {
+    if (intent.abandonedAt) return 'abandoned' as const;
+    if (intent.createdAt.getTime() <= Date.now() - PREPARED_REPLY_TTL_MS)
+      return 'expired' as const;
+    return 'prepared' as const;
+  }
+
   private findManualIntent(
     tx: Prisma.TransactionClient,
     actor: Actor,
@@ -465,7 +474,7 @@ export class MessagingService {
             conflict: false as const,
             intentId: previous.id,
             duplicate: true,
-            state: dispatch?.state ?? 'prepared',
+            state: dispatch?.state ?? this.preparationState(previous),
           };
         }
 
@@ -534,6 +543,9 @@ export class MessagingService {
             };
           }
 
+          // A prepared-only intent cannot be confirmed after abandonment/expiry.
+          // Dispatch receipts are deliberately handled above (idempotent replay).
+          if (this.preparationState(previous) !== 'prepared') throw new ConflictException();
           const current = await this.eligibleHumanReply(tx, actor, tenantId, conversationId, role);
           // An older prepared message can never be promoted after takeover,
           // reassignment or AI reactivation, even if the mode is HUMAN_ACTIVE again.
@@ -581,6 +593,34 @@ export class MessagingService {
     return { intentId: result.intentId, duplicate: result.duplicate, state: result.state };
   }
 
+  async abandonPreparedReply(
+    actor: Actor,
+    tenantId: string,
+    conversationId: string,
+    requestId: string,
+  ) {
+    return this.tenants.scoped(actor, tenantId, 'conversations:reply', async (tx) => {
+      const intent = await this.findManualIntent(tx, actor, tenantId, requestId);
+      if (!intent || intent.conversationId !== conversationId) throw new NotFoundException();
+
+      const dispatch = await tx.humanOutboundDispatch.findUnique({
+        where: { id: intent.id },
+        select: { id: true },
+      });
+      // Never cancel queued or in-flight sends (even after provider failure).
+      if (dispatch) throw new ConflictException();
+      if (intent.abandonedAt) return { intentId: intent.id, state: 'abandoned' as const, duplicate: true };
+
+      const result = await tx.humanOutboundIntent.updateMany({
+        where: { tenantId, id: intent.id, actorId: actor.userId, abandonedAt: null },
+        data: { abandonedAt: new Date() },
+      });
+      if (result.count !== 1) throw new ConflictException();
+      await this.tenants.audit(tx, actor, tenantId, 'conversation.manual_reply_abandoned', intent.id);
+      return { intentId: intent.id, state: 'abandoned' as const, duplicate: false };
+    });
+  }
+
   latestManualReply(actor: Actor, tenantId: string, conversationId: string) {
     return this.tenants.scoped(actor, tenantId, 'conversations:reply', async (tx) => {
       const conversation = await tx.conversation.findUnique({
@@ -594,7 +634,7 @@ export class MessagingService {
       const intent = await tx.humanOutboundIntent.findFirst({
         where: { tenantId, conversationId, actorId: actor.userId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        select: { id: true, requestId: true, contentText: true, createdAt: true },
+        select: { id: true, requestId: true, contentText: true, createdAt: true, abandonedAt: true },
       });
       if (!intent) return { item: null };
       const dispatch = await tx.humanOutboundDispatch.findUnique({
@@ -607,7 +647,7 @@ export class MessagingService {
           intentId: intent.id,
           requestId: intent.requestId,
           text: intent.contentText,
-          state: dispatch?.state ?? 'prepared',
+          state: dispatch?.state ?? this.preparationState(intent),
           createdAt: intent.createdAt,
         },
       };
