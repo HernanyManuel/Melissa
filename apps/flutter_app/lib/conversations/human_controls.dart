@@ -184,28 +184,30 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
           (item is! Map<String, dynamic> ||
               item['intentId'] is! String ||
               item['requestId'] is! String ||
-              item['text'] is! String ||
+              (item['text'] != null && item['text'] is! String) ||
               !{'prepared', 'expired', 'abandoned', 'pending', 'accepted', 'rejected', 'failed'}
-                  .contains(item['state']))) {
+                  .contains(item['state']) ||
+              (item['text'] == null &&
+                  !{'expired', 'abandoned'}.contains(item['state'])))) {
         throw const FormatException('Invalid manual reply recovery');
       }
       if (item != null &&
           pending != null &&
           (item['requestId'] != pending!['requestId'] ||
-              item['text'] != pending!['text'])) {
+              (item['text'] != null && item['text'] != pending!['text']))) {
         // Never replace an unresolved in-memory attempt with an older receipt.
         return;
       }
       setState(() {
         if (item != null) {
-          pending = {
+          pending = item['text'] is String ? {
             'requestId': item['requestId'] as String,
             'text': item['text'] as String,
-          };
+          } : null;
           replyState = item['state'] as String;
-          reply.text = item['text'] as String;
+          reply.text = item['text'] as String? ?? '';
           retryableError = false;
-          recovered = true;
+          recovered = item['text'] is String;
         }
       });
     } catch (error) {
@@ -307,6 +309,8 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
       }
       setState(() {
         replyState = 'abandoned';
+        pending = null;
+        reply.clear();
         retryableError = false;
         recovered = false;
       });
@@ -397,7 +401,7 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
             SelectableText(pending!['text']!),
 
           const SizedBox(height: 8),
-          if (pending == null) TextField(
+          if (pending == null && replyState == null) TextField(
             key: const Key('inbox-compose'),
             controller: reply,
             enabled: !busy && !reconciling && !reconcileFailed,
