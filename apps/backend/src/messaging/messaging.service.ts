@@ -217,12 +217,7 @@ export class MessagingService {
     });
   }
 
-  async markConversationRead(
-    actor: Actor,
-    tenantId: string,
-    conversationId: string,
-    upTo: string,
-  ) {
+  async markConversationRead(actor: Actor, tenantId: string, conversationId: string, upTo: string) {
     if (!/^[1-9]\\d{0,18}$/.test(upTo) || BigInt(upTo) > 9_223_372_036_854_775_807n)
       throw new BadRequestException();
     const sequence = BigInt(upTo);
