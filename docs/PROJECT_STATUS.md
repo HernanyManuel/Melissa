@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Notas internas imutáveis
+
+A migração **60** cria `conversation_internal_notes`, isolada das mensagens recebidas/enviadas e de todos os despachos de IA e WhatsApp. FKs compostas, RLS por tenant, validação do autor e autorização `messages:read` protegem a leitura e escrita; a role runtime só recebe `SELECT` e `INSERT` limitados, sem `UPDATE` nem `DELETE`. O health check exige `schema_version=60`.
+
+A API expõe `GET/POST /conversations/:id/internal-notes`, com páginas até 50, cursor validado dentro da mesma conversa, texto entre 1 e 2 000 caracteres e UUID por tentativa. Replay com a mesma chave, conversa e texto é idempotente; reutilização com conteúdo diferente devolve 409. O evento de auditoria `conversation.internal_note_created` regista o ID sem o texto. A interface Flutter apresenta notas separadas do histórico de mensagens, sem chamar `/messages` ou acionar qualquer transporte. Após incerteza HTTP, só repete o pedido com a mesma chave e texto. Disponível em seis idiomas.
+
+[ADR-087](decisions/ADR-087-private-conversation-notes.md). Testes cobrem isolamento de tenant e papel `viewer`, idempotência, validação, auditoria, ausência de mensagens de cliente e repetição no Flutter. **CI final da migração 60 a confirmar.**
+
+**Limites:** as notas não têm edição/remoção nem alertas SSE, e a secção exige atualização manual. Qualquer membro com `messages:read` pode consultar notas do tenant; não existem regras por atribuição. Continua por definir a política de retenção/eliminação de notas, cópias de segurança e dados pessoais. Sem merge, deploy ou ativação de WhatsApp live.
+
 ## Atualização Phase 8 — Avisos visuais de novas mensagens no inbox
 
 O Flutter mostra agora um aviso transitório no topo da lista e na AppBar quando o contador `unreadCount` de uma conversa **aumenta após atualização REST autorizada** em resposta a um evento SSE. Um evento SSE isolado não basta para notificar, e a primeira listagem não gera avisos retroativos. O indicador conta **conversas com incrementos observados na sessão**, não mensagens totais por ler. Os avisos desaparecem após confirmação de leitura ou após a API indicar `unreadCount=0`; os estados são limpos na mudança de tenant ou revogação de acesso. Traduções disponíveis em pt/en/es/fr/it/de.
