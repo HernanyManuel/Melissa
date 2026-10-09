@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Etiquetas de conversas por tenant
+
+A migração **61** introduz `conversation_tags` e `conversation_tag_links`, com RLS por tenant, referências compostas para impedir associações entre tenants, criação de etiquetas imutáveis (sem UPDATE/DELETE do catálogo pelo runtime) e associação/remoção idempotente sujeita a `conversations:takeover`. A consulta de etiquetas requer `messages:read`; audit events registam a alteração sem conteúdo de mensagens. Endpoints: `POST /conversation-tags`, `GET /conversations/:id/tags`, `POST/DELETE /conversations/:id/tags/:tagId`.
+
+O Flutter oferece um painel de etiquetas no cabeçalho da conversa para evitar sobrecarga da vista de histórico. A criação, associação e remoção não chamam `/messages` nem criam dispatches. As etiquetas estão localizadas em pt/en/es/fr/it/de. Testes HTTP cobrem isolamento, validação de nomes, repetição, associação, remoção e auditoria; o teste Flutter verifica alterações sucessivas e ausência de envio.
+
+**Estado de validação:** migração, backend e interface na branch `feature/phase-8-inbox`; CI da última revisão ainda em verificação. [ADR-088](decisions/ADR-088-conversation-tenant-tags.md). O CI anterior revelou um overflow Flutter (resolvido ao mover as etiquetas para painel) e uma falha num teste antigo de calendário, que necessita repetição para excluir intermitência.
+
+**Limites:** catálogo com até 100 etiquetas listadas, sem paginação, gestão/rename de catálogo ou filtro do inbox por etiqueta. O PR mantém-se draft e não houve merge, deploy, WhatsApp live ou credenciais reais ativadas.
+
 ## Atualização Phase 8 — Notas internas imutáveis
 
 A migração **60** cria `conversation_internal_notes`, isolada das mensagens recebidas/enviadas e de todos os despachos de IA e WhatsApp. FKs compostas, RLS por tenant, validação do autor e autorização `messages:read` protegem a leitura e escrita; a role runtime só recebe `SELECT` e `INSERT` limitados, sem `UPDATE` nem `DELETE`. O health check exige `schema_version=60`.
