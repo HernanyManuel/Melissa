@@ -75,7 +75,8 @@ void main() {
     await tester.tap(find.text('Cliente A'));
     await tester.pumpAndSettle();
     expect(find.text('Primeira'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+    // The new text field is a private internal-note composer, not a customer send control.
+    expect(find.byKey(const Key('inbox-internal-note-compose')), findsOneWidget);
     await tester.tap(find.text('Carregar mais'));
     await tester.pumpAndSettle();
     expect(find.text('Primeira'), findsOneWidget);
