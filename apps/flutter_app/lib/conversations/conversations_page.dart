@@ -5,6 +5,7 @@ import '../identity/api.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'outbound_page.dart';
 import 'human_controls.dart';
+import 'internal_notes.dart';
 import 'inbox_events.dart';
 
 typedef InboxEventSource = Stream<InboxEvent> Function(String tenantId, String? after);
@@ -466,6 +467,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
           onRevoked: () => load(),
         )
       else Padding(padding: const EdgeInsets.all(12), child: Text(l.readOnlyConversation)),
+      ConversationInternalNotes(
+        key: ValueKey('notes/${widget.tenantId}/${selected!['id']}'),
+        tenantId: widget.tenantId,
+        conversationId: selected!['id'] as String,
+        api: api,
+      ),
       if (selected!['channelConnection']['mode'] == 'mock' && selected!['channelConnectionId'] is String)
         TextButton.icon(icon: const Icon(Icons.science_outlined), label: Text(l.outboundTitle), onPressed: reading || messageError ? null : () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => OutboundPage(tenantId: widget.tenantId, conversationId: selected!['id'] as String, channelId: selected!['channelConnectionId'] as String, api: api)))),
       if (reading) const LinearProgressIndicator(),
