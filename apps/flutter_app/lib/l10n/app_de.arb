@@ -176,5 +176,9 @@
   "inboxNotSent": "Antwort abgelehnt oder fehlgeschlagen. Vor erneutem Senden Status prüfen.",
   "inboxNewReply": "Neue Antwort",
   "inboxBlocked": "Anfrage blockiert. Berechtigungen und Status prüfen.",
-  "inboxUncertain": "Ergebnis unklar. Nur mit demselben Schlüssel und Text wiederholen."
+  "inboxUncertain": "Ergebnis unklar. Nur mit demselben Schlüssel und Text wiederholen.",
+  "inboxReconciling": "Frühere Antworten werden geprüft…",
+  "inboxReconcileFailed": "Die vorherige Antwort konnte nicht geprüft werden. Vor einer neuen Antwort erneut prüfen.",
+  "inboxCheckPrevious": "Vorherige Antwort prüfen",
+  "inboxRecovered": "Vorherige Antwort wiederhergestellt. Es wurde nichts erneut gesendet."
 }
