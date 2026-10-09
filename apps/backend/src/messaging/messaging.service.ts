@@ -476,7 +476,13 @@ export class MessagingService {
             contentText: input.text,
           },
         });
-        await this.tenants.audit(tx, actor, tenantId, 'conversation.manual_reply_prepared', intent.id);
+        await this.tenants.audit(
+          tx,
+          actor,
+          tenantId,
+          'conversation.manual_reply_prepared',
+          intent.id,
+        );
         return {
           conflict: false as const,
           intentId: intent.id,
@@ -502,7 +508,11 @@ export class MessagingService {
         if (previous) {
           if (previous.conversationId !== conversationId || previous.contentText !== input.text) {
             await this.tenants.audit(
-              tx, actor, tenantId, 'conversation.manual_reply_conflict', previous.id,
+              tx,
+              actor,
+              tenantId,
+              'conversation.manual_reply_conflict',
+              previous.id,
             );
             return { conflict: true as const };
           }
@@ -524,7 +534,13 @@ export class MessagingService {
           // reassignment or AI reactivation, even if the mode is HUMAN_ACTIVE again.
           if (current.modeEpoch !== previous.modeEpoch) throw new ConflictException();
           await tx.humanOutboundDispatch.create({ data: { tenantId, id: previous.id } });
-          await this.tenants.audit(tx, actor, tenantId, 'conversation.manual_reply_queued', previous.id);
+          await this.tenants.audit(
+            tx,
+            actor,
+            tenantId,
+            'conversation.manual_reply_queued',
+            previous.id,
+          );
           return {
             conflict: false as const,
             intentId: previous.id,
