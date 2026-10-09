@@ -78,6 +78,49 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('new-message alert requires verified unread increase and clears on read', (tester) async {
+    final events = StreamController<InboxEvent>.broadcast();
+    addTearDown(events.close);
+    var unread = 0;
+    var readCalls = 0;
+    final api = apiFor((request) async {
+      if (request.url.path.endsWith('/conversations')) {
+        return page([{
+          ...conversation('A'),
+          'unreadCount': unread,
+          'unreadUpTo': unread > 0 ? '12' : null,
+        }]);
+      }
+      if (request.url.path.endsWith('/A/messages')) return page([message('Olá')]);
+      if (request.url.path.endsWith('/A/read')) {
+        readCalls++;
+        unread = 0;
+        return http.Response('{"unreadUpTo":"12"}', 200);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api, (_, __) => events.stream));
+    await tester.pumpAndSettle();
+    expect(find.text('Novas mensagens recebidas'), findsNothing);
+    unread = 1;
+    events.add(const InboxEvent(
+      sequence: '12', type: 'message.received', conversationId: 'A',
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpAndSettle();
+    expect(find.text('Novas mensagens recebidas'), findsWidgets);
+    await tester.tap(find.text('Cliente A'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Marcar como lida'));
+    await tester.pumpAndSettle();
+    expect(readCalls, 1);
+    expect(find.text('Novas mensagens recebidas'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('reconnect resumes from last applied cursor and ignores replay', (tester) async {
     final sessions = <StreamController<InboxEvent>>[];
     final cursors = <String?>[];
