@@ -292,7 +292,8 @@ export class MessagingService {
           where: { tenantId, conversationId, id: page.after },
           select: { id: true },
         }))
-      ) throw new NotFoundException();
+      )
+        throw new NotFoundException();
 
       const rows = await tx.conversationInternalNote.findMany({
         where: { tenantId, conversationId },
