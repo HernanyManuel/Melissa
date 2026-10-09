@@ -70,6 +70,6 @@ export class MarkConversationReadDto {
     description: 'Last inbound Inbox event sequence observed in a conversation listing.',
     example: '42',
   })
-  @Matches(/^[1-9]\\d{0,18}$/)
+  @Matches(/^[1-9]\d{0,18}$/)
   upTo!: string;
 }
