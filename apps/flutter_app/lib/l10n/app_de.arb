@@ -180,5 +180,7 @@
   "inboxReconciling": "Frühere Antworten werden geprüft…",
   "inboxReconcileFailed": "Die vorherige Antwort konnte nicht geprüft werden. Vor einer neuen Antwort erneut prüfen.",
   "inboxCheckPrevious": "Vorherige Antwort prüfen",
-  "inboxRecovered": "Vorherige Antwort wiederhergestellt. Es wurde nichts erneut gesendet."
+  "inboxRecovered": "Vorherige Antwort wiederhergestellt. Es wurde nichts erneut gesendet.",
+  "inboxPrepared": "Antwort auf dem Server vorbereitet. Sie wurde noch nicht zum Versand eingereiht.",
+  "inboxConfirmSend": "Antwortversand bestätigen"
 }
