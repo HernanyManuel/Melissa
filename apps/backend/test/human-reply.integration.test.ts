@@ -156,6 +156,55 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
       { item: null },
     );
     assert.equal((await call('GET', latestPath, undefined, foreign.access_token)).status, 404);
+    const preparePath = `${controlPath}/manual-replies/prepare`;
+    const preparedRequestId = randomUUID();
+    const preparedText = 'Preparada e confirmada separadamente';
+    const prepared = await data<{ intentId: string; duplicate: boolean; state: string }>(
+      await call('POST', preparePath, { requestId: preparedRequestId, text: preparedText },
+        owner.access_token),
+      200,
+    );
+    assert.equal(prepared.state, 'prepared');
+    assert.equal(prepared.duplicate, false);
+    assert.equal(
+      await admin.humanOutboundDispatch.findUnique({ where: { id: prepared.intentId } }),
+      null,
+    );
+    const preparedRecovery = (await data<{
+      item: { intentId: string; requestId: string; text: string; state: string };
+    }>(await call('GET', latestPath, undefined, owner.access_token), 200)).item;
+    assert.equal(preparedRecovery.intentId, prepared.intentId);
+    assert.equal(preparedRecovery.requestId, preparedRequestId);
+    assert.equal(preparedRecovery.text, preparedText);
+    assert.equal(preparedRecovery.state, 'prepared');
+    const repeatedPrep = await data<{ intentId: string; duplicate: boolean; state: string }>(
+      await call('POST', preparePath, { requestId: preparedRequestId, text: preparedText },
+        owner.access_token),
+      200,
+    );
+    assert.equal(repeatedPrep.intentId, prepared.intentId);
+    assert.equal(repeatedPrep.duplicate, true);
+    assert.equal(repeatedPrep.state, 'prepared');
+    assert.equal(
+      (await call('POST', preparePath,
+        { requestId: preparedRequestId, text: 'outro texto' }, owner.access_token)).status,
+      409,
+    );
+    const confirmed = await data<{ intentId: string; duplicate: boolean; state: string }>(
+      await call('POST', `${controlPath}/messages`,
+        { requestId: preparedRequestId, text: preparedText }, owner.access_token),
+      200,
+    );
+    assert.equal(confirmed.intentId, prepared.intentId);
+    assert.equal(confirmed.duplicate, true);
+    assert.equal(confirmed.state, 'pending');
+    assert.equal(
+      (await admin.humanOutboundDispatch.findUniqueOrThrow({
+        where: { id: prepared.intentId },
+      })).state,
+      'pending',
+    );
+
     const firstRequestId = randomUUID();
     const firstText = 'Resposta manual confirmada';
     const first = await data<{
@@ -241,6 +290,14 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
     assert.equal(latestAfterSecond.intentId, second.intentId);
     assert.equal(latestAfterSecond.text, 'Será invalidada pela reativação');
     assert.equal(latestAfterSecond.state, 'pending');
+    const staleRequestId = randomUUID();
+    const stalePrepared = await data<{ intentId: string; state: string }>(
+      await call('POST', preparePath,
+        { requestId: staleRequestId, text: 'Preparada antes da troca de modo' },
+        owner.access_token),
+      200,
+    );
+    assert.equal(stalePrepared.state, 'prepared');
 
     let sends = 0;
     const provider: MessagingProvider = {
@@ -341,8 +398,18 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
       await call('GET', latestPath, undefined, owner.access_token),
       200,
     )).item;
-    assert.equal(afterReactivation.intentId, second.intentId);
-    assert.equal(afterReactivation.state, 'rejected');
+    assert.equal(afterReactivation.intentId, stalePrepared.intentId);
+    assert.equal(afterReactivation.state, 'prepared');
+    assert.equal(
+      (await call('POST', `${controlPath}/messages`,
+        { requestId: staleRequestId, text: 'Preparada antes da troca de modo' },
+        owner.access_token)).status,
+      409,
+    );
+    assert.equal(
+      await admin.humanOutboundDispatch.findUnique({ where: { id: stalePrepared.intentId } }),
+      null,
+    );
 
     assert.equal(
       (
