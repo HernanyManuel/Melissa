@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Expurgo do texto de preparações humanas
+
+A migração **58** introduz `human_outbound_intents.redacted_at`, um marcador de expurgo `[redacted]` e uma trigger PostgreSQL que rejeita alterações arbitrárias de texto, reversão de expurgo ou expurgo de qualquer intenção com dispatch. Ao **abandonar** uma preparação, o backend substitui o texto e guarda a data de expurgo na mesma transação, mantendo o identificador e metadados para impedir reenvio. O `GET /manual-replies/latest` devolve `text:null` para intenções expurgadas; o Flutter mostra o estado terminal sem revelar texto nem permitir envio automático.
+
+A rotina administrativa `pnpm --filter @melissa/backend privacy:redact-manual-preparations` faz simulação por defeito, com contagens sem texto; só o argumento `--apply` expurga até **500** preparações elegíveis por execução, usando `MIGRATION_DATABASE_URL`, bloqueios `FOR UPDATE SKIP LOCKED` e exclusão de dispatch existente. A migração trata também as preparações já expiradas/abandonadas na data de aplicação. Ver [ADR-084 e procedimento operacional](decisions/ADR-084-human-reply-content-redaction.md).
+
+**CI funcional:** [37942049114](https://github.com/HernanyManuel/Melissa/actions/runs/37942049114) integralmente verde (backend PostgreSQL/RLS/worker, Flutter analyze/test/build web, Compose) no commit `80b933132ca38efa2f87b3100b961026dbce2754`. Os testes abrangem expurgo no abandono, expiração em lote, ausência de despacho, `text:null`, e trigger recusando expurgo de uma resposta antiga com dispatch.
+
+**Limites:** o comando de expurgo de expirados **não é automático**; requer operação controlada. A linha ativa já não guarda o texto após expurgo, mas versões MVCC, WAL, backups, logs e sistemas externos podem manter cópias; não se declara eliminação forense. Intenções despachadas e clientes legados com POST direto mantêm a sua retenção/semântica atuais. Continuam pendentes política de backups, notificações, unread, notas/tags, painel completo do cliente e E2E Meta real. Sem merge/deploy nem ativação de worker live.
+
 ## Atualização Phase 8 — Expiração e abandono de preparações humanas
 
 Uma resposta preparada no servidor, mas ainda **sem registo de despacho**, tem agora validade de **24 horas** desde `created_at`: `GET /manual-replies/latest` e replay de `POST /manual-replies/prepare` devolvem `expired` após o prazo, e qualquer confirmação `POST /messages` dessa preparação é recusada com 409. O novo `POST /manual-replies/abandon` aceita `{requestId}`, é idempotente e opera apenas sobre intenções do operador autenticado e do tenant/conversa autorizados. Não pode abandonar nem cancelar mensagens que já possuam dispatch. A migração **57** introduz `abandoned_at`, concedendo à role runtime UPDATE apenas sobre essa coluna, e o health check passa a validar a versão 57.
