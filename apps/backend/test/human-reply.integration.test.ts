@@ -16,6 +16,10 @@ import {
   PrismaHumanOutboundStore,
 } from '../src/messaging/human-outbound-dispatcher';
 import { waitReady } from './wait-ready';
+import {
+  pendingRedactionCount,
+  redactExpiredPreparations,
+} from '../src/messaging/manual-reply-retention';
 
 // prettier-ignore
 test('manual reply is durable, fenced and persisted after provider acceptance', { timeout: 30000 }, async () => {
@@ -242,22 +246,24 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
         owner.access_token)).status,
       409,
     );
+    // Once the text has been redacted, the server cannot prove a repeated
+    // payload matches the original. Fail closed rather than restoring it.
     assert.equal(
-      (await data<{ state: string }>(
-        await call('POST', preparePath,
-          { requestId: abandonedRequestId, text: 'Nunca será enviada' },
-          owner.access_token),
-        200,
-      )).state,
-      'abandoned',
+      (await call('POST', preparePath,
+        { requestId: abandonedRequestId, text: 'Nunca será enviada' },
+        owner.access_token)).status,
+      409,
     );
-    assert.equal(
-      (await data<{ item: { state: string } }>(
-        await call('GET', latestPath, undefined, owner.access_token),
-        200,
-      )).item.state,
-      'abandoned',
-    );
+    const redactedRecovery = (await data<{
+      item: { state: string; text: string | null };
+    }>(await call('GET', latestPath, undefined, owner.access_token), 200)).item;
+    assert.equal(redactedRecovery.state, 'abandoned');
+    assert.equal(redactedRecovery.text, null);
+    const redactedAbandoned = await admin.humanOutboundIntent.findUniqueOrThrow({
+      where: { tenantId_id: { tenantId: tenant.id, id: abandoned.intentId } },
+    });
+    assert.equal(redactedAbandoned.contentText, '[redacted]');
+    assert(redactedAbandoned.redactedAt);
     assert.equal(
       await admin.humanOutboundDispatch.findUnique({ where: { id: abandoned.intentId } }),
       null,
@@ -291,6 +297,19 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
       )).state,
       'expired',
     );
+    assert((await pendingRedactionCount(admin)) >= 1);
+    assert((await redactExpiredPreparations(admin, 500)) >= 1);
+    const redactedExpired = await admin.humanOutboundIntent.findUniqueOrThrow({
+      where: { tenantId_id: { tenantId: tenant.id, id: expired.intentId } },
+    });
+    assert.equal(redactedExpired.contentText, '[redacted]');
+    assert(redactedExpired.redactedAt);
+    assert.equal(
+      (await call('POST', preparePath,
+        { requestId: expiredRequestId, text: 'Válida só durante 24 horas' },
+        owner.access_token)).status,
+      409,
+    );
     assert.equal(
       (await call('POST', `${controlPath}/messages`,
         { requestId: expiredRequestId, text: 'Válida só durante 24 horas' },
@@ -301,6 +320,12 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
       await admin.humanOutboundDispatch.findUnique({ where: { id: expired.intentId } }),
       null,
     );
+
+    const dispatchedContent = await admin.humanOutboundIntent.findUniqueOrThrow({
+      where: { tenantId_id: { tenantId: tenant.id, id: prepared.intentId } },
+    });
+    assert.equal(dispatchedContent.contentText, preparedText);
+    assert.equal(dispatchedContent.redactedAt, null);
 
     const firstRequestId = randomUUID();
     const firstText = 'Resposta manual confirmada';
