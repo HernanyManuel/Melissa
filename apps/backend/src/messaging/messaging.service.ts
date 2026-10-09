@@ -323,11 +323,14 @@ export class MessagingService {
       if (!exists) throw new NotFoundException();
       const [available, applied] = await Promise.all([
         tx.conversationTag.findMany({
-          where: { tenantId }, select: { id: true, name: true },
-          orderBy: { name: 'asc' }, take: 100,
+          where: { tenantId },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+          take: 100,
         }),
         tx.conversationTagLink.findMany({
-          where: { tenantId, conversationId }, select: { tagId: true },
+          where: { tenantId, conversationId },
+          select: { tagId: true },
         }),
       ]);
       return { available, applied: applied.map((row) => row.tagId) };
@@ -360,10 +363,12 @@ export class MessagingService {
     return this.tenants.scoped(actor, tenantId, 'conversations:takeover', async (tx) => {
       const [conversation, tag] = await Promise.all([
         tx.conversation.findUnique({
-          where: { tenantId_id: { tenantId, id: conversationId } }, select: { id: true },
+          where: { tenantId_id: { tenantId, id: conversationId } },
+          select: { id: true },
         }),
         tx.conversationTag.findUnique({
-          where: { tenantId_id: { tenantId, id: tagId } }, select: { id: true },
+          where: { tenantId_id: { tenantId, id: tagId } },
+          select: { id: true },
         }),
       ]);
       if (!conversation || !tag) throw new NotFoundException();
@@ -379,7 +384,10 @@ export class MessagingService {
         return { attached, duplicate: true };
       }
       await this.tenants.audit(
-        tx, actor, tenantId, attached ? 'conversation.tag_attached' : 'conversation.tag_detached',
+        tx,
+        actor,
+        tenantId,
+        attached ? 'conversation.tag_attached' : 'conversation.tag_detached',
         conversationId,
       );
       return { attached, duplicate: false };
