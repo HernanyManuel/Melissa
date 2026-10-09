@@ -6,7 +6,7 @@ A migração **60** cria `conversation_internal_notes`, isolada das mensagens re
 
 A API expõe `GET/POST /conversations/:id/internal-notes`, com páginas até 50, cursor validado dentro da mesma conversa, texto entre 1 e 2 000 caracteres e UUID por tentativa. Replay com a mesma chave, conversa e texto é idempotente; reutilização com conteúdo diferente devolve 409. O evento de auditoria `conversation.internal_note_created` regista o ID sem o texto. A interface Flutter apresenta notas separadas do histórico de mensagens, sem chamar `/messages` ou acionar qualquer transporte. Após incerteza HTTP, só repete o pedido com a mesma chave e texto. Disponível em seis idiomas.
 
-[ADR-087](decisions/ADR-087-private-conversation-notes.md). Testes cobrem isolamento de tenant e papel `viewer`, idempotência, validação, auditoria, ausência de mensagens de cliente e repetição no Flutter. **CI final da migração 60 a confirmar.**
+[ADR-087](decisions/ADR-087-private-conversation-notes.md). Testes cobrem isolamento de tenant e papel `viewer`, idempotência, validação, auditoria, ausência de mensagens de cliente e repetição no Flutter. **CI funcional:** [37967670234](https://github.com/HernanyManuel/Melissa/actions/runs/37967670234) integralmente verde (backend com PostgreSQL/RLS e worker, Flutter analyze/test/build web, Compose).
 
 **Limites:** as notas não têm edição/remoção nem alertas SSE, e a secção exige atualização manual. Qualquer membro com `messages:read` pode consultar notas do tenant; não existem regras por atribuição. Continua por definir a política de retenção/eliminação de notas, cópias de segurança e dados pessoais. Sem merge, deploy ou ativação de WhatsApp live.
 
