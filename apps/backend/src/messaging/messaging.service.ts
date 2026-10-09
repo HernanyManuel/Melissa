@@ -441,7 +441,12 @@ export class MessagingService {
 
   /// A durable, non-dispatchable preflight record. No worker can send it:
   /// the dispatcher only claims rows from human_outbound_dispatch.
-  async prepareReply(actor: Actor, tenantId: string, conversationId: string, input: ManualReplyDto) {
+  async prepareReply(
+    actor: Actor,
+    tenantId: string,
+    conversationId: string,
+    input: ManualReplyDto,
+  ) {
     this.validateManualReply(input);
     const result = await this.tenants.scoped(
       actor,
