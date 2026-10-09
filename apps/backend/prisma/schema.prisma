@@ -531,7 +531,8 @@ model OutboundIntent {
   conversationId String   @map("conversation_id") @db.Uuid
   providerKey    String   @default("mock") @map("provider_key")
   contentText    String   @map("content_text") @db.VarChar(4096)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  abandonedAt    DateTime? @map("abandoned_at") @db.Timestamptz(6)
 
   @@id([tenantId, id])
   @@unique([tenantId, actorId, requestId])
