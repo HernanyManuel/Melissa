@@ -151,7 +151,7 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
     );
 
     const latestPath = `${controlPath}/manual-replies/latest`;
-    assert.equal(
+    assert.deepEqual(
       await data<{ item: null }>(await call('GET', latestPath, undefined, owner.access_token), 200),
       { item: null },
     );
@@ -185,7 +185,7 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
     await admin.membership.create({
       data: { tenantId: tenant.id, userId: foreign.userId, role: 'staff' },
     });
-    assert.equal(
+    assert.deepEqual(
       await data<{ item: null }>(await call('GET', latestPath, undefined, foreign.access_token), 200),
       { item: null },
     );
