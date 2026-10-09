@@ -151,6 +151,52 @@ test('human takeover fences automatic outbound and supports reactivation and clo
         lastMessageAt: new Date(),
       },
     });
+    const tagPath = `/tenants/${tenant.id}/conversation-tags`;
+    const appliedPath = `/tenants/${tenant.id}/conversations/${conversationId}/tags`;
+    assert.equal((await call('GET', appliedPath, undefined, foreign.access_token)).status, 404);
+    assert.equal((await call('POST', tagPath, { name: '   ' }, owner.access_token)).status, 400);
+    const createdTag = await data<{ item: { id: string; name: string }; duplicate: boolean }>(
+      await call('POST', tagPath, { name: 'Prioridade' }, owner.access_token),
+      200,
+    );
+    assert.equal(createdTag.item.name, 'Prioridade');
+    assert.equal(createdTag.duplicate, false);
+    assert.equal(
+      (await data<{ duplicate: boolean }>(
+        await call('POST', tagPath, { name: 'Prioridade' }, owner.access_token), 200,
+      )).duplicate,
+      true,
+    );
+    assert.equal(
+      (await call('POST', appliedPath + '/' + createdTag.item.id, undefined,
+        foreign.access_token)).status,
+      404,
+    );
+    const attachedTag = await data<{ attached: boolean; duplicate: boolean }>(
+      await call('POST', appliedPath + '/' + createdTag.item.id, undefined,
+        owner.access_token),
+      200,
+    );
+    assert.deepEqual(attachedTag, { attached: true, duplicate: false });
+    const tags = await data<{ available: { id: string }[]; applied: string[] }>(
+      await call('GET', appliedPath, undefined, owner.access_token), 200,
+    );
+    assert.equal(tags.available[0]?.id, createdTag.item.id);
+    assert.deepEqual(tags.applied, [createdTag.item.id]);
+    assert.deepEqual(
+      await data<{ attached: boolean; duplicate: boolean }>(
+        await call('DELETE', appliedPath + '/' + createdTag.item.id, undefined,
+          owner.access_token), 200,
+      ),
+      { attached: false, duplicate: false },
+    );
+    assert.equal((await admin.conversationTagLink.count({
+      where: { tenantId: tenant.id, conversationId },
+    })), 0);
+    assert.equal((await admin.auditEvent.count({
+      where: { tenantId: tenant.id, action: 'conversation.tag_attached' },
+    })), 1);
+
     const before = await admin.conversation.findUniqueOrThrow({
       where: { tenantId_id: { tenantId: tenant.id, id: conversationId } },
     });
