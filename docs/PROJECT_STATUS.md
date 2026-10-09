@@ -1,5 +1,13 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Preparação durável antes da confirmação humana
+
+O Flutter passou a preparar respostas humanas através do novo `POST /api/v1/tenants/:tenantId/conversations/:id/manual-replies/prepare`: o backend guarda `requestId` e texto no `human_outbound_intents` sob RLS/permissão `conversations:reply`, **sem criar dispatch e sem possibilidade de o worker enviar esse registo**. Uma confirmação explícita por `POST /conversations/:id/messages` reutiliza o mesmo par idempotente, revalida modo `HUMAN_ACTIVE`, atribuição, canal WhatsApp live e `mode_epoch`, e só então cria o despacho. O GET de reconciliação passa a reconhecer `state: prepared` e o Flutter mostra a preparação recuperada após reload, sem enviar automaticamente. Ver [ADR-082](decisions/ADR-082-durable-manual-reply-preparation.md).
+
+O workflow [37899957749](https://github.com/HernanyManuel/Melissa/actions/runs/37899957749) passou integralmente no commit funcional `49d292258c509886cd8bf6c70df26fb4266eb1bc`: backend/integração PostgreSQL/RLS, Compose, Flutter analyze/test/build web. Testes cobrem ausência de dispatch após preparação, repetição idempotente, promoção explícita, rejeição após reativação da IA e recuperação de uma preparação após reload.
+
+**Limitações:** clientes legados que chamam diretamente `POST /messages` ainda não beneficiam da preparação prévia; preparações nunca confirmadas requerem política de retenção/abandono; o GET consulta apenas a última intenção do ator. A segurança de reload aplica-se ao novo percurso Flutter, não a todas as formas de envio. Faltam notificações, unread, notas/tags, painel completo do cliente e E2E Meta real. Não houve merge/deploy nem ativação dos workers live; o gate P7 Google Calendar continua aberto.
+
 ## Atualização Phase 8 — Recuperação de resposta manual persistida após reload
 
 A UI Flutter reconcilia agora a última resposta manual **do operador autenticado** através de `GET /api/v1/tenants/:tenantId/conversations/:id/manual-replies/latest`. O endpoint read-only usa scope de tenant, permissão `conversations:reply` e filtro por ator, devolvendo `{item:null}` ou a intenção original (`intentId`, `requestId`, texto, estado e data). Um dispatch ausente e inconsistente gera erro 503. O Flutter recupera `pending/accepted/rejected/failed` após reload **sem reenviar automaticamente** e consulta este endpoint quando um POST termina com resultado incerto. Se a consulta inicial falhar, bloqueia novas respostas até conseguir verificar. O retry ainda em memória conserva a chave e texto exatos. Ver [ADR-081](decisions/ADR-081-manual-reply-reconciliation-after-reload.md).
