@@ -240,9 +240,13 @@ export class MessagingService {
           AND sequence=${sequence} AND event_type='message.received'
       `;
       if (!event) throw new ConflictException();
-      const key = { tenantId_actorId_conversationId: {
-        tenantId, actorId: actor.userId, conversationId,
-      } };
+      const key = {
+        tenantId_actorId_conversationId: {
+          tenantId,
+          actorId: actor.userId,
+          conversationId,
+        },
+      };
       const old = await tx.inboxReadCursor.findUnique({
         where: key,
         select: { lastReadSequence: true },
@@ -253,12 +257,18 @@ export class MessagingService {
       await tx.inboxReadCursor.upsert({
         where: key,
         create: {
-          tenantId, actorId: actor.userId, conversationId, lastReadSequence: sequence,
+          tenantId,
+          actorId: actor.userId,
+          conversationId,
+          lastReadSequence: sequence,
         },
         update: { lastReadSequence: sequence, updatedAt: new Date() },
       });
       await appendInboxEvent(tx, {
-        tenantId, conversationId, eventType: 'conversation.read', actorId: actor.userId,
+        tenantId,
+        conversationId,
+        eventType: 'conversation.read',
+        actorId: actor.userId,
       });
       return { unreadUpTo: upTo, duplicate: false };
     });
