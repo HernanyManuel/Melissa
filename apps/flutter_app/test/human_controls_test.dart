@@ -255,6 +255,74 @@ void main() {
       findsOneWidget);
   });
 
+
+  testWidgets('abandoning a restored preparation never sends a message', (tester) async {
+    var sends = 0;
+    var abandoned = 0;
+    const requestId = '30b17e74-a4fc-4b17-abcf-fad2bebfb52b';
+    final api = fake((request) async {
+      if (request.url.path.endsWith('/manual-replies/abandon')) {
+        abandoned++;
+        expect(jsonDecode(request.body)['requestId'], requestId);
+        return jsonResponse({'intentId': 'prepared-1', 'state': 'abandoned', 'duplicate': false});
+      }
+      if (request.url.path.endsWith('/messages') && request.method == 'POST') {
+        sends++;
+      }
+      return jsonResponse({}, 404);
+    }, latest: (_) async => jsonResponse({'item': {
+      'intentId': 'prepared-1',
+      'requestId': requestId,
+      'text': 'Mensagem não enviada',
+      'state': 'prepared',
+      'createdAt': '2026-10-09T07:00:00Z',
+    }}));
+    addTearDown(api.dispose);
+    await tester.pumpWidget(frame(api, conversation('convo-a', 'HUMAN_ACTIVE')));
+    await tester.pumpAndSettle();
+    expect(find.text('Abandonar preparação'), findsOneWidget);
+    await tester.tap(find.text('Abandonar preparação'));
+    await tester.pumpAndSettle();
+    expect(abandoned, 1);
+    expect(sends, 0);
+    expect(find.text('Preparação abandonada. Nenhuma mensagem foi enviada.'),
+      findsOneWidget);
+    expect(find.text('Confirmar envio da resposta'), findsNothing);
+    await tester.tap(find.text('Nova resposta'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('inbox-compose')), findsOneWidget);
+    expect(sends, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('expired preparation cannot be confirmed or automatically sent', (tester) async {
+    var sends = 0;
+    final api = fake((request) async {
+      if (request.method == 'POST' && request.url.path.endsWith('/messages')) {
+        sends++;
+      }
+      return jsonResponse({}, 404);
+    }, latest: (_) async => jsonResponse({'item': {
+      'intentId': 'expired-1',
+      'requestId': 'f44272cd-56e2-43d4-afd2-6b7b62ed2dde',
+      'text': 'Preparação antiga',
+      'state': 'expired',
+      'createdAt': '2026-10-07T07:00:00Z',
+    }}));
+    addTearDown(api.dispose);
+    await tester.pumpWidget(frame(api, conversation('convo-a', 'HUMAN_ACTIVE')));
+    await tester.pumpAndSettle();
+    expect(find.text('Preparação expirada ao fim de 24 horas. Não foi enviada.'),
+      findsOneWidget);
+    expect(find.text('Confirmar envio da resposta'), findsNothing);
+    expect(find.text('Nova resposta'), findsOneWidget);
+    expect(sends, 0);
+    await tester.tap(find.text('Nova resposta'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('inbox-compose')), findsOneWidget);
+    expect(sends, 0);
+  });
+
   testWidgets('mock human conversation never exposes live composer and can close', (tester) async {
     var closes = 0;
     final api = fake((request) async {
