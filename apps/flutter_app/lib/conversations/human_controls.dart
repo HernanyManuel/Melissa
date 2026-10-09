@@ -374,7 +374,8 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
             onPressed: busy || reconciling ||
                 (reconcileFailed && pending == null) || blocked ? null : send,
             icon: const Icon(Icons.send_outlined),
-            label: Text(replyState == 'prepared' ? l.inboxConfirmSend :
+            label: Text(retryableError ? l.inboxRetrySame :
+                replyState == 'prepared' ? l.inboxConfirmSend :
                 pending == null ? l.inboxReply : l.inboxRetrySame),
           ),
           if (replyState != null) ...[
