@@ -185,5 +185,6 @@
   "inboxConfirmSend": "Confirmar envio da resposta",
   "inboxPreparationExpired": "Preparação expirada ao fim de 24 horas. Não foi enviada.",
   "inboxPreparationAbandoned": "Preparação abandonada. Nenhuma mensagem foi enviada.",
-  "inboxAbandonPreparation": "Abandonar preparação"
+  "inboxAbandonPreparation": "Abandonar preparação",
+  "inboxMarkRead": "Marcar como lida"
 }
