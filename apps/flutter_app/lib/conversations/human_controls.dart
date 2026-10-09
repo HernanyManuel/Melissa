@@ -220,7 +220,9 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
 
   Future<void> send() async {
     if (busy || reconciling || (reconcileFailed && pending == null) ||
-        blocked || !canReply) return;
+        blocked || !canReply) {
+      return;
+    }
     if (pending == null) {
       if (reply.text.trim().isEmpty || reply.text.runes.length > 4096) return;
       pending = {'requestId': simulationId(), 'text': reply.text};
