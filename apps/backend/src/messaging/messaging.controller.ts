@@ -24,6 +24,7 @@ import {
   ConversationTakeoverDto,
   InboxEventQuery,
   ManualReplyDto,
+  MarkConversationReadDto,
   MessagePageDto,
   MockInboundDto,
 } from './dto';
@@ -58,6 +59,22 @@ export class MessagingController {
   ) {
     return this.messaging.conversations(req.actor, tenant, page);
   }
+  @Post('conversations/:id/read')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Mark messages through a previously observed inbound event as read',
+    description:
+      'Per-actor, per-tenant monotonic cursor. The upTo sequence must identify an inbound event in this conversation; older and duplicate acknowledgements are idempotent. Later messages remain unread.',
+  })
+  markConversationRead(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: MarkConversationReadDto,
+  ) {
+    return this.messaging.markConversationRead(req.actor, tenant, id, body.upTo);
+  }
+
   @Post('conversations/:id/takeover')
   @HttpCode(200)
   @ApiOperation({
