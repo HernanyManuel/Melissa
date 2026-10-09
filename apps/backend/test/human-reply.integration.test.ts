@@ -217,11 +217,11 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
         await call(
           'POST',
           `${controlPath}/messages`,
-          { requestId: randomUUID(), text: 'cross tenant' },
+          { requestId: randomUUID(), text: 'unassigned staff' },
           foreign.access_token,
         )
       ).status,
-      404,
+      403,
     );
 
     const second = await data<{ intentId: string; duplicate: boolean; state: string }>(
