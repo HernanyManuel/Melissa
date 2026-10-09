@@ -184,6 +184,69 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
       },
     });
 
+    const notePath = `/tenants/${tenant.id}/conversations/${conversationId}/internal-notes`;
+    assert.deepEqual(
+      await data<{ items: []; next: null }>(
+        await call('GET', notePath, undefined, owner.access_token), 200,
+      ),
+      { items: [], next: null },
+    );
+    assert.equal((await call('GET', notePath, undefined, foreign.access_token)).status, 404);
+    const noteRequest = { requestId: randomUUID(), text: 'Apenas para a equipa' };
+    const firstNote = await data<{
+      item: { id: string; text: string; actorId: string }; duplicate: boolean;
+    }>(await call('POST', notePath, noteRequest, owner.access_token), 200);
+    assert.equal(firstNote.duplicate, false);
+    assert.equal(firstNote.item.text, noteRequest.text);
+    assert.equal(firstNote.item.actorId, owner.userId);
+    const repeatedNote = await data<{ item: { id: string }; duplicate: boolean }>(
+      await call('POST', notePath, noteRequest, owner.access_token), 200,
+    );
+    assert.equal(repeatedNote.duplicate, true);
+    assert.equal(repeatedNote.item.id, firstNote.item.id);
+    assert.equal(
+      (await call('POST', notePath, {
+        ...noteRequest, text: 'Outro texto',
+      }, owner.access_token)).status, 409,
+    );
+    assert.equal(
+      (await call('POST',
+        `/tenants/${tenant.id}/conversations/${randomUUID()}/internal-notes`,
+        noteRequest, owner.access_token)).status, 404,
+    );
+    assert.equal(
+      (await call('POST', notePath, {
+        requestId: randomUUID(), text: '  ',
+      }, owner.access_token)).status, 400,
+    );
+    assert.equal((await call('POST', notePath, noteRequest, foreign.access_token)).status, 404);
+    assert.equal(
+      (await call('GET', `${notePath}?after=${randomUUID()}`, undefined,
+        owner.access_token)).status, 404,
+    );
+    const noteList = await data<{
+      items: Array<{ id: string; text: string; actorId: string }>; next: null;
+    }>(await call('GET', notePath, undefined, owner.access_token), 200);
+    assert.equal(noteList.items.length, 1);
+    assert.equal(noteList.items[0]!.id, firstNote.item.id);
+    assert.equal(noteList.items[0]!.text, noteRequest.text);
+    assert.equal(noteList.next, null);
+    assert.equal(await admin.message.count({ where: { tenantId: tenant.id } }), 0);
+    assert.equal(
+      await admin.auditEvent.count({
+        where: { tenantId: tenant.id, targetId: firstNote.item.id,
+          action: 'conversation.internal_note_created' },
+      }),
+      1,
+    );
+    await admin.membership.create({
+      data: { tenantId: tenant.id, userId: foreign.userId, role: 'viewer' },
+    });
+    assert.equal((await call('GET', notePath, undefined, foreign.access_token)).status, 403);
+    assert.equal((await call('POST', notePath,
+      { requestId: randomUUID(), text: 'Sem permissão' },
+      foreign.access_token)).status, 403);
+
     const controlPath = `/tenants/${tenant.id}/conversations/${conversationId}`;
     assert.equal(
       (await call('POST', `${controlPath}/takeover`, { staffId }, owner.access_token)).status,
