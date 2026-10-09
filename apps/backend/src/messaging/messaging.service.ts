@@ -173,15 +173,94 @@ export class MessagingService {
           channelConnection: { select: { displayName: true, mode: true } },
         },
       });
+      const pageRows = rows.slice(0, 50);
+      // Count durable inbound events, not outbound messages or SSE housekeeping.
+      // Read cursors are scoped to this actor, and only these 50 visible IDs
+      // are included in the query.
+      const unread = pageRows.length
+        ? await tx.$queryRaw<
+            Array<{ conversationId: string; unreadCount: number; unreadUpTo: string }>
+          >`
+            SELECT e.conversation_id::text AS "conversationId",
+                   COUNT(*) FILTER (
+                     WHERE e.sequence > COALESCE(r.last_read_sequence, 0)
+                   )::int AS "unreadCount",
+                   MAX(e.sequence)::text AS "unreadUpTo"
+            FROM inbox_events e
+            LEFT JOIN inbox_read_cursors r
+              ON r.tenant_id=e.tenant_id
+              AND r.conversation_id=e.conversation_id
+              AND r.actor_id=${actor.userId}::uuid
+            WHERE e.tenant_id=${tenantId}::uuid
+              AND e.event_type='message.received'
+              AND e.conversation_id IN (
+                ${Prisma.join(pageRows.map((row) => Prisma.sql`${row.id}::uuid`))}
+              )
+            GROUP BY e.conversation_id
+          `
+        : [];
+      const byConversation = new Map(unread.map((row) => [row.conversationId, row]));
       return {
         // Internal fencing counters are BigInt and must not leak through the public JSON API.
-        items: rows.slice(0, 50).map(({ modeEpoch, stateVersion, ...row }) => {
+        items: pageRows.map(({ modeEpoch, stateVersion, ...row }) => {
           void modeEpoch;
           void stateVersion;
-          return row;
+          const count = byConversation.get(row.id);
+          return {
+            ...row,
+            unreadCount: count?.unreadCount ?? 0,
+            unreadUpTo: count?.unreadUpTo ?? null,
+          };
         }),
         next: rows.length > 50 ? rows[49]!.id : null,
       };
+    });
+  }
+
+  async markConversationRead(
+    actor: Actor,
+    tenantId: string,
+    conversationId: string,
+    upTo: string,
+  ) {
+    if (!/^[1-9]\\d{0,18}$/.test(upTo) || BigInt(upTo) > 9_223_372_036_854_775_807n)
+      throw new BadRequestException();
+    const sequence = BigInt(upTo);
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      const conversation = await tx.conversation.findUnique({
+        where: { tenantId_id: { tenantId, id: conversationId } },
+        select: { id: true },
+      });
+      if (!conversation) throw new NotFoundException();
+      // Never let a guessed future sequence suppress later incoming messages.
+      const [event] = await tx.$queryRaw<Array<{ sequence: bigint }>>`
+        SELECT sequence
+        FROM inbox_events
+        WHERE tenant_id=${tenantId}::uuid AND conversation_id=${conversationId}::uuid
+          AND sequence=${sequence} AND event_type='message.received'
+      `;
+      if (!event) throw new ConflictException();
+      const key = { tenantId_actorId_conversationId: {
+        tenantId, actorId: actor.userId, conversationId,
+      } };
+      const old = await tx.inboxReadCursor.findUnique({
+        where: key,
+        select: { lastReadSequence: true },
+      });
+      if (old && old.lastReadSequence >= sequence) {
+        return { unreadUpTo: old.lastReadSequence.toString(), duplicate: true };
+      }
+      await tx.inboxReadCursor.upsert({
+        where: key,
+        create: {
+          tenantId, actorId: actor.userId, conversationId, lastReadSequence: sequence,
+        },
+        update: { lastReadSequence: sequence, updatedAt: new Date() },
+      });
+      await appendInboxEvent(tx, {
+        tenantId, conversationId, eventType: 'conversation.read', actorId: actor.userId,
+      });
+      return { unreadUpTo: upTo, duplicate: false };
     });
   }
 
