@@ -5,6 +5,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
@@ -481,6 +482,37 @@ export class MessagingService {
       duplicate: result.duplicate,
       state: result.state,
     };
+  }
+
+  latestManualReply(actor: Actor, tenantId: string, conversationId: string) {
+    return this.tenants.scoped(actor, tenantId, 'conversations:reply', async (tx) => {
+      const conversation = await tx.conversation.findUnique({
+        where: { tenantId_id: { tenantId, id: conversationId } },
+        select: { id: true },
+      });
+      if (!conversation) throw new NotFoundException();
+
+      // An operator can only recover their own original request and payload.
+      // No search across actors, and no provider receipt/delivery inference.
+      const intent = await tx.humanOutboundIntent.findFirst({
+        where: { tenantId, conversationId, actorId: actor.userId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, requestId: true, contentText: true, createdAt: true },
+      });
+      if (!intent) return null;
+      const dispatch = await tx.humanOutboundDispatch.findUnique({
+        where: { id: intent.id },
+        select: { state: true },
+      });
+      if (!dispatch) throw new ServiceUnavailableException();
+      return {
+        intentId: intent.id,
+        requestId: intent.requestId,
+        text: intent.contentText,
+        state: dispatch.state,
+        createdAt: intent.createdAt,
+      };
+    });
   }
 
   messages(actor: Actor, tenantId: string, conversationId: string, page: MessagePageDto) {
