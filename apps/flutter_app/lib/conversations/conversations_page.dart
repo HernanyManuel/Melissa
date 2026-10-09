@@ -444,7 +444,25 @@ class _ConversationsPageState extends State<ConversationsPage> {
       ListTile(
         leading: narrow ? IconButton(tooltip: l.conversations, icon: const Icon(Icons.arrow_back), onPressed: () => setState(() { messageGeneration++; selected = null; messages = []; reading = false; })) : null,
         title: Text(selected!['customer']['displayName'] as String),
-        trailing: IconButton(tooltip: l.retry, onPressed: reading ? null : () => open(selected!), icon: const Icon(Icons.refresh)),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(
+            tooltip: l.inboxTags,
+            icon: const Icon(Icons.label_outline),
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => SafeArea(child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: SingleChildScrollView(child: ConversationTags(
+                  tenantId: widget.tenantId,
+                  conversationId: selected!['id'] as String,
+                  api: api,
+                )),
+              )),
+            ),
+          ),
+          IconButton(tooltip: l.retry, onPressed: reading ? null : () => open(selected!), icon: const Icon(Icons.refresh)),
+        ]),
       ),
       if (!reading && !messageError &&
           selected!['unreadCount'] is int &&
@@ -468,12 +486,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
           onRevoked: () => load(),
         )
       else Padding(padding: const EdgeInsets.all(12), child: Text(l.readOnlyConversation)),
-      ConversationTags(
-        key: ValueKey('tags/${widget.tenantId}/${selected!['id']}'),
-        tenantId: widget.tenantId,
-        conversationId: selected!['id'] as String,
-        api: api,
-      ),
       ConversationInternalNotes(
         key: ValueKey('notes/${widget.tenantId}/${selected!['id']}'),
         tenantId: widget.tenantId,
