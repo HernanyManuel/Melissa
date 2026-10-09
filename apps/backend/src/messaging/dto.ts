@@ -57,7 +57,10 @@ export class ManualReplyDto {
 }
 
 export class AbandonManualReplyDto {
-  @ApiProperty({ format: 'uuid', description: 'Request ID of the actor-owned preparation to abandon.' })
+  @ApiProperty({
+    format: 'uuid',
+    description: 'Request ID of the actor-owned preparation to abandon.',
+  })
   @IsUUID()
   requestId!: string;
 }
