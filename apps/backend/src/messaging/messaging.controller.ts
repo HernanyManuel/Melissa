@@ -22,6 +22,7 @@ import {
   AbandonManualReplyDto,
   ConversationQuery,
   ConversationTakeoverDto,
+  CreateInternalNoteDto,
   InboxEventQuery,
   ManualReplyDto,
   MarkConversationReadDto,
@@ -59,6 +60,37 @@ export class MessagingController {
   ) {
     return this.messaging.conversations(req.actor, tenant, page);
   }
+  @Get('conversations/:id/internal-notes')
+  @ApiOperation({
+    summary: 'List private, append-only notes for a conversation',
+    description:
+      'Tenant-authorized staff only. Notes never become customer messages or outbound dispatch.',
+  })
+  internalNotes(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() page: MessagePageDto,
+  ) {
+    return this.messaging.internalNotes(req.actor, tenant, id, page);
+  }
+
+  @Post('conversations/:id/internal-notes')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Create one immutable internal note with actor-scoped idempotency',
+    description:
+      'A repeated requestId with identical content is idempotent; a different payload is 409.',
+  })
+  createInternalNote(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: CreateInternalNoteDto,
+  ) {
+    return this.messaging.createInternalNote(req.actor, tenant, id, body);
+  }
+
   @Post('conversations/:id/read')
   @HttpCode(200)
   @ApiOperation({
