@@ -73,3 +73,17 @@ export class MarkConversationReadDto {
   @Matches(/^[1-9]\d{0,18}$/)
   upTo!: string;
 }
+
+export class CreateInternalNoteDto {
+  @ApiProperty({
+    format: 'uuid',
+    description: 'Stable idempotency key; reuse with identical text after uncertain responses.',
+  })
+  @IsUUID()
+  requestId!: string;
+
+  @ApiProperty({ minLength: 1, maxLength: 2000 })
+  @IsString()
+  @Length(1, 2000)
+  text!: string;
+}
