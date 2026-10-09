@@ -1,5 +1,13 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Recuperação de resposta manual persistida após reload
+
+A UI Flutter reconcilia agora a última resposta manual **do operador autenticado** através de `GET /api/v1/tenants/:tenantId/conversations/:id/manual-replies/latest`. O endpoint read-only usa scope de tenant, permissão `conversations:reply` e filtro por ator, devolvendo `{item:null}` ou a intenção original (`intentId`, `requestId`, texto, estado e data). Um dispatch ausente e inconsistente gera erro 503. O Flutter recupera `pending/accepted/rejected/failed` após reload **sem reenviar automaticamente** e consulta este endpoint quando um POST termina com resultado incerto. Se a consulta inicial falhar, bloqueia novas respostas até conseguir verificar. O retry ainda em memória conserva a chave e texto exatos. Ver [ADR-081](decisions/ADR-081-manual-reply-reconciliation-after-reload.md).
+
+O workflow [37897525313](https://github.com/HernanyManuel/Melissa/actions/runs/37897525313) passou integralmente no commit funcional `b10ec6dc598ebfbfea73b11f35a73c969693743e`: backend com migrations, formatter, lint, typecheck, testes unitários e integração HTTP/PostgreSQL/RLS, worker/Redis recovery, OpenAPI, Compose e Flutter analyze/test/build web. Os novos testes cobrem ausência e recuperação do registo, isolamento cross-tenant e entre atores, bloqueio de colaborador não atribuído (403), atualização do estado do dispatch, reload sem novo POST e 503 reconciliado em GET.
+
+**Limite essencial:** só se consegue restaurar uma resposta já persistida. Um GET vazio **não** prova que um POST incerto em trânsito nunca será guardado; se o reload perdeu uma chave ainda não persistida, o operador deve verificar manualmente antes de qualquer nova tentativa. Não se guarda texto no storage do navegador, nem se confunde aceitação pelo provider com entrega. Restam recuperação segura da chave ainda não persistida, notificações, unread count, notas/tags, painel completo de cliente, E2E WhatsApp live e gate P7 Google Calendar real. Não houve merge/deploy.
+
 ## Atualização Phase 8 — Inbox Flutter com SSE/replay e refresh REST
 
 A UI de conversas subscreve agora `GET /api/v1/tenants/:tenantId/inbox/events` através de um stream SSE autenticado, validando eventos mínimos e sequência monotónica por tenant. Na reconexão envia o último cursor via `Last-Event-ID`/`after`, ignora replay duplicado e aplica backoff. Mudança de tenant ou revogação de acesso cancela a subscrição e descarta o estado sensível.
