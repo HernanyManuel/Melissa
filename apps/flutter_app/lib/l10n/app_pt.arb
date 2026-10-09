@@ -176,5 +176,9 @@
   "inboxNotSent": "Resposta rejeitada ou falhada. Confirma o estado antes de voltar a enviar.",
   "inboxNewReply": "Nova resposta",
   "inboxBlocked": "Pedido bloqueado. Confirma permissões e estado antes de tentar novamente.",
-  "inboxUncertain": "Resultado incerto. Repete apenas com a mesma chave e texto."
+  "inboxUncertain": "Resultado incerto. Repete apenas com a mesma chave e texto.",
+  "inboxReconciling": "A verificar respostas anteriores…",
+  "inboxReconcileFailed": "Não foi possível consultar a resposta anterior. Verifica novamente antes de criar outra.",
+  "inboxCheckPrevious": "Verificar resposta anterior",
+  "inboxRecovered": "Resposta anterior recuperada. Não foi efetuado um novo envio."
 }
