@@ -239,13 +239,14 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
       }),
       1,
     );
+    const viewer = await createActor('viewer');
     await admin.membership.create({
-      data: { tenantId: tenant.id, userId: foreign.userId, role: 'viewer' },
+      data: { tenantId: tenant.id, userId: viewer.userId, role: 'viewer' },
     });
-    assert.equal((await call('GET', notePath, undefined, foreign.access_token)).status, 403);
+    assert.equal((await call('GET', notePath, undefined, viewer.access_token)).status, 403);
     assert.equal((await call('POST', notePath,
       { requestId: randomUUID(), text: 'Sem permissão' },
-      foreign.access_token)).status, 403);
+      viewer.access_token)).status, 403);
 
     const controlPath = `/tenants/${tenant.id}/conversations/${conversationId}`;
     assert.equal(
