@@ -87,3 +87,10 @@ export class CreateInternalNoteDto {
   @Length(1, 2000)
   text!: string;
 }
+
+export class CreateConversationTagDto {
+  @ApiProperty({ minLength: 1, maxLength: 40 })
+  @IsString()
+  @Length(1, 40)
+  name!: string;
+}
