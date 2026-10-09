@@ -5,7 +5,6 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
@@ -359,7 +358,7 @@ export class MessagingService {
     });
   }
 
-  async reply(actor: Actor, tenantId: string, conversationId: string, input: ManualReplyDto) {
+  private validateManualReply(input: ManualReplyDto): void {
     if (
       !input ||
       typeof input.text !== 'string' ||
@@ -368,32 +367,91 @@ export class MessagingService {
       /[\u0000\p{Surrogate}]/u.test(input.text)
     )
       throw new BadRequestException();
+  }
 
+  private async eligibleHumanReply(
+    tx: Prisma.TransactionClient,
+    actor: Actor,
+    tenantId: string,
+    conversationId: string,
+    role: string,
+  ): Promise<ConversationControlRow> {
+    const current = await this.lockConversation(tx, tenantId, conversationId);
+    if (
+      current.status === 'closed' ||
+      current.status === 'archived' ||
+      current.mode !== 'HUMAN_ACTIVE' ||
+      !current.assignedStaffId
+    )
+      throw new ConflictException();
+
+    if (role === 'staff') {
+      const assigned = await tx.staff.findFirst({
+        where: {
+          tenantId,
+          id: current.assignedStaffId,
+          active: true,
+          userId: actor.userId,
+        },
+        select: { id: true },
+      });
+      if (!assigned) throw new ForbiddenException();
+    }
+
+    const target = await tx.conversation.findUnique({
+      where: { tenantId_id: { tenantId, id: conversationId } },
+      select: {
+        customer: { select: { deletedAt: true } },
+        channelConnection: {
+          select: {
+            channelType: true,
+            mode: true,
+            status: true,
+            externalPhoneId: true,
+            credentialsReference: true,
+          },
+        },
+      },
+    });
+    if (
+      !target ||
+      target.customer.deletedAt ||
+      target.channelConnection.channelType !== 'whatsapp' ||
+      target.channelConnection.mode !== 'live' ||
+      target.channelConnection.status !== 'active' ||
+      !target.channelConnection.externalPhoneId.trim() ||
+      !target.channelConnection.credentialsReference?.trim()
+    )
+      throw new NotFoundException();
+    return current;
+  }
+
+  private findManualIntent(
+    tx: Prisma.TransactionClient,
+    actor: Actor,
+    tenantId: string,
+    requestId: string,
+  ) {
+    return tx.humanOutboundIntent.findUnique({
+      where: {
+        tenantId_actorId_requestId: { tenantId, actorId: actor.userId, requestId },
+      },
+    });
+  }
+
+  /// A durable, non-dispatchable preflight record. No worker can send it:
+  /// the dispatcher only claims rows from human_outbound_dispatch.
+  async prepareReply(actor: Actor, tenantId: string, conversationId: string, input: ManualReplyDto) {
+    this.validateManualReply(input);
     const result = await this.tenants.scoped(
       actor,
       tenantId,
       'conversations:reply',
       async (tx, role) => {
-        const previous = await tx.humanOutboundIntent.findUnique({
-          where: {
-            tenantId_actorId_requestId: {
-              tenantId,
-              actorId: actor.userId,
-              requestId: input.requestId,
-            },
-          },
-        });
+        const previous = await this.findManualIntent(tx, actor, tenantId, input.requestId);
         if (previous) {
-          if (previous.conversationId !== conversationId || previous.contentText !== input.text) {
-            await this.tenants.audit(
-              tx,
-              actor,
-              tenantId,
-              'conversation.manual_reply_conflict',
-              previous.id,
-            );
+          if (previous.conversationId !== conversationId || previous.contentText !== input.text)
             return { conflict: true as const };
-          }
           const dispatch = await tx.humanOutboundDispatch.findUnique({
             where: { id: previous.id },
             select: { state: true },
@@ -402,58 +460,80 @@ export class MessagingService {
             conflict: false as const,
             intentId: previous.id,
             duplicate: true,
-            state: dispatch?.state ?? ('pending' as const),
+            state: dispatch?.state ?? 'prepared',
           };
         }
 
-        const current = await this.lockConversation(tx, tenantId, conversationId);
-        if (
-          current.status === 'closed' ||
-          current.status === 'archived' ||
-          current.mode !== 'HUMAN_ACTIVE' ||
-          !current.assignedStaffId
-        )
-          throw new ConflictException();
-
-        if (role === 'staff') {
-          const assigned = await tx.staff.findFirst({
-            where: {
-              tenantId,
-              id: current.assignedStaffId,
-              active: true,
-              userId: actor.userId,
-            },
-            select: { id: true },
-          });
-          if (!assigned) throw new ForbiddenException();
-        }
-
-        const target = await tx.conversation.findUnique({
-          where: { tenantId_id: { tenantId, id: conversationId } },
-          select: {
-            customer: { select: { deletedAt: true } },
-            channelConnection: {
-              select: {
-                channelType: true,
-                mode: true,
-                status: true,
-                externalPhoneId: true,
-                credentialsReference: true,
-              },
-            },
+        const current = await this.eligibleHumanReply(tx, actor, tenantId, conversationId, role);
+        const intent = await tx.humanOutboundIntent.create({
+          data: {
+            tenantId,
+            id: randomUUID(),
+            actorId: actor.userId,
+            requestId: input.requestId,
+            conversationId,
+            modeEpoch: current.modeEpoch,
+            contentText: input.text,
           },
         });
-        if (
-          !target ||
-          target.customer.deletedAt ||
-          target.channelConnection.channelType !== 'whatsapp' ||
-          target.channelConnection.mode !== 'live' ||
-          target.channelConnection.status !== 'active' ||
-          !target.channelConnection.externalPhoneId.trim() ||
-          !target.channelConnection.credentialsReference?.trim()
-        )
-          throw new NotFoundException();
+        await this.tenants.audit(tx, actor, tenantId, 'conversation.manual_reply_prepared', intent.id);
+        return {
+          conflict: false as const,
+          intentId: intent.id,
+          duplicate: false,
+          state: 'prepared' as const,
+        };
+      },
+    );
+    if (result.conflict) throw new ConflictException();
+    return { intentId: result.intentId, duplicate: result.duplicate, state: result.state };
+  }
 
+  /// Confirmation atomically makes an existing prepared record dispatchable.
+  /// Legacy direct POST clients may still create and dispatch in one transaction.
+  async reply(actor: Actor, tenantId: string, conversationId: string, input: ManualReplyDto) {
+    this.validateManualReply(input);
+    const result = await this.tenants.scoped(
+      actor,
+      tenantId,
+      'conversations:reply',
+      async (tx, role) => {
+        const previous = await this.findManualIntent(tx, actor, tenantId, input.requestId);
+        if (previous) {
+          if (previous.conversationId !== conversationId || previous.contentText !== input.text) {
+            await this.tenants.audit(
+              tx, actor, tenantId, 'conversation.manual_reply_conflict', previous.id,
+            );
+            return { conflict: true as const };
+          }
+          const dispatch = await tx.humanOutboundDispatch.findUnique({
+            where: { id: previous.id },
+            select: { state: true },
+          });
+          if (dispatch) {
+            return {
+              conflict: false as const,
+              intentId: previous.id,
+              duplicate: true,
+              state: dispatch.state,
+            };
+          }
+
+          const current = await this.eligibleHumanReply(tx, actor, tenantId, conversationId, role);
+          // An older prepared message can never be promoted after takeover,
+          // reassignment or AI reactivation, even if the mode is HUMAN_ACTIVE again.
+          if (current.modeEpoch !== previous.modeEpoch) throw new ConflictException();
+          await tx.humanOutboundDispatch.create({ data: { tenantId, id: previous.id } });
+          await this.tenants.audit(tx, actor, tenantId, 'conversation.manual_reply_queued', previous.id);
+          return {
+            conflict: false as const,
+            intentId: previous.id,
+            duplicate: true,
+            state: 'pending' as const,
+          };
+        }
+
+        const current = await this.eligibleHumanReply(tx, actor, tenantId, conversationId, role);
         const intentId = randomUUID();
         await tx.humanOutboundIntent.create({
           data: {
@@ -477,11 +557,7 @@ export class MessagingService {
       },
     );
     if (result.conflict) throw new ConflictException();
-    return {
-      intentId: result.intentId,
-      duplicate: result.duplicate,
-      state: result.state,
-    };
+    return { intentId: result.intentId, duplicate: result.duplicate, state: result.state };
   }
 
   latestManualReply(actor: Actor, tenantId: string, conversationId: string) {
@@ -504,13 +580,13 @@ export class MessagingService {
         where: { id: intent.id },
         select: { state: true },
       });
-      if (!dispatch) throw new ServiceUnavailableException();
+      // The missing dispatch is an intentional, recoverable prepare phase.
       return {
         item: {
           intentId: intent.id,
           requestId: intent.requestId,
           text: intent.contentText,
-          state: dispatch.state,
+          state: dispatch?.state ?? 'prepared',
           createdAt: intent.createdAt,
         },
       };
