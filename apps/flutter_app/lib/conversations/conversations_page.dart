@@ -51,6 +51,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   Timer? updateTimer;
   Timer? refreshRetryTimer;
   final Set<String> changedConversations = {};
+  final Set<String> newInboundAlerts = {};
   String get base => '/tenants/${widget.tenantId}/conversations';
 
   @override
@@ -69,6 +70,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       search.clear(); searchQuery = '';
       messageGeneration++;
       conversations = []; messages = []; selected = null;
+      newInboundAlerts.clear();
       conversationNext = null; messageNext = null;
       reading = false; messageError = false;
       markingRead = false; readReceiptError = false;
@@ -99,6 +101,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     refreshRetryTimer = null;
     refreshAttempts = 0;
     changedConversations.clear();
+    newInboundAlerts.clear();
     eventCursor = null;
     reconnectAttempts = 0;
   }
@@ -109,6 +112,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     if (!mounted) return;
     setState(() {
       conversations = [];
+      newInboundAlerts.clear();
       selected = null;
       messages = [];
       conversationNext = null;
@@ -237,6 +241,19 @@ class _ConversationsPageState extends State<ConversationsPage> {
       refreshRetryTimer?.cancel();
       refreshRetryTimer = null;
       setState(() {
+        // Notify only after a verified REST increase, never from an SSE ID
+        // alone or on the initial load. A read acknowledgement clears it.
+        final prior = {for (final row in conversations) row['id']: row};
+        for (final row in updated) {
+          final id = row['id'] as String;
+          final before = prior[id]?['unreadCount'];
+          final after = row['unreadCount'];
+          if (affected.contains(id) && before is int && after is int && after > before) {
+            newInboundAlerts.add(id);
+          }
+          if (after is int && after == 0) newInboundAlerts.remove(id);
+        }
+        newInboundAlerts.removeWhere((id) => !updated.any((row) => row['id'] == id));
         conversations = updated;
         conversationNext = newNext;
         if (selectedId != null && selected?['id'] == selectedId) {
@@ -295,7 +312,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
         setState(() {
         listError = true;
         // A refresh may reveal revoked access. Do not keep sensitive cached data visible.
-        conversations = []; selected = null; messages = []; conversationNext = null;
+        conversations = []; newInboundAlerts.clear(); selected = null; messages = []; conversationNext = null;
         messageGeneration++; reading = false; messageNext = null;
       });
       }
@@ -347,6 +364,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       setState(() {
         conversations = conversations.map((row) {
           if (row['id'] != id || row['unreadUpTo'] != upTo) return row;
+          newInboundAlerts.remove(id);
           return {...row, 'unreadCount': 0};
         }).toList();
         if (selected?['unreadUpTo'] == upTo) {
@@ -392,6 +410,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (loading) const LinearProgressIndicator(),
       if (listError) errorPanel(() => load()),
       if (!loading && !listError && conversations.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(searchQuery.isEmpty ? l.noConversations : l.conversationNoMatches)),
+      if (newInboundAlerts.isNotEmpty) ListTile(
+        leading: const Icon(Icons.notifications_active_outlined),
+        title: Text(l.inboxNewMessageAlert),
+        trailing: Badge(label: Text('${newInboundAlerts.length}'),
+          child: const Icon(Icons.mark_chat_unread_outlined)),
+      ),
       Expanded(child: ListView(children: [
         for (final c in conversations) ListTile(
           selected: selected?['id'] == c['id'],
@@ -470,7 +494,13 @@ class _ConversationsPageState extends State<ConversationsPage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return Scaffold(appBar: AppBar(title: Text(l.conversations), leading: IconButton(tooltip: l.account, icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/account'))),
+    return Scaffold(appBar: AppBar(title: Text(l.conversations), leading: IconButton(tooltip: l.account, icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/account')),
+      actions: [if (newInboundAlerts.isNotEmpty) Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Tooltip(message: l.inboxNewMessageAlert,
+          child: Badge(label: Text('${newInboundAlerts.length}'),
+            child: const Icon(Icons.notifications_active_outlined))),
+      )]),
       body: LayoutBuilder(builder: (context, constraints) {
         if (constraints.maxWidth < 760) return selected == null ? conversationList() : history(narrow: true);
         return Row(children: [SizedBox(width: 320, child: conversationList()), const VerticalDivider(width: 1), Expanded(child: history(narrow: false))]);
