@@ -185,7 +185,8 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
               item['intentId'] is! String ||
               item['requestId'] is! String ||
               item['text'] is! String ||
-              !{'prepared', 'pending', 'accepted', 'rejected', 'failed'}.contains(item['state']))) {
+              !{'prepared', 'expired', 'abandoned', 'pending', 'accepted', 'rejected', 'failed'}
+                  .contains(item['state']))) {
         throw const FormatException('Invalid manual reply recovery');
       }
       if (item != null &&
@@ -240,7 +241,8 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
         ) as Map<String, dynamic>;
         if (!mounted || version != generation) return;
         if (prepared['intentId'] is! String ||
-            !{'prepared', 'pending', 'accepted', 'rejected', 'failed'}.contains(prepared['state'])) {
+            !{'prepared', 'expired', 'abandoned', 'pending', 'accepted', 'rejected', 'failed'}
+                .contains(prepared['state'])) {
           throw const FormatException('Invalid prepared reply');
         }
         if (prepared['state'] != 'prepared') {
@@ -281,6 +283,40 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
         // Read-only check; never automatically submit a second POST.
         await recoverLatest();
       }
+    } finally {
+      if (mounted && version == generation) setState(() => busy = false);
+    }
+  }
+
+  Future<void> abandonPreparation() async {
+    if (!canReply || busy || reconciling || reconcileFailed ||
+        replyState != 'prepared' || pending == null) {
+      return;
+    }
+    final original = pending!;
+    final version = ++generation;
+    setState(() { busy = true; actionFailed = false; });
+    try {
+      final result = await widget.api.request(
+        'POST', '$path/manual-replies/abandon',
+        {'requestId': original['requestId']}, false,
+      ) as Map<String, dynamic>;
+      if (!mounted || version != generation) return;
+      if (result['intentId'] is! String || result['state'] != 'abandoned') {
+        throw const FormatException('Invalid abandoned reply receipt');
+      }
+      setState(() {
+        replyState = 'abandoned';
+        retryableError = false;
+        recovered = false;
+      });
+    } catch (error) {
+      if (!mounted || version != generation) return;
+      setState(() => actionFailed = true);
+      revoked(error);
+      // A lost response may already have committed abandonment. Re-read,
+      // but never queue a send or create a new key without operator action.
+      await recoverLatest();
     } finally {
       if (mounted && version == generation) setState(() => busy = false);
     }
@@ -381,9 +417,16 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
           if (replyState != null) ...[
             Semantics(liveRegion: true, child: Text(
               replyState == 'prepared' ? l.inboxPrepared :
+              replyState == 'expired' ? l.inboxPreparationExpired :
+              replyState == 'abandoned' ? l.inboxPreparationAbandoned :
               replyState == 'pending' ? l.inboxQueued :
               replyState == 'accepted' ? l.inboxAccepted : l.inboxNotSent,
             )),
+            if (replyState == 'prepared')
+              TextButton(
+                onPressed: busy || reconciling || reconcileFailed ? null : abandonPreparation,
+                child: Text(l.inboxAbandonPreparation),
+              ),
             if (replyState != 'prepared')
               TextButton(onPressed: busy || reconciling || reconcileFailed ? null : newReply,
                   child: Text(l.inboxNewReply)),
