@@ -29,7 +29,7 @@ void main() {
               'id': 'note-1',
               'text': 'Só para a equipa',
               'createdAt': '2026-10-09T16:00:00Z',
-            }] : [],
+            }] : <Map<String, String>>[],
             'next': null,
           }), 200);
         }
