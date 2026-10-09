@@ -185,5 +185,6 @@
   "inboxConfirmSend": "Antwortversand bestätigen",
   "inboxPreparationExpired": "Die Vorbereitung ist nach 24 Stunden abgelaufen. Sie wurde nicht versendet.",
   "inboxPreparationAbandoned": "Vorbereitung verworfen. Es wurde keine Nachricht versendet.",
-  "inboxAbandonPreparation": "Vorbereitung verwerfen"
+  "inboxAbandonPreparation": "Vorbereitung verwerfen",
+  "inboxMarkRead": "Als gelesen markieren"
 }
