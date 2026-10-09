@@ -33,6 +33,9 @@ IdentityApi fake(Future<http.Response> Function(http.Request) handle, {
       if (request.url.path.endsWith('/manual-replies/latest')) {
         return latest == null ? jsonResponse({'item': null}) : latest(request);
       }
+      if (request.url.path.endsWith('/manual-replies/prepare')) {
+        return jsonResponse({'intentId': 'prepared-intent', 'state': 'prepared'});
+      }
       return handle(request);
     }));
 
@@ -213,6 +216,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.widget<TextField>(find.byKey(const Key('inbox-compose'))).enabled, true);
     expect(sends, 0);
+  });
+
+  testWidgets('reloaded prepared reply requires explicit confirmation with same key/text', (tester) async {
+    final posts = <Map<String, dynamic>>[];
+    final api = fake((request) async {
+      if (request.method == 'POST' && request.url.path.endsWith('/messages')) {
+        posts.add(jsonDecode(request.body) as Map<String, dynamic>);
+        return jsonResponse({'intentId': 'prepared-1', 'state': 'pending'});
+      }
+      return jsonResponse({}, 404);
+    }, latest: (_) async => jsonResponse({'item': {
+      'intentId': 'prepared-1',
+      'requestId': '30b17e74-a4fc-4b17-abcf-fad2bebfb52b',
+      'text': 'Aguarda confirmação',
+      'state': 'prepared',
+      'createdAt': '2026-10-09T07:00:00Z',
+    }}));
+    addTearDown(api.dispose);
+    await tester.pumpWidget(frame(api, conversation('convo-a', 'HUMAN_ACTIVE')));
+    await tester.pumpAndSettle();
+    expect(posts, isEmpty);
+    expect(find.text('Resposta preparada no servidor. Ainda não foi colocada na fila de envio.'),
+        findsOneWidget);
+    expect(find.text('Aguarda confirmação'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(frame(api, conversation('convo-a', 'HUMAN_ACTIVE')));
+    await tester.pumpAndSettle();
+    expect(posts, isEmpty);
+    await tester.tap(find.text('Confirmar envio da resposta'));
+    await tester.pumpAndSettle();
+    expect(posts, hasLength(1));
+    expect(posts.single, {
+      'requestId': '30b17e74-a4fc-4b17-abcf-fad2bebfb52b',
+      'text': 'Aguarda confirmação',
+    });
+    expect(find.text('Resposta guardada na fila. Ainda não foi confirmada pelo WhatsApp.'),
+      findsOneWidget);
   });
 
   testWidgets('mock human conversation never exposes live composer and can close', (tester) async {
