@@ -185,5 +185,6 @@
   "inboxConfirmSend": "Confirm sending reply",
   "inboxPreparationExpired": "Preparation expired after 24 hours. It was not sent.",
   "inboxPreparationAbandoned": "Preparation abandoned. No message was sent.",
-  "inboxAbandonPreparation": "Abandon preparation"
+  "inboxAbandonPreparation": "Abandon preparation",
+  "inboxMarkRead": "Mark as read"
 }
