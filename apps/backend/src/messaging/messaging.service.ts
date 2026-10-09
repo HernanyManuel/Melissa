@@ -299,9 +299,7 @@ export class MessagingService {
         where: { tenantId, conversationId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 51,
-        ...(page.after
-          ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 }
-          : {}),
+        ...(page.after ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 } : {}),
         select: { id: true, contentText: true, actorId: true, createdAt: true },
       });
       return {
