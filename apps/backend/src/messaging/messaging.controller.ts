@@ -236,6 +236,22 @@ export class MessagingController {
     return this.messaging.latestManualReply(req.actor, tenant, id);
   }
 
+  @Post('conversations/:id/manual-replies/prepare')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Durably prepare a manual reply without queuing a provider send',
+    description:
+      'Actor-scoped idempotent write of the original requestId and text. Prepared intents have no dispatch row and cannot be sent by the worker until an explicit POST /messages confirms them.',
+  })
+  prepareReply(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ManualReplyDto,
+  ) {
+    return this.messaging.prepareReply(req.actor, tenant, id, body);
+  }
+
   @Post('conversations/:id/messages')
   @HttpCode(200)
   @ApiOperation({
