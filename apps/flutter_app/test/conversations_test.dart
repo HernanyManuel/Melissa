@@ -15,6 +15,7 @@ Map<String, Object> message(String text) => {'contentText': text, 'direction': '
 IdentityApi client(Future<http.Response> Function(http.Request) route) => IdentityApi(client: MockClient((request) async {
   if (request.url.path.endsWith('/csrf')) return http.Response('{"csrf_token":"csrf"}', 200);
   if (request.url.path.endsWith('/refresh')) return http.Response('{"access_token":"access","csrf_token":"csrf"}', 200);
+  if (request.method == 'GET' && request.url.path.endsWith('/internal-notes')) return page([]);
   return route(request);
 }));
 
