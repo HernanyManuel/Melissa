@@ -713,6 +713,29 @@ model InboxReadCursor {
   @@map("inbox_read_cursors")
 }
 
+model ConversationTag {
+  tenantId String @map("tenant_id") @db.Uuid
+  id String @db.Uuid
+  name String @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([tenantId, id])
+  @@unique([tenantId, name])
+  @@map("conversation_tags")
+}
+
+model ConversationTagLink {
+  tenantId String @map("tenant_id") @db.Uuid
+  conversationId String @map("conversation_id") @db.Uuid
+  tagId String @map("tag_id") @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([tenantId, conversationId, tagId])
+  @@index([tenantId, tagId])
+  @@map("conversation_tag_links")
+}
+
 model HumanOutboundIntent {
   tenantId       String    @map("tenant_id") @db.Uuid
   id             String    @unique @default(uuid()) @db.Uuid
