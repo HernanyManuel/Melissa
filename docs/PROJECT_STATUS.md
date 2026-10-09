@@ -6,7 +6,7 @@ A migração **61** introduz `conversation_tags` e `conversation_tag_links`, com
 
 O Flutter oferece um painel de etiquetas no cabeçalho da conversa para evitar sobrecarga da vista de histórico. A criação, associação e remoção não chamam `/messages` nem criam dispatches. As etiquetas estão localizadas em pt/en/es/fr/it/de. Testes HTTP cobrem isolamento, validação de nomes, repetição, associação, remoção e auditoria; o teste Flutter verifica alterações sucessivas e ausência de envio.
 
-**Estado de validação:** migração, backend e interface na branch `feature/phase-8-inbox`; CI da última revisão ainda em verificação. [ADR-088](decisions/ADR-088-conversation-tenant-tags.md). O CI anterior revelou um overflow Flutter (resolvido ao mover as etiquetas para painel) e uma falha num teste antigo de calendário, que necessita repetição para excluir intermitência.
+**Validação:** [CI 37998320646](https://github.com/HernanyManuel/Melissa/actions/runs/37998320646) **integralmente verde** (backend com PostgreSQL/RLS e testes de integração, Flutter analyze/test/build web e Compose), após o ajuste do painel de etiquetas e do estado ocupado entre operações. Uma execução anterior encontrou um teste antigo de calendário intermitente; a execução atual passou. [ADR-088](decisions/ADR-088-conversation-tenant-tags.md).
 
 **Limites:** catálogo com até 100 etiquetas listadas, sem paginação, gestão/rename de catálogo ou filtro do inbox por etiqueta. O PR mantém-se draft e não houve merge, deploy, WhatsApp live ou credenciais reais ativadas.
 
