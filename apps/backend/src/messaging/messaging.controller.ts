@@ -224,7 +224,7 @@ export class MessagingController {
   }
   @Get('conversations/:id/manual-replies/latest')
   @ApiOperation({
-    summary: 'Recover the current operator\'s latest durable manual reply',
+    summary: "Recover the current operator's latest durable manual reply",
     description:
       'Read-only, tenant- and actor-scoped. Returns the original requestId/text and dispatch state, or null if no committed intent exists. Absence cannot prove that an earlier network-uncertain POST will never commit.',
   })
