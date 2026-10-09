@@ -275,11 +275,13 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
       where: { tenantId_id: { tenantId: tenant.id, id: expired.intentId } },
       data: { createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) },
     });
+    // Backdating the row makes it older than the previous preparations,
+    // so GET latest is not a valid probe for this expired intent.
     assert.equal(
       (await data<{ item: { state: string } }>(
         await call('GET', latestPath, undefined, owner.access_token), 200,
       )).item.state,
-      'expired',
+      'abandoned',
     );
     assert.equal(
       (await data<{ state: string }>(
