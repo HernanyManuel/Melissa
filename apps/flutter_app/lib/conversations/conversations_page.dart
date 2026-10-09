@@ -35,6 +35,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
   bool reading = false;
   bool listError = false;
   bool messageError = false;
+  bool markingRead = false;
+  bool readReceiptError = false;
   int listGeneration = 0;
   int messageGeneration = 0;
   int streamGeneration = 0;
@@ -69,6 +71,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       conversations = []; messages = []; selected = null;
       conversationNext = null; messageNext = null;
       reading = false; messageError = false;
+      markingRead = false; readReceiptError = false;
       load();
       _connectInbox();
     }
@@ -115,6 +118,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
       listError = true;
       loading = false;
       reading = false;
+      markingRead = false;
+      readReceiptError = false;
     });
   }
 
@@ -322,11 +327,45 @@ class _ConversationsPageState extends State<ConversationsPage> {
     if (mounted && generation == messageGeneration) setState(() => reading = false);
   }
 
+  Future<void> markRead() async {
+    final id = selected?['id'] as String?;
+    final upTo = selected?['unreadUpTo'] as String?;
+    if (id == null || upTo == null || markingRead || reading || messageError) return;
+    final generation = messageGeneration;
+    final tenant = widget.tenantId;
+    setState(() { markingRead = true; readReceiptError = false; });
+    try {
+      final receipt = await api.request('POST', '$base/$id/read',
+          {'upTo': upTo}, false) as Map<String, dynamic>;
+      if (!mounted || generation != messageGeneration ||
+          tenant != widget.tenantId || selected?['id'] != id) return;
+      if (receipt['unreadUpTo'] is! String) {
+        throw const FormatException('Invalid read receipt');
+      }
+      setState(() {
+        conversations = conversations.map((row) {
+          if (row['id'] != id || row['unreadUpTo'] != upTo) return row;
+          return {...row, 'unreadCount': 0};
+        }).toList();
+        if (selected?['unreadUpTo'] == upTo) {
+          selected = {...selected!, 'unreadCount': 0};
+        }
+      });
+    } catch (_) {
+      if (mounted && generation == messageGeneration && tenant == widget.tenantId) {
+        setState(() => readReceiptError = true);
+      }
+    } finally {
+      if (mounted && tenant == widget.tenantId) setState(() => markingRead = false);
+    }
+  }
+
   void applyConversationControl(Map<String, dynamic> update) {
     if (!mounted || selected?['id'] != update['id']) return;
     setState(() {
-      selected = update;
-      conversations = conversations.map((row) => row['id'] == update['id'] ? update : row).toList();
+      selected = {...selected!, ...update};
+      conversations = conversations.map((row) =>
+          row['id'] == update['id'] ? {...row, ...update} : row).toList();
     });
   }
 
@@ -355,6 +394,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
         for (final c in conversations) ListTile(
           selected: selected?['id'] == c['id'],
           leading: const Icon(Icons.chat_bubble_outline),
+          trailing: c['unreadCount'] is int && (c['unreadCount'] as int) > 0
+              ? Badge(
+                  label: Text('${c['unreadCount']}'),
+                  child: const Icon(Icons.mark_chat_unread_outlined),
+                )
+              : null,
           title: Text(c['customer']['displayName'] as String),
           subtitle: Text('${c['channelConnection']['displayName']} · ${c['channelConnection']['mode'] == 'mock' ? l.testChannel : l.conversations}'),
           onTap: () => open(c),
@@ -373,6 +418,18 @@ class _ConversationsPageState extends State<ConversationsPage> {
         title: Text(selected!['customer']['displayName'] as String),
         trailing: IconButton(tooltip: l.retry, onPressed: reading ? null : () => open(selected!), icon: const Icon(Icons.refresh)),
       ),
+      if (!reading && !messageError &&
+          selected!['unreadCount'] is int &&
+          (selected!['unreadCount'] as int) > 0 &&
+          selected!['unreadUpTo'] is String)
+        TextButton.icon(
+          onPressed: markingRead ? null : markRead,
+          icon: const Icon(Icons.done_all),
+          label: Text(l.inboxMarkRead),
+        ),
+      if (markingRead) const LinearProgressIndicator(),
+      if (readReceiptError)
+        TextButton(onPressed: markingRead ? null : markRead, child: Text(l.retry)),
       if (selected!['mode'] is String)
         ConversationHumanControls(
           key: ValueKey('${widget.tenantId}/${selected!['id']}'),
