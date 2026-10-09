@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpCode,
@@ -22,6 +23,7 @@ import {
   AbandonManualReplyDto,
   ConversationQuery,
   ConversationTakeoverDto,
+  CreateConversationTagDto,
   CreateInternalNoteDto,
   InboxEventQuery,
   ManualReplyDto,
@@ -60,6 +62,49 @@ export class MessagingController {
   ) {
     return this.messaging.conversations(req.actor, tenant, page);
   }
+  @Get('conversations/:id/tags')
+  @ApiOperation({ summary: 'List tenant tags and tags applied to this conversation' })
+  conversationTags(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.messaging.listConversationTags(req.actor, tenant, id);
+  }
+
+  @Post('conversation-tags')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Create an immutable tenant-local conversation tag' })
+  createTag(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Body() body: CreateConversationTagDto,
+  ) {
+    return this.messaging.createConversationTag(req.actor, tenant, body.name);
+  }
+
+  @Post('conversations/:id/tags/:tagId')
+  @HttpCode(200)
+  attachTag(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('tagId', ParseUUIDPipe) tagId: string,
+  ) {
+    return this.messaging.setConversationTag(req.actor, tenant, id, tagId, true);
+  }
+
+  @Delete('conversations/:id/tags/:tagId')
+  @HttpCode(200)
+  detachTag(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('tagId', ParseUUIDPipe) tagId: string,
+  ) {
+    return this.messaging.setConversationTag(req.actor, tenant, id, tagId, false);
+  }
+
   @Get('conversations/:id/internal-notes')
   @ApiOperation({
     summary: 'List private, append-only notes for a conversation',
