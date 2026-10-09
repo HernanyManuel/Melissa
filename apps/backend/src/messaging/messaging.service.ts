@@ -10,7 +10,13 @@ import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { TenantService } from '../tenancy/tenant.service';
 import { Actor } from '../identity/auth.service';
-import { ConversationQuery, ManualReplyDto, MessagePageDto, MockInboundDto } from './dto';
+import {
+  ConversationQuery,
+  CreateInternalNoteDto,
+  ManualReplyDto,
+  MessagePageDto,
+  MockInboundDto,
+} from './dto';
 import { CONFIG, Configuration } from '../config';
 import { enqueueInbound } from './enqueue-inbound';
 import { checkedReceiptState } from './receipt-state';
@@ -212,6 +218,98 @@ export class MessagingService {
             unreadUpTo: count?.unreadUpTo ?? null,
           };
         }),
+        next: rows.length > 50 ? rows[49]!.id : null,
+      };
+    });
+  }
+
+  // Internal notes are not customer messages and are never dispatched to AI
+  // or WhatsApp. A stable actor-owned key prevents double-create on retries.
+  async createInternalNote(
+    actor: Actor,
+    tenantId: string,
+    conversationId: string,
+    input: CreateInternalNoteDto,
+  ) {
+    if (!input.text.trim()) throw new BadRequestException();
+    const result = await this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      const conversation = await tx.conversation.findUnique({
+        where: { tenantId_id: { tenantId, id: conversationId } },
+        select: { id: true },
+      });
+      if (!conversation) throw new NotFoundException();
+
+      const previous = await tx.conversationInternalNote.findUnique({
+        where: {
+          tenantId_actorId_requestId: {
+            tenantId,
+            actorId: actor.userId,
+            requestId: input.requestId,
+          },
+        },
+      });
+      if (previous) {
+        if (previous.conversationId !== conversationId || previous.contentText !== input.text)
+          return { conflict: true as const };
+        return { conflict: false as const, note: previous, duplicate: true };
+      }
+
+      const note = await tx.conversationInternalNote.create({
+        data: {
+          tenantId,
+          id: randomUUID(),
+          conversationId,
+          actorId: actor.userId,
+          requestId: input.requestId,
+          contentText: input.text,
+        },
+      });
+      await this.tenants.audit(tx, actor, tenantId, 'conversation.internal_note_created', note.id);
+      return { conflict: false as const, note, duplicate: false };
+    });
+    if (result.conflict) throw new ConflictException();
+    return {
+      item: {
+        id: result.note.id,
+        text: result.note.contentText,
+        actorId: result.note.actorId,
+        createdAt: result.note.createdAt,
+      },
+      duplicate: result.duplicate,
+    };
+  }
+
+  internalNotes(actor: Actor, tenantId: string, conversationId: string, page: MessagePageDto) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      const conversation = await tx.conversation.findUnique({
+        where: { tenantId_id: { tenantId, id: conversationId } },
+        select: { id: true },
+      });
+      if (!conversation) throw new NotFoundException();
+      if (
+        page.after &&
+        !(await tx.conversationInternalNote.findFirst({
+          where: { tenantId, conversationId, id: page.after },
+          select: { id: true },
+        }))
+      ) throw new NotFoundException();
+
+      const rows = await tx.conversationInternalNote.findMany({
+        where: { tenantId, conversationId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 51,
+        ...(page.after
+          ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 }
+          : {}),
+        select: { id: true, contentText: true, actorId: true, createdAt: true },
+      });
+      return {
+        items: rows.slice(0, 50).map((row) => ({
+          id: row.id,
+          text: row.contentText,
+          actorId: row.actorId,
+          createdAt: row.createdAt,
+        })),
         next: rows.length > 50 ? rows[49]!.id : null,
       };
     });
