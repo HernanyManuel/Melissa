@@ -185,7 +185,7 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
               item['intentId'] is! String ||
               item['requestId'] is! String ||
               item['text'] is! String ||
-              !{'pending', 'accepted', 'rejected', 'failed'}.contains(item['state']))) {
+              !{'prepared', 'pending', 'accepted', 'rejected', 'failed'}.contains(item['state']))) {
         throw const FormatException('Invalid manual reply recovery');
       }
       if (item != null &&
@@ -231,6 +231,29 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
     final version = ++generation;
     setState(() { busy = true; retryableError = false; actionFailed = false; });
     try {
+      if (replyState != 'prepared') {
+        // Persist the exact key/text before any potentially sending request.
+        // A failed preparation has no worker dispatch and can be retried with
+        // the same key; a reload can recover any committed preparation.
+        final prepared = await widget.api.request(
+          'POST', '$path/manual-replies/prepare', original, false,
+        ) as Map<String, dynamic>;
+        if (!mounted || version != generation) return;
+        if (prepared['intentId'] is! String ||
+            !{'prepared', 'pending', 'accepted', 'rejected', 'failed'}.contains(prepared['state'])) {
+          throw const FormatException('Invalid prepared reply');
+        }
+        if (prepared['state'] != 'prepared') {
+          setState(() {
+            replyState = prepared['state'] as String;
+            retryableError = false;
+          });
+          return;
+        }
+        setState(() => replyState = 'prepared');
+      }
+      // Confirm only after a durable preparation. The worker cannot claim
+      // a prepared-only intent, even when an HTTP response is lost.
       final result = await widget.api.request('POST', '$path/messages', original, false)
           as Map<String, dynamic>;
       if (!mounted || version != generation) return;
@@ -347,19 +370,22 @@ class _ConversationHumanControlsState extends State<ConversationHumanControls> {
             maxLength: 4096,
             decoration: InputDecoration(labelText: l.inboxReply),
           ),
-          if (replyState == null) FilledButton.icon(
+          if (replyState == null || replyState == 'prepared') FilledButton.icon(
             onPressed: busy || reconciling ||
                 (reconcileFailed && pending == null) || blocked ? null : send,
             icon: const Icon(Icons.send_outlined),
-            label: Text(pending == null ? l.inboxReply : l.inboxRetrySame),
+            label: Text(replyState == 'prepared' ? l.inboxConfirmSend :
+                pending == null ? l.inboxReply : l.inboxRetrySame),
           ),
           if (replyState != null) ...[
             Semantics(liveRegion: true, child: Text(
+              replyState == 'prepared' ? l.inboxPrepared :
               replyState == 'pending' ? l.inboxQueued :
               replyState == 'accepted' ? l.inboxAccepted : l.inboxNotSent,
             )),
-            TextButton(onPressed: busy || reconciling || reconcileFailed ? null : newReply,
-                child: Text(l.inboxNewReply)),
+            if (replyState != 'prepared')
+              TextButton(onPressed: busy || reconciling || reconcileFailed ? null : newReply,
+                  child: Text(l.inboxNewReply)),
           ],
           if (retryableError) Text(blocked ? l.inboxBlocked : l.inboxUncertain),
         ],
