@@ -187,5 +187,11 @@
   "inboxPreparationAbandoned": "Preparazione abbandonata. Nessun messaggio è stato inviato.",
   "inboxAbandonPreparation": "Abbandona preparazione",
   "inboxMarkRead": "Segna come letta",
-  "inboxNewMessageAlert": "Nuovi messaggi ricevuti"
+  "inboxNewMessageAlert": "Nuovi messaggi ricevuti",
+  "inboxInternalNotes": "Note interne",
+  "inboxInternalNotesPrivate": "Visibili solo al team. Non inviate al cliente.",
+  "inboxInternalNoteHint": "Scrivi una nota interna",
+  "inboxAddInternalNote": "Salva nota",
+  "inboxRetryInternalNote": "Riprova la stessa nota",
+  "inboxInternalNoteUncertain": "Conferma incerta. Il tentativo usa la stessa nota e chiave."
 }
