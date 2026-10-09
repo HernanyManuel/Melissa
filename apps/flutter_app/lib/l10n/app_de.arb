@@ -182,5 +182,8 @@
   "inboxCheckPrevious": "Vorherige Antwort prüfen",
   "inboxRecovered": "Vorherige Antwort wiederhergestellt. Es wurde nichts erneut gesendet.",
   "inboxPrepared": "Antwort auf dem Server vorbereitet. Sie wurde noch nicht zum Versand eingereiht.",
-  "inboxConfirmSend": "Antwortversand bestätigen"
+  "inboxConfirmSend": "Antwortversand bestätigen",
+  "inboxPreparationExpired": "Die Vorbereitung ist nach 24 Stunden abgelaufen. Sie wurde nicht versendet.",
+  "inboxPreparationAbandoned": "Vorbereitung verworfen. Es wurde keine Nachricht versendet.",
+  "inboxAbandonPreparation": "Vorbereitung verwerfen"
 }
