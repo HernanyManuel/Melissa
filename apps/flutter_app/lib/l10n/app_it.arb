@@ -186,5 +186,6 @@
   "inboxPreparationExpired": "La preparazione è scaduta dopo 24 ore. Non è stata inviata.",
   "inboxPreparationAbandoned": "Preparazione abbandonata. Nessun messaggio è stato inviato.",
   "inboxAbandonPreparation": "Abbandona preparazione",
-  "inboxMarkRead": "Segna come letta"
+  "inboxMarkRead": "Segna come letta",
+  "inboxNewMessageAlert": "Nuovi messaggi ricevuti"
 }
