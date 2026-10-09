@@ -205,6 +205,101 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
       'pending',
     );
 
+    const abandonPath = `${controlPath}/manual-replies/abandon`;
+    assert.equal(
+      (await call('POST', abandonPath, { requestId: preparedRequestId }, owner.access_token)).status,
+      409,
+    );
+
+    const abandonedRequestId = randomUUID();
+    const abandoned = await data<{ intentId: string; state: string }>(
+      await call('POST', preparePath,
+        { requestId: abandonedRequestId, text: 'Nunca será enviada' }, owner.access_token),
+      200,
+    );
+    assert.equal(abandoned.state, 'prepared');
+    assert.equal(
+      (await call('POST', abandonPath, { requestId: abandonedRequestId },
+        foreign.access_token)).status,
+      404,
+    );
+    const abandonedResult = await data<{ intentId: string; state: string; duplicate: boolean }>(
+      await call('POST', abandonPath, { requestId: abandonedRequestId }, owner.access_token),
+      200,
+    );
+    assert.equal(abandonedResult.intentId, abandoned.intentId);
+    assert.equal(abandonedResult.state, 'abandoned');
+    assert.equal(abandonedResult.duplicate, false);
+    const abandonedReplay = await data<{ state: string; duplicate: boolean }>(
+      await call('POST', abandonPath, { requestId: abandonedRequestId }, owner.access_token),
+      200,
+    );
+    assert.equal(abandonedReplay.state, 'abandoned');
+    assert.equal(abandonedReplay.duplicate, true);
+    assert.equal(
+      (await call('POST', `${controlPath}/messages`,
+        { requestId: abandonedRequestId, text: 'Nunca será enviada' },
+        owner.access_token)).status,
+      409,
+    );
+    assert.equal(
+      (await data<{ state: string }>(
+        await call('POST', preparePath,
+          { requestId: abandonedRequestId, text: 'Nunca será enviada' },
+          owner.access_token),
+        200,
+      )).state,
+      'abandoned',
+    );
+    assert.equal(
+      (await data<{ item: { state: string } }>(
+        await call('GET', latestPath, undefined, owner.access_token),
+        200,
+      )).item.state,
+      'abandoned',
+    );
+    assert.equal(
+      await admin.humanOutboundDispatch.findUnique({ where: { id: abandoned.intentId } }),
+      null,
+    );
+
+    const expiredRequestId = randomUUID();
+    const expired = await data<{ intentId: string; state: string }>(
+      await call('POST', preparePath,
+        { requestId: expiredRequestId, text: 'Válida só durante 24 horas' },
+        owner.access_token),
+      200,
+    );
+    assert.equal(expired.state, 'prepared');
+    await admin.humanOutboundIntent.update({
+      where: { tenantId_id: { tenantId: tenant.id, id: expired.intentId } },
+      data: { createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) },
+    });
+    assert.equal(
+      (await data<{ item: { state: string } }>(
+        await call('GET', latestPath, undefined, owner.access_token), 200,
+      )).item.state,
+      'expired',
+    );
+    assert.equal(
+      (await data<{ state: string }>(
+        await call('POST', preparePath,
+          { requestId: expiredRequestId, text: 'Válida só durante 24 horas' },
+          owner.access_token), 200,
+      )).state,
+      'expired',
+    );
+    assert.equal(
+      (await call('POST', `${controlPath}/messages`,
+        { requestId: expiredRequestId, text: 'Válida só durante 24 horas' },
+        owner.access_token)).status,
+      409,
+    );
+    assert.equal(
+      await admin.humanOutboundDispatch.findUnique({ where: { id: expired.intentId } }),
+      null,
+    );
+
     const firstRequestId = randomUUID();
     const firstText = 'Resposta manual confirmada';
     const first = await data<{
