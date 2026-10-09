@@ -7,6 +7,7 @@ export const INBOX_EVENT_TYPES = [
   'conversation.takeover',
   'conversation.ai_reactivated',
   'conversation.closed',
+  'conversation.read',
 ] as const;
 
 export type InboxEventType = (typeof INBOX_EVENT_TYPES)[number];
