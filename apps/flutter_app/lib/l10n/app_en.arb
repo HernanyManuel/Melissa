@@ -186,5 +186,6 @@
   "inboxPreparationExpired": "Preparation expired after 24 hours. It was not sent.",
   "inboxPreparationAbandoned": "Preparation abandoned. No message was sent.",
   "inboxAbandonPreparation": "Abandon preparation",
-  "inboxMarkRead": "Mark as read"
+  "inboxMarkRead": "Mark as read",
+  "inboxNewMessageAlert": "New incoming messages"
 }
