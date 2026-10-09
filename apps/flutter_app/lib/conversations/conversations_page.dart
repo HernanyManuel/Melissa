@@ -338,7 +338,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
       final receipt = await api.request('POST', '$base/$id/read',
           {'upTo': upTo}, false) as Map<String, dynamic>;
       if (!mounted || generation != messageGeneration ||
-          tenant != widget.tenantId || selected?['id'] != id) return;
+          tenant != widget.tenantId || selected?['id'] != id) {
+        return;
+      }
       if (receipt['unreadUpTo'] is! String) {
         throw const FormatException('Invalid read receipt');
       }
