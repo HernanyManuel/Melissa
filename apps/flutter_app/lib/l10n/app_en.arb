@@ -187,5 +187,11 @@
   "inboxPreparationAbandoned": "Preparation abandoned. No message was sent.",
   "inboxAbandonPreparation": "Abandon preparation",
   "inboxMarkRead": "Mark as read",
-  "inboxNewMessageAlert": "New incoming messages"
+  "inboxNewMessageAlert": "New incoming messages",
+  "inboxInternalNotes": "Internal notes",
+  "inboxInternalNotesPrivate": "Visible only to the team. Never sent to the customer.",
+  "inboxInternalNoteHint": "Write an internal note",
+  "inboxAddInternalNote": "Save note",
+  "inboxRetryInternalNote": "Retry same note",
+  "inboxInternalNoteUncertain": "Could not confirm. Retry keeps the same note and key."
 }
