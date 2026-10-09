@@ -180,5 +180,7 @@
   "inboxReconciling": "Checking earlier replies…",
   "inboxReconcileFailed": "Could not check the previous reply. Retry the check before starting another.",
   "inboxCheckPrevious": "Check previous reply",
-  "inboxRecovered": "Previous reply recovered. No new send was made."
+  "inboxRecovered": "Previous reply recovered. No new send was made.",
+  "inboxPrepared": "Reply prepared on the server. It has not been queued for sending.",
+  "inboxConfirmSend": "Confirm sending reply"
 }
