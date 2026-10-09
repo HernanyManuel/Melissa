@@ -83,6 +83,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('unread badge requires an explicit read acknowledgement', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final acks = <Map<String, dynamic>>[];
+    final marked = <String, Object?>{
+      ...conversation('A'),
+      'unreadCount': 2,
+      'unreadUpTo': '4',
+    };
+    final api = client((request) async {
+      if (request.url.path.endsWith('/A/read')) {
+        acks.add(jsonDecode(request.body) as Map<String, dynamic>);
+        return http.Response('{"unreadUpTo":"4","duplicate":false}', 200);
+      }
+      if (request.url.path.endsWith('/A/messages')) return page([message('Primeira')]);
+      return page([marked]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.mark_chat_unread_outlined), findsOneWidget);
+    expect(acks, isEmpty);
+    await tester.tap(find.text('Cliente A'));
+    await tester.pumpAndSettle();
+    expect(acks, isEmpty); // Opening a paginated history never silently marks read.
+    expect(find.text('Marcar como lida'), findsOneWidget);
+    await tester.tap(find.text('Marcar como lida'));
+    await tester.pumpAndSettle();
+    expect(acks, [{'upTo': '4'}]);
+    expect(find.text('Marcar como lida'), findsNothing);
+    expect(find.text('Primeira'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('late response cannot overwrite the newly selected conversation', (tester) async {
     final delayed = Completer<http.Response>();
     final api = client((r) async {
