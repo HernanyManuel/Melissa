@@ -505,13 +505,15 @@ export class MessagingService {
         select: { state: true },
       });
       if (!dispatch) throw new ServiceUnavailableException();
-      return { item: {
-        intentId: intent.id,
-        requestId: intent.requestId,
-        text: intent.contentText,
-        state: dispatch.state,
-        createdAt: intent.createdAt,
-      } };
+      return {
+        item: {
+          intentId: intent.id,
+          requestId: intent.requestId,
+          text: intent.contentText,
+          state: dispatch.state,
+          createdAt: intent.createdAt,
+        },
+      };
     });
   }
 
