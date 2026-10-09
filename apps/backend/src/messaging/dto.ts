@@ -55,3 +55,9 @@ export class ManualReplyDto {
   @Length(1, 4096)
   text!: string;
 }
+
+export class AbandonManualReplyDto {
+  @ApiProperty({ format: 'uuid', description: 'Request ID of the actor-owned preparation to abandon.' })
+  @IsUUID()
+  requestId!: string;
+}
