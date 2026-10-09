@@ -683,6 +683,17 @@ model InboxEvent {
 }
 
 
+model InboxReadCursor {
+  tenantId         String   @map("tenant_id") @db.Uuid
+  actorId          String   @map("actor_id") @db.Uuid
+  conversationId   String   @map("conversation_id") @db.Uuid
+  lastReadSequence BigInt   @map("last_read_sequence")
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@id([tenantId, actorId, conversationId])
+  @@map("inbox_read_cursors")
+}
+
 model HumanOutboundIntent {
   tenantId       String    @map("tenant_id") @db.Uuid
   id             String    @unique @default(uuid()) @db.Uuid
