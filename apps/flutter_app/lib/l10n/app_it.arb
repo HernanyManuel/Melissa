@@ -180,5 +180,7 @@
   "inboxReconciling": "Verifica delle risposte precedenti…",
   "inboxReconcileFailed": "Impossibile verificare la risposta precedente. Riprova prima di crearne un'altra.",
   "inboxCheckPrevious": "Verifica risposta precedente",
-  "inboxRecovered": "Risposta precedente recuperata. Nessun nuovo invio è stato effettuato."
+  "inboxRecovered": "Risposta precedente recuperata. Nessun nuovo invio è stato effettuato.",
+  "inboxPrepared": "Risposta preparata sul server. Non è ancora stata messa in coda per l'invio.",
+  "inboxConfirmSend": "Conferma invio risposta"
 }
