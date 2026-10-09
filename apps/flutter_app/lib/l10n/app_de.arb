@@ -187,5 +187,11 @@
   "inboxPreparationAbandoned": "Vorbereitung verworfen. Es wurde keine Nachricht versendet.",
   "inboxAbandonPreparation": "Vorbereitung verwerfen",
   "inboxMarkRead": "Als gelesen markieren",
-  "inboxNewMessageAlert": "Neue eingehende Nachrichten"
+  "inboxNewMessageAlert": "Neue eingehende Nachrichten",
+  "inboxInternalNotes": "Interne Notizen",
+  "inboxInternalNotesPrivate": "Nur für das Team sichtbar. Nicht an Kunden gesendet.",
+  "inboxInternalNoteHint": "Interne Notiz schreiben",
+  "inboxAddInternalNote": "Notiz speichern",
+  "inboxRetryInternalNote": "Dieselbe Notiz erneut versuchen",
+  "inboxInternalNoteUncertain": "Bestätigung unklar. Beim erneuten Versuch bleiben Notiz und Schlüssel gleich."
 }
