@@ -297,8 +297,19 @@ test('manual reply is durable, fenced and persisted after provider acceptance', 
       )).state,
       'expired',
     );
+    // Even an old preparation that has already been dispatched is never scrubbed.
+    await admin.humanOutboundIntent.update({
+      where: { tenantId_id: { tenantId: tenant.id, id: prepared.intentId } },
+      data: { createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) },
+    });
     assert((await pendingRedactionCount(admin)) >= 1);
     assert((await redactExpiredPreparations(admin, 500)) >= 1);
+    await assert.rejects(() =>
+      admin.humanOutboundIntent.update({
+        where: { tenantId_id: { tenantId: tenant.id, id: prepared.intentId } },
+        data: { contentText: '[redacted]', redactedAt: new Date() },
+      }),
+    );
     const redactedExpired = await admin.humanOutboundIntent.findUniqueOrThrow({
       where: { tenantId_id: { tenantId: tenant.id, id: expired.intentId } },
     });
