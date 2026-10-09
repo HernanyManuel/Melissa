@@ -244,6 +244,93 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
       ).status,
       400,
     );
+    // Unread is based on durable inbound Inbox events, not outbound/control
+    // traffic, and each actor maintains an independent monotonic cursor.
+    await admin.membership.create({
+      data: { tenantId: tenant.id, userId: foreign.userId, role: 'staff' },
+    });
+    await admin.$executeRaw`
+      INSERT INTO inbox_events (tenant_id, event_type, conversation_id)
+      VALUES (${tenant.id}::uuid, 'message.received', ${conversationId}::uuid)
+    `;
+    await admin.$executeRaw`
+      INSERT INTO inbox_events (tenant_id, event_type, conversation_id)
+      VALUES (${tenant.id}::uuid, 'message.received', ${conversationId}::uuid)
+    `;
+    await admin.$executeRaw`
+      INSERT INTO inbox_events (tenant_id, event_type, conversation_id)
+      VALUES (${tenant.id}::uuid, 'message.sent', ${conversationId}::uuid)
+    `;
+    const listPath = `/tenants/${tenant.id}/conversations`;
+    const list = async (token: string) => {
+      const response = await data<{ items: Array<{
+        id: string; unreadCount: number; unreadUpTo: string | null;
+      }> }>(await call('GET', listPath, undefined, token), 200);
+      return response.items.find((row) => row.id === conversationId);
+    };
+    const ownerUnread = await list(owner.access_token);
+    const foreignUnread = await list(foreign.access_token);
+    assert.equal(ownerUnread?.unreadCount, 2);
+    assert.equal(ownerUnread.unreadUpTo, '4');
+    assert.equal(foreignUnread?.unreadCount, 2);
+    const readPath = `${controlPath}/read`;
+    assert.equal(
+      (await call('POST', readPath, { upTo: '5' }, owner.access_token)).status,
+      409,
+    ); // Event 5 is outbound: never a valid read watermark.
+    assert.equal(
+      (await call('POST', readPath, { upTo: '6' }, owner.access_token)).status,
+      409,
+    ); // An unobserved future sequence cannot suppress later messages.
+    assert.equal(
+      (await call('POST', readPath, { upTo: '0' }, owner.access_token)).status,
+      400,
+    );
+    assert.equal(
+      (await call('POST', readPath, { upTo: '4' }, undefined)).status,
+      401,
+    );
+    assert.equal(
+      (await call('POST', readPath, { upTo: '4' }, owner.access_token)).status,
+      200,
+    );
+    assert.equal((await list(owner.access_token))?.unreadCount, 0);
+    assert.equal((await list(foreign.access_token))?.unreadCount, 2);
+
+    const duplicate = await data<{ unreadUpTo: string; duplicate: boolean }>(
+      await call('POST', readPath, { upTo: '3' }, owner.access_token),
+      200,
+    );
+    assert.equal(duplicate.duplicate, true);
+    assert.equal(duplicate.unreadUpTo, '4');
+    assert.equal((await list(owner.access_token))?.unreadCount, 0);
+    assert.equal(
+      (await call('POST', readPath, { upTo: '4' }, foreign.access_token)).status,
+      200,
+    );
+    assert.equal((await list(foreign.access_token))?.unreadCount, 0);
+
+    const foreignTenant = await data<{ id: string }>(
+      await call('POST', '/tenants', {
+        name: 'Read isolated', countryCode: 'PT', timezone: 'Europe/Lisbon',
+      }, foreign.access_token), 201,
+    );
+    assert.equal(
+      (await call('POST', `/tenants/${foreignTenant.id}/conversations/${conversationId}/read`,
+        { upTo: '4' }, foreign.access_token)).status,
+      404,
+    );
+    const [cursor] = await admin.inboxReadCursor.findMany({
+      where: { tenantId: tenant.id, actorId: owner.userId, conversationId },
+    });
+    assert.equal(cursor?.lastReadSequence, 4n);
+    await admin.$executeRaw`
+      INSERT INTO inbox_events (tenant_id, event_type, conversation_id)
+      VALUES (${tenant.id}::uuid, 'message.received', ${conversationId}::uuid)
+    `;
+    assert.equal((await list(owner.access_token))?.unreadCount, 1);
+    assert.equal((await list(foreign.access_token))?.unreadCount, 1);
+
   } finally {
     await app.close();
     await admin.$disconnect();
