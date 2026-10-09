@@ -6,6 +6,7 @@ import '../l10n/generated/app_localizations.dart';
 import 'outbound_page.dart';
 import 'human_controls.dart';
 import 'internal_notes.dart';
+import 'conversation_tags.dart';
 import 'inbox_events.dart';
 
 typedef InboxEventSource = Stream<InboxEvent> Function(String tenantId, String? after);
@@ -467,6 +468,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
           onRevoked: () => load(),
         )
       else Padding(padding: const EdgeInsets.all(12), child: Text(l.readOnlyConversation)),
+      ConversationTags(
+        key: ValueKey('tags/${widget.tenantId}/${selected!['id']}'),
+        tenantId: widget.tenantId,
+        conversationId: selected!['id'] as String,
+        api: api,
+      ),
       ConversationInternalNotes(
         key: ValueKey('notes/${widget.tenantId}/${selected!['id']}'),
         tenantId: widget.tenantId,
