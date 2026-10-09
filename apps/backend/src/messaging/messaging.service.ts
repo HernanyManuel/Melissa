@@ -609,14 +609,21 @@ export class MessagingService {
       });
       // Never cancel queued or in-flight sends (even after provider failure).
       if (dispatch) throw new ConflictException();
-      if (intent.abandonedAt) return { intentId: intent.id, state: 'abandoned' as const, duplicate: true };
+      if (intent.abandonedAt)
+        return { intentId: intent.id, state: 'abandoned' as const, duplicate: true };
 
       const result = await tx.humanOutboundIntent.updateMany({
         where: { tenantId, id: intent.id, actorId: actor.userId, abandonedAt: null },
         data: { abandonedAt: new Date() },
       });
       if (result.count !== 1) throw new ConflictException();
-      await this.tenants.audit(tx, actor, tenantId, 'conversation.manual_reply_abandoned', intent.id);
+      await this.tenants.audit(
+        tx,
+        actor,
+        tenantId,
+        'conversation.manual_reply_abandoned',
+        intent.id,
+      );
       return { intentId: intent.id, state: 'abandoned' as const, duplicate: false };
     });
   }
@@ -634,7 +641,13 @@ export class MessagingService {
       const intent = await tx.humanOutboundIntent.findFirst({
         where: { tenantId, conversationId, actorId: actor.userId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        select: { id: true, requestId: true, contentText: true, createdAt: true, abandonedAt: true },
+        select: {
+          id: true,
+          requestId: true,
+          contentText: true,
+          createdAt: true,
+          abandonedAt: true,
+        },
       });
       if (!intent) return { item: null };
       const dispatch = await tx.humanOutboundDispatch.findUnique({
