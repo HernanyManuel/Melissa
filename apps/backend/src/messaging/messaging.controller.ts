@@ -222,6 +222,20 @@ export class MessagingController {
   ) {
     return this.messaging.receipt(req.actor, tenant, id);
   }
+  @Get('conversations/:id/manual-replies/latest')
+  @ApiOperation({
+    summary: 'Recover the current operator\'s latest durable manual reply',
+    description:
+      'Read-only, tenant- and actor-scoped. Returns the original requestId/text and dispatch state, or null if no committed intent exists. Absence cannot prove that an earlier network-uncertain POST will never commit.',
+  })
+  latestManualReply(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.messaging.latestManualReply(req.actor, tenant, id);
+  }
+
   @Post('conversations/:id/messages')
   @HttpCode(200)
   @ApiOperation({
