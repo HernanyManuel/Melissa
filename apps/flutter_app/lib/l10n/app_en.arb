@@ -176,5 +176,9 @@
   "inboxNotSent": "Reply rejected or failed. Check status before sending again.",
   "inboxNewReply": "New reply",
   "inboxBlocked": "Request blocked. Check permissions and state before retrying.",
-  "inboxUncertain": "Result uncertain. Retry only with the same key and text."
+  "inboxUncertain": "Result uncertain. Retry only with the same key and text.",
+  "inboxReconciling": "Checking earlier replies…",
+  "inboxReconcileFailed": "Could not check the previous reply. Retry the check before starting another.",
+  "inboxCheckPrevious": "Check previous reply",
+  "inboxRecovered": "Previous reply recovered. No new send was made."
 }
