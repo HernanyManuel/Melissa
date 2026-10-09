@@ -1,5 +1,13 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Expiração e abandono de preparações humanas
+
+Uma resposta preparada no servidor, mas ainda **sem registo de despacho**, tem agora validade de **24 horas** desde `created_at`: `GET /manual-replies/latest` e replay de `POST /manual-replies/prepare` devolvem `expired` após o prazo, e qualquer confirmação `POST /messages` dessa preparação é recusada com 409. O novo `POST /manual-replies/abandon` aceita `{requestId}`, é idempotente e opera apenas sobre intenções do operador autenticado e do tenant/conversa autorizados. Não pode abandonar nem cancelar mensagens que já possuam dispatch. A migração **57** introduz `abandoned_at`, concedendo à role runtime UPDATE apenas sobre essa coluna, e o health check passa a validar a versão 57.
+
+O Flutter apresenta `prepared/expired/abandoned`, disponibiliza «Abandonar preparação» apenas no estado preparado e permite iniciar uma nova resposta após abandono ou expiração, sem envio automático. Ver [ADR-083](decisions/ADR-083-prepared-human-reply-expiry-and-abandonment.md). O workflow funcional [37916802403](https://github.com/HernanyManuel/Melissa/actions/runs/37916802403) **passou integralmente** no commit `7fda06b28b0078b7f1a49d8384bbd3063625e3cf`: backend com migrations/RLS e integração, Flutter analyze/test/build web, Docker Compose.
+
+**Limites:** a expiração é calculada em leitura/confirmação, não por tarefa agendada; uma página aberta pode mostrar estado antigo até refresh, mas o servidor impede confirmação fora do prazo. Abandonar ou expirar não elimina fisicamente texto sensível: retenção/purga segura continua pendente. Clientes legados com POST direto mantêm o comportamento de envio imediato; o worker WhatsApp live continua desativado por defeito. Não houve merge/deploy, nem E2E Meta real. Outras prioridades: notificações, unread, notas/tags, painel de cliente e gate P7 Google Calendar.
+
 ## Atualização Phase 8 — Preparação durável antes da confirmação humana
 
 O Flutter passou a preparar respostas humanas através do novo `POST /api/v1/tenants/:tenantId/conversations/:id/manual-replies/prepare`: o backend guarda `requestId` e texto no `human_outbound_intents` sob RLS/permissão `conversations:reply`, **sem criar dispatch e sem possibilidade de o worker enviar esse registo**. Uma confirmação explícita por `POST /conversations/:id/messages` reutiliza o mesmo par idempotente, revalida modo `HUMAN_ACTIVE`, atribuição, canal WhatsApp live e `mode_epoch`, e só então cria o despacho. O GET de reconciliação passa a reconhecer `state: prepared` e o Flutter mostra a preparação recuperada após reload, sem enviar automaticamente. Ver [ADR-082](decisions/ADR-082-durable-manual-reply-preparation.md).
