@@ -19,6 +19,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { MessagingService } from './messaging.service';
 import {
+  AbandonManualReplyDto,
   ConversationQuery,
   ConversationTakeoverDto,
   InboxEventQuery,
@@ -250,6 +251,22 @@ export class MessagingController {
     @Body() body: ManualReplyDto,
   ) {
     return this.messaging.prepareReply(req.actor, tenant, id, body);
+  }
+
+  @Post('conversations/:id/manual-replies/abandon')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Abandon a prepared manual reply without sending it',
+    description:
+      'Only the original actor can abandon an intent without a dispatch. Rejected for any queued or in-flight reply. Idempotent for an already abandoned intent.',
+  })
+  abandonPreparedReply(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: AbandonManualReplyDto,
+  ) {
+    return this.messaging.abandonPreparedReply(req.actor, tenant, id, body.requestId);
   }
 
   @Post('conversations/:id/messages')
