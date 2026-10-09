@@ -367,6 +367,7 @@ model Conversation {
   aiTurns             AiTurn[]
   aiOutboundIntents   AiOutboundIntent[]
   inboxEvents         InboxEvent[]
+  internalNotes       ConversationInternalNote[]
 
   @@id([tenantId, id])
   @@unique([tenantId, channelConnectionId, customerId])
