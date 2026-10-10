@@ -205,5 +205,8 @@
   "inboxCustomerNotes": "Kundennotizen",
   "inboxTagFilter": "Nach Label filtern",
   "inboxAllTags": "Alle Labels",
-  "inboxUnreadOnly": "Nur ungelesene"
+  "inboxUnreadOnly": "Nur ungelesene",
+  "inboxAssignmentAll": "Alle Zuweisungen",
+  "inboxAssignmentMine": "Mir zugewiesen",
+  "inboxAssignmentUnassigned": "Nicht zugewiesen"
 }
