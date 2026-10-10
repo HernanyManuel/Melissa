@@ -196,5 +196,11 @@
   "inboxInternalNoteUncertain": "Conferma incerta. Il tentativo usa la stessa nota e chiave.",
   "inboxTags": "Etichette",
   "inboxNewTag": "Nuova etichetta",
-  "inboxCreateTag": "Crea etichetta"
+  "inboxCreateTag": "Crea etichetta",
+  "inboxCustomerProfile": "Profilo cliente",
+  "inboxCustomerPhone": "Telefono",
+  "inboxCustomerEmail": "Email",
+  "inboxCustomerLanguage": "Lingua",
+  "inboxCustomerConsent": "Consenso WhatsApp",
+  "inboxCustomerNotes": "Note cliente"
 }
