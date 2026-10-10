@@ -26,6 +26,14 @@ export class ConversationQuery extends MessagePageDto {
   @IsString()
   @Length(0, 80)
   q?: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Only conversations with this tenant-owned tag; retain it on every page.',
+  })
+  @IsOptional()
+  @IsUUID()
+  tagId?: string;
 }
 
 export class ConversationTakeoverDto {
