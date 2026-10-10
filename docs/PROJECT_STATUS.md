@@ -1,5 +1,11 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Proteção contra recibos atrasados de notas internas
+
+O widget de notas internas impede agora que uma resposta HTTP a um `POST` iniciado numa conversa ou tenant anterior limpe o rascunho, o estado de erro ou o estado de envio da conversa atualmente aberta. O pedido mantém a chave idempotente original, mas o recibo só é aplicado se a geração e os identificadores do tenant/conversa continuarem iguais; ao mudar de contexto, o estado de envio e o conteúdo pendente são repostos exclusivamente no contexto novo. O teste Flutter `late note receipt cannot clear another conversation draft` simula um POST lento, muda de tenant e só depois recebe o resultado anterior.
+
+Esta alteração não cria novos endpoints, não altera o esquema SQL nem envia mensagens ao cliente. O PR continua em draft, sem merge, deploy ou WhatsApp live.
+
 ## Atualização Phase 8 — Filtro «Só não lidas» por operador
 
 O inbox permite agora `GET /tenants/:tenantId/conversations?unreadOnly=true`, opcionalmente combinado com `q`, `tagId` e `after`. A seleção dos IDs de conversas que têm eventos `message.received` posteriores ao `last_read_sequence` **do operador autenticado** ocorre no backend e antes do limite de paginação. O SQL é parametrizado, executa-se sob as permissões e RLS do tenant e não recebe `actorId` do cliente. `unreadOnly=false` ou parâmetro omitido conservam o comportamento anterior; valores inválidos são rejeitados.
