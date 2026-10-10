@@ -205,5 +205,8 @@
   "inboxCustomerNotes": "Notas del cliente",
   "inboxTagFilter": "Filtrar por etiqueta",
   "inboxAllTags": "Todas las etiquetas",
-  "inboxUnreadOnly": "Solo no leídas"
+  "inboxUnreadOnly": "Solo no leídas",
+  "inboxAssignmentAll": "Todas las asignaciones",
+  "inboxAssignmentMine": "Asignadas a mí",
+  "inboxAssignmentUnassigned": "Sin asignar"
 }
