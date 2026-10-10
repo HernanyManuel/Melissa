@@ -47,6 +47,10 @@ void main() {
     expect(find.text('Ainda não existem conversas.'), findsOneWidget);
   });
   testWidgets('tag filter combines with search and survives pagination', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final paths = <Uri>[];
     final api = client((r) async {
       if (r.url.path.endsWith('/conversation-tags')) {
