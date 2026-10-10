@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Triagem por atribuição de colaborador
+
+A listagem de conversas aceita o parâmetro opcional `assignment=all|mine|unassigned`. O backend filtra `mine` pelos registos `staff.user_id` vinculados **ao ator autenticado** (nunca a um ID arbitrário enviado pelo cliente); `unassigned` seleciona conversas sem colaborador atribuído. Em ambos os caminhos de consulta, incluindo `unreadOnly=true`, os filtros são aplicados **antes** do limite de paginação. São compatíveis com pesquisa, etiquetas, `unreadOnly` e cursor, sob as permissões e RLS existentes.
+
+O Flutter inclui um seletor nas seis línguas pt/en/es/fr/it/de, conserva a opção nas atualizações SSE e repõe a paginação ao mudar de filtro. Mudança de tenant ou revogação limpa a seleção. Os testes verificam isolamento entre operadores, validação de parâmetros, composição com não lidas e comportamento do seletor numa barra lateral de largura limitada.
+
+**CI funcional:** [38074683215](https://github.com/HernanyManuel/Melissa/actions/runs/38074683215), **integralmente verde** (backend com PostgreSQL/RLS/worker, Flutter analyze/test/build web e Compose). [ADR-092](decisions/ADR-092-inbox-assignment-triage-filter.md).
+
+**Limites:** este é um filtro de visualização, não uma regra de autorização nem um comando para modificar a atribuição. A relação staff/utilizador depende de `staff.user_id` no tenant. Sem migração adicional, notificações do sistema, merge, deploy ou WhatsApp live.
+
 ## Atualização Phase 8 — Proteção contra recibos atrasados de notas internas
 
 O widget de notas internas impede agora que uma resposta HTTP a um `POST` iniciado numa conversa ou tenant anterior limpe o rascunho, o estado de erro ou o estado de envio da conversa atualmente aberta. O pedido mantém a chave idempotente original, mas o recibo só é aplicado se a geração e os identificadores do tenant/conversa continuarem iguais; ao mudar de contexto, o estado de envio e o conteúdo pendente são repostos exclusivamente no contexto novo. O teste Flutter `late note receipt cannot clear another conversation draft` simula um POST lento, muda de tenant e só depois recebe o resultado anterior.
