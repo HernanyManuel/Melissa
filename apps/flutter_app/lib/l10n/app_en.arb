@@ -205,5 +205,8 @@
   "inboxCustomerNotes": "Customer notes",
   "inboxTagFilter": "Filter by tag",
   "inboxAllTags": "All tags",
-  "inboxUnreadOnly": "Unread only"
+  "inboxUnreadOnly": "Unread only",
+  "inboxAssignmentAll": "All assignments",
+  "inboxAssignmentMine": "Assigned to me",
+  "inboxAssignmentUnassigned": "Unassigned"
 }
