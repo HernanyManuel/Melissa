@@ -95,6 +95,7 @@ class _ConversationCustomerContextState extends State<ConversationCustomerContex
               Text('${l.inboxCustomerEmail}: ${customer!['email']}'),
             Text('${l.inboxCustomerLanguage}: ${customer!['language']}'),
             Text('${l.inboxCustomerConsent}: ${customer!['whatsappOptInStatus'] ?? 'unknown'}'),
+            Text('${l.inboxCustomerMarketingConsent}: ${customer!['marketingConsentStatus'] ?? 'unknown'}'),
             if (customer!['notes'] is String &&
                 (customer!['notes'] as String).isNotEmpty)
               SelectableText('${l.inboxCustomerNotes}: ${customer!['notes']}'),
