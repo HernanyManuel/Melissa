@@ -46,6 +46,56 @@ void main() {
     await tester.tap(find.byIcon(Icons.clear)); await tester.pumpAndSettle();
     expect(find.text('Ainda não existem conversas.'), findsOneWidget);
   });
+  testWidgets('tag filter combines with search and survives pagination', (tester) async {
+    final paths = <Uri>[];
+    final api = client((r) async {
+      if (r.url.path.endsWith('/conversation-tags')) {
+        return http.Response(jsonEncode({'items': [
+          {'id': 'tag-1', 'name': 'Urgente'},
+        ]}), 200);
+      }
+      if (r.url.path.endsWith('/conversations')) {
+        paths.add(r.url);
+        if (r.url.queryParameters['tagId'] == 'tag-1') {
+          if (r.url.queryParameters['after'] == 'cursor') {
+            return page([conversation('second')]);
+          }
+          return page([conversation('first')], 'cursor');
+        }
+        return page([conversation('other')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(find.text('Cliente other'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-tags')));
+    await tester.pumpAndSettle();
+    expect(find.text('Urgente'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-tag-1')));
+    await tester.pumpAndSettle();
+    expect(paths.last.queryParameters['tagId'], 'tag-1');
+    expect(find.text('Cliente first'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'A & B');
+    await tester.tap(find.text('Pesquisar'));
+    await tester.pumpAndSettle();
+    expect(paths.last.queryParameters['q'], 'A & B');
+    expect(paths.last.queryParameters['tagId'], 'tag-1');
+    await tester.ensureVisible(find.text('Carregar mais'));
+    await tester.tap(find.text('Carregar mais'));
+    await tester.pumpAndSettle();
+    expect(paths.last.queryParameters['after'], 'cursor');
+    expect(paths.last.queryParameters['tagId'], 'tag-1');
+    expect(paths.last.queryParameters['q'], 'A & B');
+    await tester.tap(find.byKey(const Key('inbox-filter-all')));
+    await tester.pumpAndSettle();
+    expect(paths.last.queryParameters.containsKey('after'), false);
+    expect(paths.last.queryParameters.containsKey('tagId'), false);
+    expect(find.text('Cliente other'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('empty conversations and failed refresh offer recovery', (tester) async {
     var fail = true;
     final api = client((_) async => fail ? http.Response('{}', 403) : page([]));
