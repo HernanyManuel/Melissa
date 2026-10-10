@@ -52,6 +52,8 @@ class _ConversationInternalNotesState extends State<ConversationInternalNotes> {
       next = null;
       pendingId = null;
       pendingText = null;
+      posting = false;
+      loading = false;
       failed = false;
       postFailed = false;
       compose.clear();
@@ -97,11 +99,16 @@ class _ConversationInternalNotesState extends State<ConversationInternalNotes> {
     }
     final requestId = pendingId!;
     final text = pendingText!;
+    final submitGeneration = generation;
+    final submitTenant = widget.tenantId;
+    final submitConversation = widget.conversationId;
     setState(() { posting = true; postFailed = false; });
     try {
       final receipt = await widget.api.request('POST', path,
           {'requestId': requestId, 'text': text}, false) as Map<String, dynamic>;
-      if (!mounted) return;
+      if (!mounted || submitGeneration != generation ||
+          submitTenant != widget.tenantId ||
+          submitConversation != widget.conversationId) return;
       final item = receipt['item'];
       if (item is! Map<String, dynamic> || item['id'] is! String ||
           item['text'] != text) {
@@ -115,9 +122,17 @@ class _ConversationInternalNotesState extends State<ConversationInternalNotes> {
       // Read-only refresh; never infer delivery or submit an additional POST.
       await load();
     } catch (_) {
-      if (mounted) setState(() => postFailed = true);
+      if (mounted && submitGeneration == generation &&
+          submitTenant == widget.tenantId &&
+          submitConversation == widget.conversationId) {
+        setState(() => postFailed = true);
+      }
     } finally {
-      if (mounted) setState(() => posting = false);
+      if (mounted && submitGeneration == generation &&
+          submitTenant == widget.tenantId &&
+          submitConversation == widget.conversationId) {
+        setState(() => posting = false);
+      }
     }
   }
 
