@@ -144,6 +144,8 @@ export class MessagingService {
     });
   }
 
+  // The raw SQL branches keep aligned, parameterized predicates for both paging paths.
+  // prettier-ignore
   conversations(actor: Actor, tenantId: string, page: ConversationQuery) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       if (page.tagId) {
