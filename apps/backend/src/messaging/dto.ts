@@ -42,6 +42,14 @@ export class ConversationQuery extends MessagePageDto {
   @IsOptional()
   @Matches(/^(true|false)$/)
   unreadOnly?: string;
+
+  @ApiPropertyOptional({
+    enum: ['all', 'mine', 'unassigned'],
+    description: 'Filter assignment by the authenticated actor or select unassigned conversations.',
+  })
+  @IsOptional()
+  @Matches(/^(all|mine|unassigned)$/)
+  assignment?: string;
 }
 
 export class ConversationTakeoverDto {
