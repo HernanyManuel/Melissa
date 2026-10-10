@@ -184,8 +184,16 @@ export class MessagingService {
             FROM conversations c
             WHERE c.tenant_id=${tenantId}::uuid
               ${page.after ? Prisma.sql`AND c.id > ${page.after}::uuid` : Prisma.empty}
-              ${assignment === 'unassigned' ? Prisma.sql`AND c.assigned_staff_id IS NULL` : Prisma.empty}
-              ${assignment === 'mine' ? Prisma.sql`AND c.assigned_staff_id IN (${assignedTo.length ? Prisma.join(assignedTo.map((row) => Prisma.sql`${row.id}::uuid`)) : Prisma.sql`NULL`})` : Prisma.empty}
+              ${
+                assignment === 'unassigned'
+                  ? Prisma.sql`AND c.assigned_staff_id IS NULL`
+                  : Prisma.empty
+              }
+              ${
+                assignment === 'mine'
+                  ? Prisma.sql`AND c.assigned_staff_id IN (${assignedTo.length ? Prisma.join(assignedTo.map((row) => Prisma.sql`${row.id}::uuid`)) : Prisma.sql`NULL`})`
+                  : Prisma.empty
+              }
               ${
                 page.tagId
                   ? Prisma.sql`AND EXISTS (
@@ -242,7 +250,9 @@ export class MessagingService {
               tenantId,
               ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
               ...(assignment === 'unassigned' ? { assignedStaffId: null } : {}),
-              ...(assignment === 'mine' ? { assignedStaffId: { in: assignedTo.map((row) => row.id) } } : {}),
+              ...(assignment === 'mine'
+                ? { assignedStaffId: { in: assignedTo.map((row) => row.id) } }
+                : {}),
               ...(search
                 ? {
                     OR: [
