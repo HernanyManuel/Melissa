@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Filtragem do inbox por etiqueta
+
+O inbox suporta agora `GET /tenants/:tenantId/conversations?tagId=<uuid>&q=<texto>&after=<uuid>` com filtro por etiqueta aplicado na base de dados, juntamente com a pesquisa e a paginação de 50 conversas. Uma etiqueta tem de existir no tenant autorizado; o cursor também tem de referir uma conversa com essa etiqueta. `GET /tenants/:tenantId/conversation-tags` fornece o catálogo de leitura (até 100 nomes e IDs), com permissão `messages:read`. A relação Prisma utiliza as FKs já existentes da migração 61, sem alteração do schema SQL ou do health check.
+
+O Flutter permite abrir o filtro, escolher uma etiqueta ou regressar a «Todas as etiquetas», mantendo o filtro em pesquisas, carregamento de outras páginas e atualizações SSE. Mudar de etiqueta reinicia a paginação; mudar de tenant ou perder acesso limpa o estado. Testes HTTP verificam catálogo, validação de UUID, etiqueta inexistente, isolamento, composição com pesquisa e remoção do vínculo. Teste Flutter valida seleção, pesquisa, paginação e reposição do filtro.
+
+**CI funcional:** [38030981789](https://github.com/HernanyManuel/Melissa/actions/runs/38030981789) integralmente verde (backend PostgreSQL/RLS e worker, Flutter analyze/test/build web, Compose). [ADR-090](decisions/ADR-090-inbox-tag-filter.md).
+
+**Limites:** só uma etiqueta de cada vez, catálogo até 100 sem paginação; o filtro não confere acesso a conversas de outros tenants nem substitui a gestão de atribuições. Sem merge, deploy ou WhatsApp live.
+
 ## Atualização Phase 8 — Etiquetas de conversas por tenant
 
 A migração **61** introduz `conversation_tags` e `conversation_tag_links`, com RLS por tenant, referências compostas para impedir associações entre tenants, criação de etiquetas imutáveis (sem UPDATE/DELETE do catálogo pelo runtime) e associação/remoção idempotente sujeita a `conversations:takeover`. A consulta de etiquetas requer `messages:read`; audit events registam a alteração sem conteúdo de mensagens. Endpoints: `POST /conversation-tags`, `GET /conversations/:id/tags`, `POST/DELETE /conversations/:id/tags/:tagId`.
