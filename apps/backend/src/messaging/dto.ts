@@ -34,6 +34,14 @@ export class ConversationQuery extends MessagePageDto {
   @IsOptional()
   @IsUUID()
   tagId?: string;
+
+  @ApiPropertyOptional({
+    enum: ['true', 'false'],
+    description: 'Show only conversations with unread inbound events for the authenticated actor.',
+  })
+  @IsOptional()
+  @Matches(/^(true|false)$/)
+  unreadOnly?: string;
 }
 
 export class ConversationTakeoverDto {
