@@ -53,7 +53,7 @@ export class MessagingController {
   @ApiOperation({
     summary: 'List or search conversations',
     description:
-      'Optional literal name search q and tenant-owned tagId. Fixed pages of 50 ordered by ID. Retain q and tagId when following a cursor; reset cursor when changing filters.',
+      'Optional literal name search q, tenant-owned tagId and actor-scoped unreadOnly=true. Fixed pages of 50 ordered by ID. Retain all filters when following a cursor; reset the cursor when changing filters.',
   })
   conversations(
     @Req() req: AuthRequest,
