@@ -29,6 +29,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
   late final IdentityApi api;
   final search = TextEditingController();
   String searchQuery = '';
+  String? selectedTagId;
+  List<Map<String, dynamic>> availableTags = [];
+  bool tagFilterOpen = false;
+  bool tagsLoading = false;
+  bool tagsError = false;
+  int tagsGeneration = 0;
   List<Map<String, dynamic>> conversations = [];
   List<Map<String, dynamic>> messages = [];
   Map<String, dynamic>? selected;
@@ -71,6 +77,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
       _stopInbox();
       streamRevoked = false;
       search.clear(); searchQuery = '';
+      tagsGeneration++; availableTags = []; selectedTagId = null;
+      tagFilterOpen = false; tagsLoading = false; tagsError = false;
       messageGeneration++;
       conversations = []; messages = []; selected = null;
       newInboundAlerts.clear();
@@ -84,6 +92,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   @override
   void dispose() {
     _stopInbox();
+    tagsGeneration++;
     search.dispose();
     if (widget.api == null) api.dispose();
     super.dispose();
@@ -115,6 +124,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
     if (!mounted) return;
     setState(() {
       conversations = [];
+      availableTags = []; selectedTagId = null; tagsGeneration++;
+      tagFilterOpen = false; tagsLoading = false; tagsError = false;
       newInboundAlerts.clear();
       selected = null;
       messages = [];
@@ -196,6 +207,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final messageVersion = messageGeneration;
     final tenant = widget.tenantId;
     final searchAtStart = searchQuery;
+    final tagAtStart = selectedTagId;
     final listPages = ((conversations.length + 49) ~/ 50).clamp(1, 10);
     final messagePages = ((messages.length ~/ 50) + 1).clamp(1, 10);
     try {
@@ -204,6 +216,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       for (var i = 0; i < listPages; i++) {
         final params = <String, String>{
           if (searchAtStart.isNotEmpty) 'q': searchAtStart,
+          if (tagAtStart != null) 'tagId': tagAtStart,
           if (after != null) 'after': after,
         };
         final suffix = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
@@ -237,7 +250,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (!mounted || streamVersion != streamGeneration ||
           refreshVersion != refreshGeneration ||
           listVersion != listGeneration || searchAtStart != searchQuery ||
-          tenant != widget.tenantId) {
+          tagAtStart != selectedTagId || tenant != widget.tenantId) {
         return;
       }
       refreshAttempts = 0;
@@ -295,9 +308,44 @@ class _ConversationsPageState extends State<ConversationsPage> {
     }
   }
 
+  Future<void> loadTagCatalog() async {
+    final version = ++tagsGeneration;
+    final tenant = widget.tenantId;
+    setState(() { tagsLoading = true; tagsError = false; });
+    try {
+      final response = await api.request('GET', '/tenants/$tenant/conversation-tags')
+          as Map<String, dynamic>;
+      final raw = (response['items'] as List).cast<Map<String, dynamic>>();
+      if (raw.length > 100 || raw.any((row) =>
+          row['id'] is! String || row['name'] is! String)) {
+        throw const FormatException('Invalid tag catalog');
+      }
+      if (!mounted || version != tagsGeneration || tenant != widget.tenantId) return;
+      setState(() => availableTags = raw);
+    } catch (_) {
+      if (!mounted || version != tagsGeneration || tenant != widget.tenantId) return;
+      setState(() { availableTags = []; tagsError = true; });
+    } finally {
+      if (mounted && version == tagsGeneration && tenant == widget.tenantId) {
+        setState(() => tagsLoading = false);
+      }
+    }
+  }
+
+  void chooseTag(String? tagId) {
+    if (selectedTagId == tagId) return;
+    setState(() {
+      selectedTagId = tagId;
+      newInboundAlerts.clear();
+      changedConversations.clear();
+    });
+    load(); // Filter change starts at page one, never reuses a stale cursor.
+  }
+
   Future<void> load({bool more = false}) async {
     final generation = ++listGeneration;
     final params = <String, String>{if (searchQuery.isNotEmpty) 'q': searchQuery,
+      if (selectedTagId != null) 'tagId': selectedTagId!,
       if (more && conversationNext != null) 'after': conversationNext!};
     final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
     setState(() { loading = true; listError = false;
@@ -410,6 +458,41 @@ class _ConversationsPageState extends State<ConversationsPage> {
         onSubmitted: (_) { searchQuery = search.text.trim(); load(); },
       )),
       TextButton.icon(onPressed: () { searchQuery = search.text.trim(); load(); }, icon: const Icon(Icons.search), label: Text(l.conversationSearchAction)),
+      Row(children: [
+        TextButton.icon(
+          key: const Key('inbox-filter-tags'),
+          onPressed: () {
+            setState(() => tagFilterOpen = !tagFilterOpen);
+            if (tagFilterOpen && availableTags.isEmpty) loadTagCatalog();
+          },
+          icon: const Icon(Icons.filter_alt_outlined),
+          label: Text(l.inboxTagFilter),
+        ),
+        if (selectedTagId != null)
+          TextButton(onPressed: () => chooseTag(null), child: Text(l.inboxAllTags)),
+      ]),
+      if (tagFilterOpen) SizedBox(height: 92, child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Column(children: [
+          if (tagsLoading) const LinearProgressIndicator(),
+          if (tagsError) TextButton(onPressed: loadTagCatalog, child: Text(l.retry)),
+          if (!tagsLoading && !tagsError) Wrap(spacing: 8, children: [
+            ChoiceChip(
+              key: const Key('inbox-filter-all'),
+              label: Text(l.inboxAllTags),
+              selected: selectedTagId == null,
+              onSelected: (_) => chooseTag(null),
+            ),
+            for (final tag in availableTags)
+              ChoiceChip(
+                key: ValueKey('inbox-filter-${tag['id']}'),
+                label: Text(tag['name'] as String),
+                selected: selectedTagId == tag['id'],
+                onSelected: (_) => chooseTag(tag['id'] as String),
+              ),
+          ]),
+        ]),
+      )),
       if (loading) const LinearProgressIndicator(),
       if (listError) errorPanel(() => load()),
       if (!loading && !listError && conversations.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(searchQuery.isEmpty ? l.noConversations : l.conversationNoMatches)),
