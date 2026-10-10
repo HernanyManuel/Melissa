@@ -151,6 +151,32 @@ test('human takeover fences automatic outbound and supports reactivation and clo
         lastMessageAt: new Date(),
       },
     });
+    const customerPath = `/tenants/${tenant.id}/conversations/${conversationId}/customer`;
+    assert.equal(
+      (await call('GET', customerPath, undefined, foreign.access_token)).status,
+      404,
+    );
+    const customerProfile = await data<{
+      item: { id: string; displayName: string; phoneE164: string; language: string };
+    }>(await call('GET', customerPath, undefined, owner.access_token), 200);
+    assert.equal(customerProfile.item.id, customerId);
+    assert.equal(customerProfile.item.displayName, 'Control customer');
+    assert.equal(customerProfile.item.phoneE164, '+351910000321');
+    assert.equal(customerProfile.item.language, 'pt');
+    assert.deepEqual(
+      Object.keys(customerProfile.item).sort(),
+      [
+        'displayName', 'email', 'id', 'language', 'marketingConsentStatus',
+        'notes', 'phoneE164', 'whatsappOptInStatus',
+      ].sort(),
+    );
+    assert.equal(
+      (await call('GET',
+        `/tenants/${foreignTenant.id}/conversations/${conversationId}/customer`,
+        undefined, foreign.access_token)).status,
+      404,
+    );
+
     const tagPath = `/tenants/${tenant.id}/conversation-tags`;
     const appliedPath = `/tenants/${tenant.id}/conversations/${conversationId}/tags`;
     assert.equal((await call('GET', appliedPath, undefined, foreign.access_token)).status, 404);
