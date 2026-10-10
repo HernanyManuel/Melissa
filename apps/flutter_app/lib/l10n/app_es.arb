@@ -201,6 +201,7 @@
   "inboxCustomerPhone": "Teléfono",
   "inboxCustomerEmail": "Correo electrónico",
   "inboxCustomerLanguage": "Idioma",
+  "inboxCustomerMarketingConsent": "Consentimiento de marketing",
   "inboxCustomerConsent": "Consentimiento de WhatsApp",
   "inboxCustomerNotes": "Notas del cliente",
   "inboxTagFilter": "Filtrar por etiqueta",
