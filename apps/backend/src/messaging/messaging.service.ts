@@ -223,6 +223,36 @@ export class MessagingService {
     });
   }
 
+  // The inbox customer panel only receives an allowlisted projection. Never
+  // return provider credentials, internal conversation state or soft-deleted customers.
+  conversationCustomer(actor: Actor, tenantId: string, conversationId: string) {
+    return this.tenants.scoped(actor, tenantId, 'customers:read', async (tx) => {
+      const conversation = await tx.conversation.findUnique({
+        where: { tenantId_id: { tenantId, id: conversationId } },
+        select: {
+          id: true,
+          customer: {
+            select: {
+              id: true,
+              displayName: true,
+              phoneE164: true,
+              email: true,
+              language: true,
+              notes: true,
+              marketingConsentStatus: true,
+              whatsappOptInStatus: true,
+              deletedAt: true,
+            },
+          },
+        },
+      });
+      if (!conversation || conversation.customer.deletedAt) throw new NotFoundException();
+      const { deletedAt, ...customer } = conversation.customer;
+      void deletedAt;
+      return { item: customer };
+    });
+  }
+
   // Internal notes are not customer messages and are never dispatched to AI
   // or WhatsApp. A stable actor-owned key prevents double-create on retries.
   async createInternalNote(
