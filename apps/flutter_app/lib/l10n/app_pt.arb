@@ -204,5 +204,6 @@
   "inboxCustomerConsent": "Consentimento WhatsApp",
   "inboxCustomerNotes": "Notas do cliente",
   "inboxTagFilter": "Filtrar por etiqueta",
-  "inboxAllTags": "Todas as etiquetas"
+  "inboxAllTags": "Todas as etiquetas",
+  "inboxUnreadOnly": "Só não lidas"
 }
