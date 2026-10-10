@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,66 @@ import 'package:melissa/identity/api.dart';
 import 'package:melissa/l10n/generated/app_localizations.dart';
 
 void main() {
+  testWidgets('late note receipt cannot clear another conversation draft', (tester) async {
+    final delayed = Completer<http.Response>();
+    final posts = <String>[];
+    final api = IdentityApi(client: MockClient((request) async {
+      if (request.url.path.endsWith('/auth/csrf')) {
+        return http.Response('{"csrf_token":"csrf"}', 200);
+      }
+      if (request.url.path.endsWith('/auth/refresh')) {
+        return http.Response('{"access_token":"access","csrf_token":"csrf"}', 200);
+      }
+      if (request.url.path.endsWith('/internal-notes')) {
+        if (request.method == 'GET') {
+          return http.Response('{"items":[],"next":null}', 200);
+        }
+        posts.add(request.url.path);
+        if (posts.length == 1) return delayed.future;
+        return http.Response(jsonEncode({
+          'item': {'id': 'note-b', 'text': 'Nova conversa'},
+          'duplicate': false,
+        }), 200);
+      }
+      return http.Response('{}', 404);
+    }));
+    addTearDown(api.dispose);
+
+    Widget frame(String tenant, String conversation) => MaterialApp(
+      locale: const Locale('pt'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: SingleChildScrollView(child: ConversationInternalNotes(
+        tenantId: tenant, conversationId: conversation, api: api,
+      ))),
+    );
+
+    await tester.pumpWidget(frame('tenant-A', 'conv-A'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('inbox-internal-note-compose')), 'Rascunho antigo');
+    await tester.tap(find.text('Guardar nota'));
+    await tester.pump();
+    expect(posts.length, 1);
+
+    await tester.pumpWidget(frame('tenant-B', 'conv-B'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('inbox-internal-note-compose')), 'Nova conversa');
+    delayed.complete(http.Response(jsonEncode({
+      'item': {'id': 'note-a', 'text': 'Rascunho antigo'},
+      'duplicate': false,
+    }), 200));
+    await tester.pumpAndSettle();
+    expect(find.text('Nova conversa'), findsOneWidget);
+    await tester.tap(find.text('Guardar nota'));
+    await tester.pumpAndSettle();
+    expect(posts.length, 2);
+    expect(posts[0], contains('/tenant-A/'));
+    expect(posts[1], contains('/tenant-B/'));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('note retry uses same key without sending a customer message', (tester) async {
     final attempts = <Map<String, dynamic>>[];
     var stored = false;
