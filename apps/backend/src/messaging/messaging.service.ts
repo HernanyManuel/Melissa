@@ -170,21 +170,25 @@ export class MessagingService {
       // The unread-only page is selected in SQL BEFORE applying LIMIT 51.
       // Filtering only the 50 already-paginated Prisma rows would skip
       // conversations and yield incorrect cursors and next pages.
-      const unreadIds = page.unreadOnly === 'true'
-        ? await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      const unreadIds =
+        page.unreadOnly === 'true'
+          ? await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
             SELECT c.id::text AS id
             FROM conversations c
             WHERE c.tenant_id=${tenantId}::uuid
               ${page.after ? Prisma.sql`AND c.id > ${page.after}::uuid` : Prisma.empty}
-              ${page.tagId
-                ? Prisma.sql`AND EXISTS (
+              ${
+                page.tagId
+                  ? Prisma.sql`AND EXISTS (
                     SELECT 1 FROM conversation_tag_links t
                     WHERE t.tenant_id=c.tenant_id AND t.conversation_id=c.id
                       AND t.tag_id=${page.tagId}::uuid
                   )`
-                : Prisma.empty}
-              ${search
-                ? Prisma.sql`AND (
+                  : Prisma.empty
+              }
+              ${
+                search
+                  ? Prisma.sql`AND (
                     EXISTS (
                       SELECT 1 FROM customers cu
                       WHERE cu.tenant_id=c.tenant_id AND cu.id=c.customer_id
@@ -195,7 +199,8 @@ export class MessagingService {
                         AND ch.display_name ILIKE ${`%${search}%`}
                     )
                   )`
-                : Prisma.empty}
+                  : Prisma.empty
+              }
               AND EXISTS (
                 SELECT 1 FROM inbox_events e
                 WHERE e.tenant_id=c.tenant_id AND e.conversation_id=c.id
@@ -211,7 +216,7 @@ export class MessagingService {
             ORDER BY c.id ASC
             LIMIT 51
           `)
-        : null;
+          : null;
       const rows = unreadIds
         ? unreadIds.length
           ? await tx.conversation.findMany({
@@ -230,7 +235,11 @@ export class MessagingService {
               ...(search
                 ? {
                     OR: [
-                      { customer: { displayName: { contains: search, mode: 'insensitive' as const } } },
+                      {
+                        customer: {
+                          displayName: { contains: search, mode: 'insensitive' as const },
+                        },
+                      },
                       {
                         channelConnection: {
                           displayName: { contains: search, mode: 'insensitive' as const },
@@ -242,7 +251,9 @@ export class MessagingService {
             },
             orderBy: { id: 'asc' },
             take: 51,
-            ...(page.after ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 } : {}),
+            ...(page.after
+              ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 }
+              : {}),
             include: {
               customer: { select: { displayName: true } },
               channelConnection: { select: { displayName: true, mode: true } },
