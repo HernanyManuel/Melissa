@@ -196,5 +196,11 @@
   "inboxInternalNoteUncertain": "Could not confirm. Retry keeps the same note and key.",
   "inboxTags": "Tags",
   "inboxNewTag": "New tag",
-  "inboxCreateTag": "Create tag"
+  "inboxCreateTag": "Create tag",
+  "inboxCustomerProfile": "Customer profile",
+  "inboxCustomerPhone": "Phone",
+  "inboxCustomerEmail": "Email",
+  "inboxCustomerLanguage": "Language",
+  "inboxCustomerConsent": "WhatsApp consent",
+  "inboxCustomerNotes": "Customer notes"
 }
