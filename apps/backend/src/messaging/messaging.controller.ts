@@ -53,7 +53,7 @@ export class MessagingController {
   @ApiOperation({
     summary: 'List or search conversations',
     description:
-      'Optional literal name search q, scoped to the authorized tenant. Fixed pages of 50 ordered by ID. Retain q when following a cursor; reset cursor when changing q.',
+      'Optional literal name search q and tenant-owned tagId. Fixed pages of 50 ordered by ID. Retain q and tagId when following a cursor; reset cursor when changing filters.',
   })
   conversations(
     @Req() req: AuthRequest,
@@ -70,6 +70,15 @@ export class MessagingController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.messaging.conversationCustomer(req.actor, tenant, id);
+  }
+
+  @Get('conversation-tags')
+  @ApiOperation({ summary: 'List tenant-local tags for inbox filtering (up to 100)' })
+  tagsCatalog(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+  ) {
+    return this.messaging.conversationTagsCatalog(req.actor, tenant);
   }
 
   @Get('conversations/:id/tags')
