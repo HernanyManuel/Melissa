@@ -31,6 +31,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   String searchQuery = '';
   String? selectedTagId;
   bool unreadOnly = false;
+  String assignmentFilter = 'all';
   List<Map<String, dynamic>> availableTags = [];
   bool tagFilterOpen = false;
   bool tagsLoading = false;
@@ -79,7 +80,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       streamRevoked = false;
       search.clear(); searchQuery = '';
       tagsGeneration++; availableTags = []; selectedTagId = null;
-      unreadOnly = false;
+      unreadOnly = false; assignmentFilter = 'all';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       messageGeneration++;
       conversations = []; messages = []; selected = null;
@@ -127,7 +128,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     setState(() {
       conversations = [];
       availableTags = []; selectedTagId = null; tagsGeneration++;
-      unreadOnly = false;
+      unreadOnly = false; assignmentFilter = 'all';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       newInboundAlerts.clear();
       selected = null;
@@ -212,6 +213,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final searchAtStart = searchQuery;
     final tagAtStart = selectedTagId;
     final unreadAtStart = unreadOnly;
+    final assignmentAtStart = assignmentFilter;
     final listPages = ((conversations.length + 49) ~/ 50).clamp(1, 10);
     final messagePages = ((messages.length ~/ 50) + 1).clamp(1, 10);
     try {
@@ -222,6 +224,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           if (searchAtStart.isNotEmpty) 'q': searchAtStart,
           if (tagAtStart != null) 'tagId': tagAtStart,
           if (unreadAtStart) 'unreadOnly': 'true',
+          if (assignmentAtStart != 'all') 'assignment': assignmentAtStart,
           if (after != null) 'after': after,
         };
         final suffix = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
@@ -256,6 +259,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           refreshVersion != refreshGeneration ||
           listVersion != listGeneration || searchAtStart != searchQuery ||
           tagAtStart != selectedTagId || unreadAtStart != unreadOnly ||
+          assignmentAtStart != assignmentFilter ||
           tenant != widget.tenantId) {
         return;
       }
@@ -363,6 +367,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final params = <String, String>{if (searchQuery.isNotEmpty) 'q': searchQuery,
       if (selectedTagId != null) 'tagId': selectedTagId!,
       if (unreadOnly) 'unreadOnly': 'true',
+      if (assignmentFilter != 'all') 'assignment': assignmentFilter,
       if (more && conversationNext != null) 'after': conversationNext!};
     final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
     setState(() { loading = true; listError = false;
@@ -488,6 +493,20 @@ class _ConversationsPageState extends State<ConversationsPage> {
         ),
         if (selectedTagId != null)
           TextButton(onPressed: () => chooseTag(null), child: Text(l.inboxAllTags)),
+        DropdownButton<String>(
+          key: const Key('inbox-filter-assignment'),
+          value: assignmentFilter,
+          items: [
+            DropdownMenuItem(value: 'all', child: Text(l.inboxAssignmentAll)),
+            DropdownMenuItem(value: 'mine', child: Text(l.inboxAssignmentMine)),
+            DropdownMenuItem(value: 'unassigned', child: Text(l.inboxAssignmentUnassigned)),
+          ],
+          onChanged: loading ? null : (value) {
+            if (value == null || value == assignmentFilter) return;
+            setState(() => assignmentFilter = value);
+            load();
+          },
+        ),
         FilterChip(
           key: const Key('inbox-filter-unread'),
           label: Text(l.inboxUnreadOnly),
