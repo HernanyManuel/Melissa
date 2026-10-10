@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Filtro «Só não lidas» por operador
+
+O inbox permite agora `GET /tenants/:tenantId/conversations?unreadOnly=true`, opcionalmente combinado com `q`, `tagId` e `after`. A seleção dos IDs de conversas que têm eventos `message.received` posteriores ao `last_read_sequence` **do operador autenticado** ocorre no backend e antes do limite de paginação. O SQL é parametrizado, executa-se sob as permissões e RLS do tenant e não recebe `actorId` do cliente. `unreadOnly=false` ou parâmetro omitido conservam o comportamento anterior; valores inválidos são rejeitados.
+
+O Flutter oferece o `FilterChip` «Só não lidas» em seis idiomas, preserva-o em pesquisa, etiquetas, carregamento de outras páginas e atualizações SSE, e repõe a paginação quando o filtro muda. Um recibo válido de «Marcar como lida» remove localmente a conversa da lista filtrada. **Sem migração adicional** e sem qualquer envio externo.
+
+**CI funcional:** [38033475606](https://github.com/HernanyManuel/Melissa/actions/runs/38033475606) integralmente verde (backend PostgreSQL/RLS + worker, Flutter analyze/test/build web, Compose). Testes verificam isolamento por operador, valores inválidos, pesquisas e etiquetas, leitura explícita e 51 conversas lidas antes de uma não lida, impedindo filtros incorretos feitos após paginação. [ADR-091](decisions/ADR-091-actor-unread-only-inbox-filter.md).
+
+**Limites:** as não lidas são eventos recebidos ainda não confirmados, e não a garantia de que o operador nunca os viu. O conjunto pode mudar entre páginas perante leitura/eventos simultâneos. Continuam por implementar preferências de notificação, triagem por atribuição de staff e políticas operacionais de retenção; sem merge/deploy ou WhatsApp live.
+
 ## Atualização Phase 8 — Filtragem do inbox por etiqueta
 
 O inbox suporta agora `GET /tenants/:tenantId/conversations?tagId=<uuid>&q=<texto>&after=<uuid>` com filtro por etiqueta aplicado na base de dados, juntamente com a pesquisa e a paginação de 50 conversas. Uma etiqueta tem de existir no tenant autorizado; o cursor também tem de referir uma conversa com essa etiqueta. `GET /tenants/:tenantId/conversation-tags` fornece o catálogo de leitura (até 100 nomes e IDs), com permissão `messages:read`. A relação Prisma utiliza as FKs já existentes da migração 61, sem alteração do schema SQL ou do health check.
