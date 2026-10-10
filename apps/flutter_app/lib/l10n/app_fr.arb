@@ -196,5 +196,11 @@
   "inboxInternalNoteUncertain": "Confirmation incertaine. La nouvelle tentative conserve la même note et clé.",
   "inboxTags": "Étiquettes",
   "inboxNewTag": "Nouvelle étiquette",
-  "inboxCreateTag": "Créer une étiquette"
+  "inboxCreateTag": "Créer une étiquette",
+  "inboxCustomerProfile": "Profil client",
+  "inboxCustomerPhone": "Téléphone",
+  "inboxCustomerEmail": "E-mail",
+  "inboxCustomerLanguage": "Langue",
+  "inboxCustomerConsent": "Consentement WhatsApp",
+  "inboxCustomerNotes": "Notes client"
 }
