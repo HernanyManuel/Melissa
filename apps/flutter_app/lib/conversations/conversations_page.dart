@@ -493,8 +493,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
         ),
         if (selectedTagId != null)
           TextButton(onPressed: () => chooseTag(null), child: Text(l.inboxAllTags)),
-        DropdownButton<String>(
+        SizedBox(width: 264, child: DropdownButton<String>(
           key: const Key('inbox-filter-assignment'),
+          isExpanded: true,
           value: assignmentFilter,
           items: [
             DropdownMenuItem(value: 'all', child: Text(l.inboxAssignmentAll)),
@@ -506,7 +507,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
             setState(() => assignmentFilter = value);
             load();
           },
-        ),
+        )),
         FilterChip(
           key: const Key('inbox-filter-unread'),
           label: Text(l.inboxUnreadOnly),
