@@ -426,6 +426,8 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
 
     // Page selection is before LIMIT: 51 read conversations preceding the
     // one unread conversation must not hide it from the first unread page.
+    const lastUnreadCursor = (await list(owner.access_token))?.unreadUpTo;
+    assert(lastUnreadCursor);
     const readCustomers = Array.from({ length: 51 }, (_, index) => ({
       tenantId: tenant.id,
       id: randomUUID(),
@@ -448,7 +450,7 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
     assert.equal(unreadAfterReadRows.items[0]?.unreadCount, 1);
 
     assert.equal(
-      (await call('POST', readPath, { upTo: '7' }, owner.access_token)).status,
+      (await call('POST', readPath, { upTo: lastUnreadCursor }, owner.access_token)).status,
       200,
     );
     assert.deepEqual((await unreadPage(owner.access_token)).items, []);
