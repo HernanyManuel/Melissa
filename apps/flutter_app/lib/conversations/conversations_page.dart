@@ -30,6 +30,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   final search = TextEditingController();
   String searchQuery = '';
   String? selectedTagId;
+  bool unreadOnly = false;
   List<Map<String, dynamic>> availableTags = [];
   bool tagFilterOpen = false;
   bool tagsLoading = false;
@@ -78,6 +79,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       streamRevoked = false;
       search.clear(); searchQuery = '';
       tagsGeneration++; availableTags = []; selectedTagId = null;
+      unreadOnly = false;
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       messageGeneration++;
       conversations = []; messages = []; selected = null;
@@ -125,6 +127,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     setState(() {
       conversations = [];
       availableTags = []; selectedTagId = null; tagsGeneration++;
+      unreadOnly = false;
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       newInboundAlerts.clear();
       selected = null;
@@ -208,6 +211,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final tenant = widget.tenantId;
     final searchAtStart = searchQuery;
     final tagAtStart = selectedTagId;
+    final unreadAtStart = unreadOnly;
     final listPages = ((conversations.length + 49) ~/ 50).clamp(1, 10);
     final messagePages = ((messages.length ~/ 50) + 1).clamp(1, 10);
     try {
@@ -217,6 +221,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
         final params = <String, String>{
           if (searchAtStart.isNotEmpty) 'q': searchAtStart,
           if (tagAtStart != null) 'tagId': tagAtStart,
+          if (unreadAtStart) 'unreadOnly': 'true',
           if (after != null) 'after': after,
         };
         final suffix = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
@@ -250,7 +255,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (!mounted || streamVersion != streamGeneration ||
           refreshVersion != refreshGeneration ||
           listVersion != listGeneration || searchAtStart != searchQuery ||
-          tagAtStart != selectedTagId || tenant != widget.tenantId) {
+          tagAtStart != selectedTagId || unreadAtStart != unreadOnly ||
+          tenant != widget.tenantId) {
         return;
       }
       refreshAttempts = 0;
@@ -342,10 +348,21 @@ class _ConversationsPageState extends State<ConversationsPage> {
     load(); // Filter change starts at page one, never reuses a stale cursor.
   }
 
+  void chooseUnreadOnly(bool value) {
+    if (unreadOnly == value) return;
+    setState(() {
+      unreadOnly = value;
+      newInboundAlerts.clear();
+      changedConversations.clear();
+    });
+    load(); // Filter change resets the cursor and any selection.
+  }
+
   Future<void> load({bool more = false}) async {
     final generation = ++listGeneration;
     final params = <String, String>{if (searchQuery.isNotEmpty) 'q': searchQuery,
       if (selectedTagId != null) 'tagId': selectedTagId!,
+      if (unreadOnly) 'unreadOnly': 'true',
       if (more && conversationNext != null) 'after': conversationNext!};
     final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
     setState(() { loading = true; listError = false;
@@ -420,6 +437,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
         }).toList();
         if (selected?['unreadUpTo'] == upTo) {
           selected = {...selected!, 'unreadCount': 0};
+          if (unreadOnly) conversations.removeWhere((row) => row['id'] == id);
         }
       });
     } catch (_) {
@@ -470,6 +488,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
         ),
         if (selectedTagId != null)
           TextButton(onPressed: () => chooseTag(null), child: Text(l.inboxAllTags)),
+        FilterChip(
+          key: const Key('inbox-filter-unread'),
+          label: Text(l.inboxUnreadOnly),
+          selected: unreadOnly,
+          onSelected: loading ? null : chooseUnreadOnly,
+        ),
       ]),
       if (tagFilterOpen) SizedBox(height: 92, child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 12),
