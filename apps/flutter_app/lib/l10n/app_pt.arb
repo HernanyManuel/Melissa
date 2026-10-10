@@ -196,5 +196,11 @@
   "inboxInternalNoteUncertain": "Não foi possível confirmar. Repetir mantém a mesma nota e chave.",
   "inboxTags": "Etiquetas",
   "inboxNewTag": "Nova etiqueta",
-  "inboxCreateTag": "Criar etiqueta"
+  "inboxCreateTag": "Criar etiqueta",
+  "inboxCustomerProfile": "Perfil do cliente",
+  "inboxCustomerPhone": "Telefone",
+  "inboxCustomerEmail": "Email",
+  "inboxCustomerLanguage": "Idioma",
+  "inboxCustomerConsent": "Consentimento WhatsApp",
+  "inboxCustomerNotes": "Notas do cliente"
 }
