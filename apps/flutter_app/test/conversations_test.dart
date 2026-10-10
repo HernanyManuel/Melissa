@@ -96,6 +96,63 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('unread-only filter keeps search, tag, and cursor and resets on toggle', (tester) async {
+    final requests = <Uri>[];
+    final api = client((r) async {
+      if (r.url.path.endsWith('/conversation-tags')) {
+        return http.Response(jsonEncode({'items': [
+          {'id': 'tag-1', 'name': 'Urgente'},
+        ]}), 200);
+      }
+      if (r.url.path.endsWith('/conversations')) {
+        requests.add(r.url);
+        if (r.url.queryParameters['unreadOnly'] == 'true') {
+          if (r.url.queryParameters['after'] == 'cursor') {
+            return page([conversation('segunda')]);
+          }
+          return page([conversation('primeira')], 'cursor');
+        }
+        return page([conversation('todas')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(find.text('Cliente todas'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('inbox-filter-unread')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    expect(find.text('Cliente primeira'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-tags')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-tag-1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'A & B');
+    await tester.tap(find.text('Pesquisar'));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    expect(requests.last.queryParameters['tagId'], 'tag-1');
+    expect(requests.last.queryParameters['q'], 'A & B');
+    await tester.ensureVisible(find.text('Carregar mais'));
+    await tester.tap(find.text('Carregar mais'));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['after'], 'cursor');
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    expect(requests.last.queryParameters['tagId'], 'tag-1');
+    expect(requests.last.queryParameters['q'], 'A & B');
+
+    await tester.tap(find.byKey(const Key('inbox-filter-unread')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters.containsKey('unreadOnly'), false);
+    expect(requests.last.queryParameters.containsKey('after'), false);
+    expect(requests.last.queryParameters['tagId'], 'tag-1');
+    expect(requests.last.queryParameters['q'], 'A & B');
+    expect(find.text('Cliente todas'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('empty conversations and failed refresh offer recovery', (tester) async {
     var fail = true;
     final api = client((_) async => fail ? http.Response('{}', 403) : page([]));
