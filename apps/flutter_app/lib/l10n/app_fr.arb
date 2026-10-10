@@ -202,5 +202,7 @@
   "inboxCustomerEmail": "E-mail",
   "inboxCustomerLanguage": "Langue",
   "inboxCustomerConsent": "Consentement WhatsApp",
-  "inboxCustomerNotes": "Notes client"
+  "inboxCustomerNotes": "Notes client",
+  "inboxTagFilter": "Filtrer par étiquette",
+  "inboxAllTags": "Toutes les étiquettes"
 }
