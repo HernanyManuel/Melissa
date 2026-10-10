@@ -202,5 +202,7 @@
   "inboxCustomerEmail": "Correo electrónico",
   "inboxCustomerLanguage": "Idioma",
   "inboxCustomerConsent": "Consentimiento de WhatsApp",
-  "inboxCustomerNotes": "Notas del cliente"
+  "inboxCustomerNotes": "Notas del cliente",
+  "inboxTagFilter": "Filtrar por etiqueta",
+  "inboxAllTags": "Todas las etiquetas"
 }
