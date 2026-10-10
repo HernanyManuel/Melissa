@@ -212,7 +212,7 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     const catalog = await data<{ items: { id: string; name: string }[] }>(
       await call('GET', tagPath, undefined, owner.access_token), 200,
     );
-    assert.deepEqual(catalog.items, [createdTag.item]);
+    assert.deepEqual(catalog.items, [{ id: createdTag.item.id, name: createdTag.item.name }]);
     assert.equal((await call('GET', tagPath, undefined, foreign.access_token)).status, 404);
     const filteredPath = `/tenants/${tenant.id}/conversations?tagId=${createdTag.item.id}`;
     const filtered = await data<{ items: { id: string }[]; next: string | null }>(
