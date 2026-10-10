@@ -209,6 +209,38 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     );
     assert.equal(tags.available[0]?.id, createdTag.item.id);
     assert.deepEqual(tags.applied, [createdTag.item.id]);
+    const catalog = await data<{ items: { id: string; name: string }[] }>(
+      await call('GET', tagPath, undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(catalog.items, [createdTag.item]);
+    assert.equal((await call('GET', tagPath, undefined, foreign.access_token)).status, 404);
+    const filteredPath = `/tenants/${tenant.id}/conversations?tagId=${createdTag.item.id}`;
+    const filtered = await data<{ items: { id: string }[]; next: string | null }>(
+      await call('GET', filteredPath, undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(filtered.items.map((item) => item.id), [conversationId]);
+    assert.equal(filtered.next, null);
+    assert.equal((await data<{ items: unknown[] }>(
+      await call('GET', filteredPath + '&q=not-matching', undefined, owner.access_token),
+      200,
+    )).items.length, 0);
+    assert.equal((await data<{ items: { id: string }[] }>(
+      await call('GET', filteredPath + '&q=Control', undefined, owner.access_token),
+      200,
+    )).items[0]?.id, conversationId);
+    assert.equal((await call('GET', filteredPath, undefined, foreign.access_token)).status, 404);
+    assert.equal((await call('GET',
+      `/tenants/${tenant.id}/conversations?tagId=invalid`, undefined,
+      owner.access_token)).status, 400);
+    assert.equal((await call('GET',
+      `/tenants/${tenant.id}/conversations?tagId=${randomUUID()}`, undefined,
+      owner.access_token)).status, 404);
+    assert.deepEqual(
+      (await data<{ items: unknown[] }>(
+        await call('GET', filteredPath + `&after=${conversationId}`, undefined,
+          owner.access_token), 200,
+      )).items, [],
+    );
     assert.deepEqual(
       await data<{ attached: boolean; duplicate: boolean }>(
         await call('DELETE', appliedPath + '/' + createdTag.item.id, undefined,
@@ -219,6 +251,9 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     assert.equal((await admin.conversationTagLink.count({
       where: { tenantId: tenant.id, conversationId },
     })), 0);
+    assert.deepEqual((await data<{ items: unknown[] }>(
+      await call('GET', filteredPath, undefined, owner.access_token), 200,
+    )).items, []);
     assert.equal((await admin.auditEvent.count({
       where: { tenantId: tenant.id, action: 'conversation.tag_attached' },
     })), 1);
