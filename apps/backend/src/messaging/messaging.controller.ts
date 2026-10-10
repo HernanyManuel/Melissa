@@ -74,10 +74,7 @@ export class MessagingController {
 
   @Get('conversation-tags')
   @ApiOperation({ summary: 'List tenant-local tags for inbox filtering (up to 100)' })
-  tagsCatalog(
-    @Req() req: AuthRequest,
-    @Param('tenantId', ParseUUIDPipe) tenant: string,
-  ) {
+  tagsCatalog(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenant: string) {
     return this.messaging.conversationTagsCatalog(req.actor, tenant);
   }
 
