@@ -202,5 +202,7 @@
   "inboxCustomerEmail": "E-Mail",
   "inboxCustomerLanguage": "Sprache",
   "inboxCustomerConsent": "WhatsApp-Einwilligung",
-  "inboxCustomerNotes": "Kundennotizen"
+  "inboxCustomerNotes": "Kundennotizen",
+  "inboxTagFilter": "Nach Label filtern",
+  "inboxAllTags": "Alle Labels"
 }
