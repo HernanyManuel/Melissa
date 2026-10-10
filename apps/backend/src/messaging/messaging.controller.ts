@@ -62,6 +62,16 @@ export class MessagingController {
   ) {
     return this.messaging.conversations(req.actor, tenant, page);
   }
+  @Get('conversations/:id/customer')
+  @ApiOperation({ summary: 'Read the authorized customer profile for one conversation' })
+  conversationCustomer(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.messaging.conversationCustomer(req.actor, tenant, id);
+  }
+
   @Get('conversations/:id/tags')
   @ApiOperation({ summary: 'List tenant tags and tags applied to this conversation' })
   conversationTags(
