@@ -108,7 +108,9 @@ class _ConversationInternalNotesState extends State<ConversationInternalNotes> {
           {'requestId': requestId, 'text': text}, false) as Map<String, dynamic>;
       if (!mounted || submitGeneration != generation ||
           submitTenant != widget.tenantId ||
-          submitConversation != widget.conversationId) return;
+          submitConversation != widget.conversationId) {
+        return;
+      }
       final item = receipt['item'];
       if (item is! Map<String, dynamic> || item['id'] is! String ||
           item['text'] != text) {
