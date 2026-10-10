@@ -1,5 +1,157 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Consentimento de marketing no painel do cliente
+
+O painel do cliente no inbox apresenta agora o campo **`marketingConsentStatus`** já existente no endpoint autorizado `GET /tenants/:tenantId/conversations/:id/customer`, com rótulo localizado em pt/en/es/fr/it/de. O campo é estritamente de consulta: o Flutter não altera o consentimento, não faz pedidos de envio, não apresenta a informação como uma autorização de marketing e não cria rotas adicionais. O teste do painel valida a renderização do valor e a ausência de chamadas ao endpoint de mensagens.
+
+Esta alteração é apenas de Flutter/testes/localização; **não requer migração Prisma**, nem modificações de permissões. O endpoint continua a aplicar `customers:read` e o isolamento por tenant preexistentes. Mantêm-se pendentes gestão formal de consentimentos, política de dados pessoais, notificações fora da aplicação e E2E com Meta real; sem merge, deploy nem ativação de WhatsApp live.
+
+## Atualização Phase 8 — Triagem por atribuição de colaborador
+
+A listagem de conversas aceita o parâmetro opcional `assignment=all|mine|unassigned`. O backend filtra `mine` pelos registos `staff.user_id` vinculados **ao ator autenticado** (nunca a um ID arbitrário enviado pelo cliente); `unassigned` seleciona conversas sem colaborador atribuído. Em ambos os caminhos de consulta, incluindo `unreadOnly=true`, os filtros são aplicados **antes** do limite de paginação. São compatíveis com pesquisa, etiquetas, `unreadOnly` e cursor, sob as permissões e RLS existentes.
+
+O Flutter inclui um seletor nas seis línguas pt/en/es/fr/it/de, conserva a opção nas atualizações SSE e repõe a paginação ao mudar de filtro. Mudança de tenant ou revogação limpa a seleção. Os testes verificam isolamento entre operadores, validação de parâmetros, composição com não lidas e comportamento do seletor numa barra lateral de largura limitada.
+
+**CI funcional:** [38074683215](https://github.com/HernanyManuel/Melissa/actions/runs/38074683215), **integralmente verde** (backend com PostgreSQL/RLS/worker, Flutter analyze/test/build web e Compose). [ADR-092](decisions/ADR-092-inbox-assignment-triage-filter.md).
+
+**Limites:** este é um filtro de visualização, não uma regra de autorização nem um comando para modificar a atribuição. A relação staff/utilizador depende de `staff.user_id` no tenant. Sem migração adicional, notificações do sistema, merge, deploy ou WhatsApp live.
+
+## Atualização Phase 8 — Proteção contra recibos atrasados de notas internas
+
+O widget de notas internas impede agora que uma resposta HTTP a um `POST` iniciado numa conversa ou tenant anterior limpe o rascunho, o estado de erro ou o estado de envio da conversa atualmente aberta. O pedido mantém a chave idempotente original, mas o recibo só é aplicado se a geração e os identificadores do tenant/conversa continuarem iguais; ao mudar de contexto, o estado de envio e o conteúdo pendente são repostos exclusivamente no contexto novo. O teste Flutter `late note receipt cannot clear another conversation draft` simula um POST lento, muda de tenant e só depois recebe o resultado anterior.
+
+Esta alteração não cria novos endpoints, não altera o esquema SQL nem envia mensagens ao cliente. O PR continua em draft, sem merge, deploy ou WhatsApp live.
+
+## Atualização Phase 8 — Filtro «Só não lidas» por operador
+
+O inbox permite agora `GET /tenants/:tenantId/conversations?unreadOnly=true`, opcionalmente combinado com `q`, `tagId` e `after`. A seleção dos IDs de conversas que têm eventos `message.received` posteriores ao `last_read_sequence` **do operador autenticado** ocorre no backend e antes do limite de paginação. O SQL é parametrizado, executa-se sob as permissões e RLS do tenant e não recebe `actorId` do cliente. `unreadOnly=false` ou parâmetro omitido conservam o comportamento anterior; valores inválidos são rejeitados.
+
+O Flutter oferece o `FilterChip` «Só não lidas» em seis idiomas, preserva-o em pesquisa, etiquetas, carregamento de outras páginas e atualizações SSE, e repõe a paginação quando o filtro muda. Um recibo válido de «Marcar como lida» remove localmente a conversa da lista filtrada. **Sem migração adicional** e sem qualquer envio externo.
+
+**CI funcional:** [38033475606](https://github.com/HernanyManuel/Melissa/actions/runs/38033475606) integralmente verde (backend PostgreSQL/RLS + worker, Flutter analyze/test/build web, Compose). Testes verificam isolamento por operador, valores inválidos, pesquisas e etiquetas, leitura explícita e 51 conversas lidas antes de uma não lida, impedindo filtros incorretos feitos após paginação. [ADR-091](decisions/ADR-091-actor-unread-only-inbox-filter.md).
+
+**Limites:** as não lidas são eventos recebidos ainda não confirmados, e não a garantia de que o operador nunca os viu. O conjunto pode mudar entre páginas perante leitura/eventos simultâneos. Continuam por implementar preferências de notificação, triagem por atribuição de staff e políticas operacionais de retenção; sem merge/deploy ou WhatsApp live.
+
+## Atualização Phase 8 — Filtragem do inbox por etiqueta
+
+O inbox suporta agora `GET /tenants/:tenantId/conversations?tagId=<uuid>&q=<texto>&after=<uuid>` com filtro por etiqueta aplicado na base de dados, juntamente com a pesquisa e a paginação de 50 conversas. Uma etiqueta tem de existir no tenant autorizado; o cursor também tem de referir uma conversa com essa etiqueta. `GET /tenants/:tenantId/conversation-tags` fornece o catálogo de leitura (até 100 nomes e IDs), com permissão `messages:read`. A relação Prisma utiliza as FKs já existentes da migração 61, sem alteração do schema SQL ou do health check.
+
+O Flutter permite abrir o filtro, escolher uma etiqueta ou regressar a «Todas as etiquetas», mantendo o filtro em pesquisas, carregamento de outras páginas e atualizações SSE. Mudar de etiqueta reinicia a paginação; mudar de tenant ou perder acesso limpa o estado. Testes HTTP verificam catálogo, validação de UUID, etiqueta inexistente, isolamento, composição com pesquisa e remoção do vínculo. Teste Flutter valida seleção, pesquisa, paginação e reposição do filtro.
+
+**CI funcional:** [38030981789](https://github.com/HernanyManuel/Melissa/actions/runs/38030981789) integralmente verde (backend PostgreSQL/RLS e worker, Flutter analyze/test/build web, Compose). [ADR-090](decisions/ADR-090-inbox-tag-filter.md).
+
+**Limites:** só uma etiqueta de cada vez, catálogo até 100 sem paginação; o filtro não confere acesso a conversas de outros tenants nem substitui a gestão de atribuições. Sem merge, deploy ou WhatsApp live.
+
+## Atualização Phase 8 — Etiquetas de conversas por tenant
+
+A migração **61** introduz `conversation_tags` e `conversation_tag_links`, com RLS por tenant, referências compostas para impedir associações entre tenants, criação de etiquetas imutáveis (sem UPDATE/DELETE do catálogo pelo runtime) e associação/remoção idempotente sujeita a `conversations:takeover`. A consulta de etiquetas requer `messages:read`; audit events registam a alteração sem conteúdo de mensagens. Endpoints: `POST /conversation-tags`, `GET /conversations/:id/tags`, `POST/DELETE /conversations/:id/tags/:tagId`.
+
+O Flutter oferece um painel de etiquetas no cabeçalho da conversa para evitar sobrecarga da vista de histórico. A criação, associação e remoção não chamam `/messages` nem criam dispatches. As etiquetas estão localizadas em pt/en/es/fr/it/de. Testes HTTP cobrem isolamento, validação de nomes, repetição, associação, remoção e auditoria; o teste Flutter verifica alterações sucessivas e ausência de envio.
+
+**Validação:** [CI 37998320646](https://github.com/HernanyManuel/Melissa/actions/runs/37998320646) **integralmente verde** (backend com PostgreSQL/RLS e testes de integração, Flutter analyze/test/build web e Compose), após o ajuste do painel de etiquetas e do estado ocupado entre operações. Uma execução anterior encontrou um teste antigo de calendário intermitente; a execução atual passou. [ADR-088](decisions/ADR-088-conversation-tenant-tags.md).
+
+**Limites:** catálogo com até 100 etiquetas listadas, sem paginação, gestão/rename de catálogo ou filtro do inbox por etiqueta. O PR mantém-se draft e não houve merge, deploy, WhatsApp live ou credenciais reais ativadas.
+
+## Atualização Phase 8 — Notas internas imutáveis
+
+A migração **60** cria `conversation_internal_notes`, isolada das mensagens recebidas/enviadas e de todos os despachos de IA e WhatsApp. FKs compostas, RLS por tenant, validação do autor e autorização `messages:read` protegem a leitura e escrita; a role runtime só recebe `SELECT` e `INSERT` limitados, sem `UPDATE` nem `DELETE`. O health check exige `schema_version=60`.
+
+A API expõe `GET/POST /conversations/:id/internal-notes`, com páginas até 50, cursor validado dentro da mesma conversa, texto entre 1 e 2 000 caracteres e UUID por tentativa. Replay com a mesma chave, conversa e texto é idempotente; reutilização com conteúdo diferente devolve 409. O evento de auditoria `conversation.internal_note_created` regista o ID sem o texto. A interface Flutter apresenta notas separadas do histórico de mensagens, sem chamar `/messages` ou acionar qualquer transporte. Após incerteza HTTP, só repete o pedido com a mesma chave e texto. Disponível em seis idiomas.
+
+[ADR-087](decisions/ADR-087-private-conversation-notes.md). Testes cobrem isolamento de tenant e papel `viewer`, idempotência, validação, auditoria, ausência de mensagens de cliente e repetição no Flutter. **CI funcional:** [37967670234](https://github.com/HernanyManuel/Melissa/actions/runs/37967670234) integralmente verde (backend com PostgreSQL/RLS e worker, Flutter analyze/test/build web, Compose).
+
+**Limites:** as notas não têm edição/remoção nem alertas SSE, e a secção exige atualização manual. Qualquer membro com `messages:read` pode consultar notas do tenant; não existem regras por atribuição. Continua por definir a política de retenção/eliminação de notas, cópias de segurança e dados pessoais. Sem merge, deploy ou ativação de WhatsApp live.
+
+## Atualização Phase 8 — Avisos visuais de novas mensagens no inbox
+
+O Flutter mostra agora um aviso transitório no topo da lista e na AppBar quando o contador `unreadCount` de uma conversa **aumenta após atualização REST autorizada** em resposta a um evento SSE. Um evento SSE isolado não basta para notificar, e a primeira listagem não gera avisos retroativos. O indicador conta **conversas com incrementos observados na sessão**, não mensagens totais por ler. Os avisos desaparecem após confirmação de leitura ou após a API indicar `unreadCount=0`; os estados são limpos na mudança de tenant ou revogação de acesso. Traduções disponíveis em pt/en/es/fr/it/de.
+
+**CI funcional:** [37960714885](https://github.com/HernanyManuel/Melissa/actions/runs/37960714885) integralmente verde (backend/integração e worker, Flutter analyze/test/build web, Compose), com teste Flutter de novo aviso confirmado por REST e remoção após «Marcar como lida». [ADR-086](decisions/ADR-086-inbox-verified-in-app-alerts.md).
+
+**Limites:** apenas UI da sessão atual; não há push, notificações do navegador, sons, e-mail ou alertas fora do inbox. Só são contabilizadas conversas carregadas no filtro/páginas visíveis. A funcionalidade não exige migração nova, merge, deploy ou ativação do WhatsApp live.
+
+## Atualização Phase 8 — Inbox com mensagens não lidas por operador
+
+A migração **59** criou `inbox_read_cursors` com isolamento RLS por **tenant e ator**, e o health check exige `schema_version=59`. A listagem de conversas calcula `unreadCount` e `unreadUpTo` apenas com eventos duráveis `message.received`, sem examinar o conteúdo das mensagens. O `POST /conversations/:id/read` exige permissão `messages:read`, aceita `{upTo: "42"}`, valida que o número é um evento de entrada na mesma conversa e avança o cursor idempotente/monotonicamente; qualquer mensagem posterior permanece não lida. O avanço publica um evento SSE `conversation.read` (sem texto/ator no payload) para atualização de outros separadores.
+
+O Flutter mostra badges nas conversas com mensagens não lidas e disponibiliza «Marcar como lida» **explicitamente** após carregar o histórico, nunca automaticamente ao abrir uma página de mensagens que pode estar incompleta. Testes HTTP/RLS validam o isolamento entre operadores e tenants, exclusão de eventos de saída, rejeição de cursores inválidos, replay idempotente e novas entradas; teste Flutter cobre badge e ação de leitura.
+
+**CI funcional:** [37953921259](https://github.com/HernanyManuel/Melissa/actions/runs/37953921259) **integralmente verde** (backend com PostgreSQL/worker, Flutter analyze/test/build web, Compose). [ADR-085](decisions/ADR-085-operator-scoped-unread-inbox.md).
+
+**Limites:** contagem de eventos recebidos ainda por confirmar pelo operador, não garantia de visualização ou tratamento; abrir histórico paginado não marca automaticamente. Sem notificações browser/push/sonoras, preferências de alertas, notas/tags ou painel completo de cliente. Sem ativar WhatsApp live, merge, deploy ou E2E Meta real. Permanecem as restrições de retenção de ADR-084.
+
+## Atualização Phase 8 — Expurgo do texto de preparações humanas
+
+A migração **58** introduz `human_outbound_intents.redacted_at`, um marcador de expurgo `[redacted]` e uma trigger PostgreSQL que rejeita alterações arbitrárias de texto, reversão de expurgo ou expurgo de qualquer intenção com dispatch. Ao **abandonar** uma preparação, o backend substitui o texto e guarda a data de expurgo na mesma transação, mantendo o identificador e metadados para impedir reenvio. O `GET /manual-replies/latest` devolve `text:null` para intenções expurgadas; o Flutter mostra o estado terminal sem revelar texto nem permitir envio automático.
+
+A rotina administrativa `pnpm --filter @melissa/backend privacy:redact-manual-preparations` faz simulação por defeito, com contagens sem texto; só o argumento `--apply` expurga até **500** preparações elegíveis por execução, usando `MIGRATION_DATABASE_URL`, bloqueios `FOR UPDATE SKIP LOCKED` e exclusão de dispatch existente. A migração trata também as preparações já expiradas/abandonadas na data de aplicação. Ver [ADR-084 e procedimento operacional](decisions/ADR-084-human-reply-content-redaction.md).
+
+**CI funcional:** [37942049114](https://github.com/HernanyManuel/Melissa/actions/runs/37942049114) integralmente verde (backend PostgreSQL/RLS/worker, Flutter analyze/test/build web, Compose) no commit `80b933132ca38efa2f87b3100b961026dbce2754`. Os testes abrangem expurgo no abandono, expiração em lote, ausência de despacho, `text:null`, e trigger recusando expurgo de uma resposta antiga com dispatch.
+
+**Limites:** o comando de expurgo de expirados **não é automático**; requer operação controlada. A linha ativa já não guarda o texto após expurgo, mas versões MVCC, WAL, backups, logs e sistemas externos podem manter cópias; não se declara eliminação forense. Intenções despachadas e clientes legados com POST direto mantêm a sua retenção/semântica atuais. Continuam pendentes política de backups, notificações, unread, notas/tags, painel completo do cliente e E2E Meta real. Sem merge/deploy nem ativação de worker live.
+
+## Atualização Phase 8 — Expiração e abandono de preparações humanas
+
+Uma resposta preparada no servidor, mas ainda **sem registo de despacho**, tem agora validade de **24 horas** desde `created_at`: `GET /manual-replies/latest` e replay de `POST /manual-replies/prepare` devolvem `expired` após o prazo, e qualquer confirmação `POST /messages` dessa preparação é recusada com 409. O novo `POST /manual-replies/abandon` aceita `{requestId}`, é idempotente e opera apenas sobre intenções do operador autenticado e do tenant/conversa autorizados. Não pode abandonar nem cancelar mensagens que já possuam dispatch. A migração **57** introduz `abandoned_at`, concedendo à role runtime UPDATE apenas sobre essa coluna, e o health check passa a validar a versão 57.
+
+O Flutter apresenta `prepared/expired/abandoned`, disponibiliza «Abandonar preparação» apenas no estado preparado e permite iniciar uma nova resposta após abandono ou expiração, sem envio automático. Ver [ADR-083](decisions/ADR-083-prepared-human-reply-expiry-and-abandonment.md). O workflow funcional [37916802403](https://github.com/HernanyManuel/Melissa/actions/runs/37916802403) **passou integralmente** no commit `7fda06b28b0078b7f1a49d8384bbd3063625e3cf`: backend com migrations/RLS e integração, Flutter analyze/test/build web, Docker Compose.
+
+**Limites:** a expiração é calculada em leitura/confirmação, não por tarefa agendada; uma página aberta pode mostrar estado antigo até refresh, mas o servidor impede confirmação fora do prazo. Abandonar ou expirar não elimina fisicamente texto sensível: retenção/purga segura continua pendente. Clientes legados com POST direto mantêm o comportamento de envio imediato; o worker WhatsApp live continua desativado por defeito. Não houve merge/deploy, nem E2E Meta real. Outras prioridades: notificações, unread, notas/tags, painel de cliente e gate P7 Google Calendar.
+
+## Atualização Phase 8 — Preparação durável antes da confirmação humana
+
+O Flutter passou a preparar respostas humanas através do novo `POST /api/v1/tenants/:tenantId/conversations/:id/manual-replies/prepare`: o backend guarda `requestId` e texto no `human_outbound_intents` sob RLS/permissão `conversations:reply`, **sem criar dispatch e sem possibilidade de o worker enviar esse registo**. Uma confirmação explícita por `POST /conversations/:id/messages` reutiliza o mesmo par idempotente, revalida modo `HUMAN_ACTIVE`, atribuição, canal WhatsApp live e `mode_epoch`, e só então cria o despacho. O GET de reconciliação passa a reconhecer `state: prepared` e o Flutter mostra a preparação recuperada após reload, sem enviar automaticamente. Ver [ADR-082](decisions/ADR-082-durable-manual-reply-preparation.md).
+
+O workflow [37899957749](https://github.com/HernanyManuel/Melissa/actions/runs/37899957749) passou integralmente no commit funcional `49d292258c509886cd8bf6c70df26fb4266eb1bc`: backend/integração PostgreSQL/RLS, Compose, Flutter analyze/test/build web. Testes cobrem ausência de dispatch após preparação, repetição idempotente, promoção explícita, rejeição após reativação da IA e recuperação de uma preparação após reload.
+
+**Limitações:** clientes legados que chamam diretamente `POST /messages` ainda não beneficiam da preparação prévia; preparações nunca confirmadas requerem política de retenção/abandono; o GET consulta apenas a última intenção do ator. A segurança de reload aplica-se ao novo percurso Flutter, não a todas as formas de envio. Faltam notificações, unread, notas/tags, painel completo do cliente e E2E Meta real. Não houve merge/deploy nem ativação dos workers live; o gate P7 Google Calendar continua aberto.
+
+## Atualização Phase 8 — Recuperação de resposta manual persistida após reload
+
+A UI Flutter reconcilia agora a última resposta manual **do operador autenticado** através de `GET /api/v1/tenants/:tenantId/conversations/:id/manual-replies/latest`. O endpoint read-only usa scope de tenant, permissão `conversations:reply` e filtro por ator, devolvendo `{item:null}` ou a intenção original (`intentId`, `requestId`, texto, estado e data). Um dispatch ausente e inconsistente gera erro 503. O Flutter recupera `pending/accepted/rejected/failed` após reload **sem reenviar automaticamente** e consulta este endpoint quando um POST termina com resultado incerto. Se a consulta inicial falhar, bloqueia novas respostas até conseguir verificar. O retry ainda em memória conserva a chave e texto exatos. Ver [ADR-081](decisions/ADR-081-manual-reply-reconciliation-after-reload.md).
+
+O workflow [37897525313](https://github.com/HernanyManuel/Melissa/actions/runs/37897525313) passou integralmente no commit funcional `b10ec6dc598ebfbfea73b11f35a73c969693743e`: backend com migrations, formatter, lint, typecheck, testes unitários e integração HTTP/PostgreSQL/RLS, worker/Redis recovery, OpenAPI, Compose e Flutter analyze/test/build web. Os novos testes cobrem ausência e recuperação do registo, isolamento cross-tenant e entre atores, bloqueio de colaborador não atribuído (403), atualização do estado do dispatch, reload sem novo POST e 503 reconciliado em GET.
+
+**Limite essencial:** só se consegue restaurar uma resposta já persistida. Um GET vazio **não** prova que um POST incerto em trânsito nunca será guardado; se o reload perdeu uma chave ainda não persistida, o operador deve verificar manualmente antes de qualquer nova tentativa. Não se guarda texto no storage do navegador, nem se confunde aceitação pelo provider com entrega. Restam recuperação segura da chave ainda não persistida, notificações, unread count, notas/tags, painel completo de cliente, E2E WhatsApp live e gate P7 Google Calendar real. Não houve merge/deploy.
+
+## Atualização Phase 8 — Inbox Flutter com SSE/replay e refresh REST
+
+A UI de conversas subscreve agora `GET /api/v1/tenants/:tenantId/inbox/events` através de um stream SSE autenticado, validando eventos mínimos e sequência monotónica por tenant. Na reconexão envia o último cursor via `Last-Event-ID`/`after`, ignora replay duplicado e aplica backoff. Mudança de tenant ou revogação de acesso cancela a subscrição e descarta o estado sensível.
+
+Cada evento força uma nova leitura REST autorizada: a lista e o histórico da conversa selecionada atualizam sem trocar a seleção. Eventos são agrupados, refreshes REST serializados por tenant e a lista de IDs afetados é preservada para retry após falhas temporárias. Um teste específico prova que a chegada de dois eventos durante uma consulta REST lenta não perde a segunda atualização. Ver [ADR-080](decisions/ADR-080-flutter-inbox-sse-replay.md).
+
+O workflow [37849570752](https://github.com/HernanyManuel/Melissa/actions/runs/37849570752) passou integralmente no commit funcional `84fca5867ca0034db9a6fd7bbfb643b444052b3e`: Flutter analyze/test/build web, backend e Docker Compose. O workflow [37846050931](https://github.com/HernanyManuel/Melissa/actions/runs/37846050931) já tinha validado os testes de parser, cursor, autenticação, replay, reconexão, atualização e troca de tenant.
+
+Continuam por implementar: persistência de cursor entre sessões, reconciliação/recuperação da chave de retry de resposta manual após reload, notificações, unread count, notas/tags, painel de cliente completo e E2E real. As leituras de histórico já paginado estão limitadas à profundidade carregada (máximo de 10 páginas nesta fatia), sem snapshot transacional global. Não houve validação com provider WhatsApp live, merge ou deploy; o gate externo P7 para credenciais reais Google Calendar continua aberto.
+
+## Atualização Phase 8 — Primeira fatia de UI Flutter para controlo humano
+
+A interface de conversas inclui agora `ConversationHumanControls`, com indicação do modo, seleção de colaborador ativo, takeover, reativação da IA e fecho. Para conversas `HUMAN_ACTIVE` atribuídas e em canal WhatsApp live, há composer ligado a `POST /api/v1/tenants/:tenantId/conversations/:id/messages`; respostas incertas podem ser repetidas explicitamente com o mesmo `requestId` e o mesmo texto, sem criar uma nova intenção. Um resultado `pending` representa fila durável, `accepted` apenas aceitação pelo provider, nunca entrega. Ver [ADR-079](decisions/ADR-079-incremental-flutter-inbox-controls.md).
+
+O workflow [37844039975](https://github.com/HernanyManuel/Melissa/actions/runs/37844039975) ficou integralmente verde no commit `e1327e8c43b234db270241b8aee1c7495a91a9d3`: Flutter gen-l10n/analyze/test/build web, backend migrations/unitários/integração/recovery/OpenAPI/audit e Compose. Novos testes Flutter provam takeover, retry com chave/payload estáveis, fecho, bloqueio de composer em canal mock e descarte de resposta HTTP tardia após mudar de conversa. O falhanço Calendar observado no workflow documental anterior não se repetiu.
+
+A UI continua parcial: falta consumo SSE/reconnect na UI, painel de cliente, notificações, notas/tags, unread count, E2E e recuperação do requestId após navegação/reload. A chave de retry permanece apenas em memória no widget; não se deve reenviar com chave nova após um resultado incerto sem consultar o histórico/estado. Não foi validado WhatsApp live com credenciais reais, nem feito merge/deploy; o gate P7/Google Calendar real continua aberto.
+
+## Atualização Phase 8 — Resposta manual durável e fenced (schema 56)
+
+A terceira fatia do PR #7 implementa o backend de resposta humana por `POST /api/v1/tenants/:tenantId/conversations/:id/messages`. A permissão `conversations:reply` é permitida a owner/admin/manager/staff, não a viewer. O envio exige `HUMAN_ACTIVE` e atribuição válida; staff só responde pela própria identidade. O `requestId` é idempotente por tenant/ator e o HTTP 200 confirma apenas persistência da intenção, nunca a entrega. Ver [ADR-078](decisions/ADR-078-durable-fenced-human-replies.md).
+
+O schema 56 adiciona `human_outbound_intents`, `human_outbound_dispatch` e `human_outbound_dead_letters`, com RLS/grants mínimos. O dispatcher revalida modo, `mode_epoch`, atribuição e canal WhatsApp live antes de chamar o provider: reativar a IA torna obsoletas as intenções humanas anteriores. Após aceitação do provider, o backend guarda a mensagem outbound de staff e publica `message.sent` no Inbox. O worker está desligado por omissão (`HUMAN_OUTBOUND_WORKER_ENABLED=false`) e não usa fallback mock silencioso.
+
+O workflow [37842750417](https://github.com/HernanyManuel/Melissa/actions/runs/37842750417) ficou integralmente verde no commit `925f56f17066c08157ffe1d9e625ff02c5cf0eb4`. Foram validados migration/readiness schema 56, formatter, lint, typecheck, unitários, integração PostgreSQL/RLS da resposta manual (incluindo idempotência e fencing), worker real/recovery Redis, OpenAPI, audit de dependências, Compose e Flutter. O bloqueio de grant Prisma para `created_at` e campos de inicialização do dispatch foi corrigido com privilégios de coluna restritos.
+
+P8 continua incompleto: faltam UI Flutter do Inbox e composer humano, consumo SSE na UI, notificações, notas/tags e E2E. Não houve validação WhatsApp live com credenciais reais nem merge/deploy. O gate externo P7/Google Calendar continua aberto.
+
+## Atualização Phase 8 — Controlo humano + eventos real-time duráveis (schema 55)
+
+A fundação do Inbox no PR #7 inclui agora controlo humano e um feed SSE durável tenant-scoped. Schema 54 introduziu `assigned_staff_id`, `closed_at`, a permissão `conversations:takeover` e os comandos autenticados de takeover, reativação da IA e fecho. Takeover preserva o grafo `AI_ACTIVE -> WAITING_HUMAN -> HUMAN_ACTIVE`; cada mudança real de modo avança `mode_epoch`, e o dispatcher volta a verificar modo/epoch antes de qualquer envio automático. Ver [ADR-076](decisions/ADR-076-human-conversation-control.md).
+
+Schema 55 introduz `inbox_events`: log mínimo e durável com sequência monotónica por tenant. O endpoint autenticado `GET /api/v1/tenants/:tenantId/inbox/events` usa SSE, aceita cursor inicial `after` e recupera eventos perdidos através do header padrão `Last-Event-ID`. O payload real-time contém apenas tipo, conversation/message IDs e timestamp; conteúdo continua atrás dos endpoints REST existentes. Mensagens inbound, handoff da IA, takeover, reativação e fecho escrevem o evento na mesma transação da mutação original. Ver [ADR-077](decisions/ADR-077-durable-inbox-event-stream.md).
+
+A integração com PostgreSQL/RLS e worker real prova replay após reconexão, isolamento cross-tenant, validação de cursor, evento de mensagem inbound e ausência de duplicação em replay de handoff. O workflow `37700844071` ficou integralmente verde no commit `fe7e327365f680006e699db9b179b7bc90ef660d`: migrations/schema 55, formatter, lint, typecheck, unitários, integração completa, restart/Redis recovery, OpenAPI, audit de dependências de produção, Compose e Flutter.
+
+P8 continua em progresso: a resposta manual de staff já foi implementada na fatia seguinte (schema 56, descrita acima), mas faltam notificações, notas/tags e UI Inbox completa. O gate externo de P7 para Google Calendar com credenciais reais continua aberto.
+
 ## Atualização Phase 5/P7 — Rotação da chave persistente de credenciais Calendar (schema 53)
 
 A chave de encriptação persistente das credenciais Google Calendar tem agora keyring versionado: uma chave atual de escrita e chaves anteriores temporárias de leitura. Credenciais sob uma chave antiga são re-encriptadas para a chave atual durante a leitura; um sweep operacional cobre credenciais inativas através de descoberta mínima `SECURITY DEFINER`, voltando ao scope RLS do tenant para a leitura/re-encriptação real. O comando `calendar:rotate-credential-key` falha fechado quando uma chave antiga está indisponível ou a migração não converge, e o runbook preserva as chaves antigas até o sweep concluir e documenta rollback. Ver [rotação da chave Calendar](calendar-credential-key-rotation.md).

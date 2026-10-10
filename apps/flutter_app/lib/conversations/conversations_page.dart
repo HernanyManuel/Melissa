@@ -1,13 +1,26 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../identity/api.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'outbound_page.dart';
+import 'human_controls.dart';
+import 'internal_notes.dart';
+import 'customer_context.dart';
+import 'conversation_tags.dart';
+import 'inbox_events.dart';
+
+typedef InboxEventSource = Stream<InboxEvent> Function(String tenantId, String? after);
 
 class ConversationsPage extends StatefulWidget {
-  const ConversationsPage({super.key, required this.tenantId, this.api});
+  const ConversationsPage({
+    super.key, required this.tenantId, this.api,
+    this.realtimeEnabled = true, this.eventSource,
+  });
   final String tenantId;
   final IdentityApi? api;
+  final bool realtimeEnabled;
+  final InboxEventSource? eventSource;
   @override
   State<ConversationsPage> createState() => _ConversationsPageState();
 }
@@ -16,6 +29,14 @@ class _ConversationsPageState extends State<ConversationsPage> {
   late final IdentityApi api;
   final search = TextEditingController();
   String searchQuery = '';
+  String? selectedTagId;
+  bool unreadOnly = false;
+  String assignmentFilter = 'all';
+  List<Map<String, dynamic>> availableTags = [];
+  bool tagFilterOpen = false;
+  bool tagsLoading = false;
+  bool tagsError = false;
+  int tagsGeneration = 0;
   List<Map<String, dynamic>> conversations = [];
   List<Map<String, dynamic>> messages = [];
   Map<String, dynamic>? selected;
@@ -25,30 +46,328 @@ class _ConversationsPageState extends State<ConversationsPage> {
   bool reading = false;
   bool listError = false;
   bool messageError = false;
+  bool markingRead = false;
+  bool readReceiptError = false;
   int listGeneration = 0;
   int messageGeneration = 0;
+  int streamGeneration = 0;
+  int reconnectAttempts = 0;
+  int refreshGeneration = 0;
+  int refreshAttempts = 0;
+  int? activeRefreshStream;
+  bool streamRevoked = false;
+  String? eventCursor;
+  StreamSubscription<InboxEvent>? inboxSubscription;
+  Timer? reconnectTimer;
+  Timer? updateTimer;
+  Timer? refreshRetryTimer;
+  final Set<String> changedConversations = {};
+  final Set<String> newInboundAlerts = {};
   String get base => '/tenants/${widget.tenantId}/conversations';
 
   @override
-  void initState() { super.initState(); api = widget.api ?? IdentityApi(); load(); }
+  void initState() {
+    super.initState();
+    api = widget.api ?? IdentityApi();
+    load();
+    _connectInbox();
+  }
   @override
   void didUpdateWidget(covariant ConversationsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tenantId != widget.tenantId) {
+      _stopInbox();
+      streamRevoked = false;
       search.clear(); searchQuery = '';
+      tagsGeneration++; availableTags = []; selectedTagId = null;
+      unreadOnly = false; assignmentFilter = 'all';
+      tagFilterOpen = false; tagsLoading = false; tagsError = false;
       messageGeneration++;
       conversations = []; messages = []; selected = null;
+      newInboundAlerts.clear();
       conversationNext = null; messageNext = null;
       reading = false; messageError = false;
+      markingRead = false; readReceiptError = false;
       load();
+      _connectInbox();
     }
   }
   @override
-  void dispose() { search.dispose(); if (widget.api == null) api.dispose(); super.dispose(); }
+  void dispose() {
+    _stopInbox();
+    tagsGeneration++;
+    search.dispose();
+    if (widget.api == null) api.dispose();
+    super.dispose();
+  }
+
+
+  void _stopInbox() {
+    streamGeneration++;
+    refreshGeneration++;
+    activeRefreshStream = null;
+    inboxSubscription?.cancel();
+    inboxSubscription = null;
+    reconnectTimer?.cancel();
+    reconnectTimer = null;
+    updateTimer?.cancel();
+    updateTimer = null;
+    refreshRetryTimer?.cancel();
+    refreshRetryTimer = null;
+    refreshAttempts = 0;
+    changedConversations.clear();
+    newInboundAlerts.clear();
+    eventCursor = null;
+    reconnectAttempts = 0;
+  }
+
+  void _revokeInbox() {
+    _stopInbox();
+    streamRevoked = true;
+    if (!mounted) return;
+    setState(() {
+      conversations = [];
+      availableTags = []; selectedTagId = null; tagsGeneration++;
+      unreadOnly = false; assignmentFilter = 'all';
+      tagFilterOpen = false; tagsLoading = false; tagsError = false;
+      newInboundAlerts.clear();
+      selected = null;
+      messages = [];
+      conversationNext = null;
+      messageNext = null;
+      messageGeneration++;
+      listGeneration++;
+      listError = true;
+      loading = false;
+      reading = false;
+      markingRead = false;
+      readReceiptError = false;
+    });
+  }
+
+  void _connectInbox() {
+    if (!mounted || !widget.realtimeEnabled || streamRevoked) return;
+    final version = streamGeneration;
+    final events = widget.eventSource?.call(widget.tenantId, eventCursor) ??
+        watchInboxEvents(api, widget.tenantId, after: eventCursor);
+    inboxSubscription = events.listen((event) {
+      if (!mounted || version != streamGeneration || streamRevoked) return;
+      if (!validInboxCursor(event.sequence) ||
+          (eventCursor != null &&
+              BigInt.parse(event.sequence) <= BigInt.parse(eventCursor!))) {
+        return;
+      }
+      eventCursor = event.sequence;
+      reconnectAttempts = 0;
+      changedConversations.add(event.conversationId);
+      _scheduleInboxRefresh();
+    }, onError: (Object error) {
+      if (version != streamGeneration || !mounted) return;
+      if (error is ApiFailure && [401, 403, 404].contains(error.status)) {
+        _revokeInbox();
+      } else {
+        _scheduleReconnect(version);
+      }
+    }, onDone: () => _scheduleReconnect(version), cancelOnError: true);
+  }
+
+  void _scheduleReconnect(int version) {
+    if (!mounted || version != streamGeneration || streamRevoked ||
+        !widget.realtimeEnabled || reconnectTimer != null) {
+      return;
+    }
+    final seconds = 1 << (reconnectAttempts < 4 ? reconnectAttempts : 4);
+    if (reconnectAttempts < 4) reconnectAttempts++;
+    reconnectTimer = Timer(Duration(seconds: seconds), () {
+      reconnectTimer = null;
+      if (mounted && version == streamGeneration) _connectInbox();
+    });
+  }
+
+  void _scheduleInboxRefresh() {
+    if (!mounted || changedConversations.isEmpty || updateTimer != null) return;
+    updateTimer = Timer(const Duration(milliseconds: 200), () {
+      updateTimer = null;
+      _refreshFromInboxEvents();
+    });
+  }
+
+  /// SSE carries only IDs. Re-fetch through tenant-scoped REST before rendering.
+  /// Preserve selection and loaded page depth without repopulating stale tenants.
+  Future<void> _refreshFromInboxEvents() async {
+    if (!mounted || changedConversations.isEmpty || streamRevoked) return;
+    if (loading) return; // load() retries buffered events on completion.
+    // Never allow overlapping REST snapshots for this tenant to discard an
+    // earlier affected conversation. A tenant switch resets this generation.
+    if (activeRefreshStream == streamGeneration) return;
+    final activeStream = streamGeneration;
+    activeRefreshStream = activeStream;
+    final affected = Set<String>.of(changedConversations);
+    changedConversations.clear();
+    final refreshVersion = ++refreshGeneration;
+    final streamVersion = streamGeneration;
+    final listVersion = listGeneration;
+    final selectedId = selected?['id'] as String?;
+    final messageVersion = messageGeneration;
+    final tenant = widget.tenantId;
+    final searchAtStart = searchQuery;
+    final tagAtStart = selectedTagId;
+    final unreadAtStart = unreadOnly;
+    final assignmentAtStart = assignmentFilter;
+    final listPages = ((conversations.length + 49) ~/ 50).clamp(1, 10);
+    final messagePages = ((messages.length ~/ 50) + 1).clamp(1, 10);
+    try {
+      final updated = <Map<String, dynamic>>[];
+      String? after;
+      for (var i = 0; i < listPages; i++) {
+        final params = <String, String>{
+          if (searchAtStart.isNotEmpty) 'q': searchAtStart,
+          if (tagAtStart != null) 'tagId': tagAtStart,
+          if (unreadAtStart) 'unreadOnly': 'true',
+          if (assignmentAtStart != 'all') 'assignment': assignmentAtStart,
+          if (after != null) 'after': after,
+        };
+        final suffix = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+        final result = await api.request('GET', '$base$suffix') as Map<String, dynamic>;
+        updated.addAll((result['items'] as List).cast<Map<String, dynamic>>());
+        after = result['next'] as String?;
+        if (after == null) break;
+      }
+      final newNext = after;
+      Map<String, dynamic>? refreshedSelection;
+      if (selectedId != null) {
+        for (final row in updated) {
+          if (row['id'] == selectedId) {
+            refreshedSelection = row;
+            break;
+          }
+        }
+      }
+      final latestMessages = <Map<String, dynamic>>[];
+      String? nextMessage;
+      if (selectedId != null && affected.contains(selectedId)) {
+        for (var i = 0; i < messagePages; i++) {
+          final endpoint = '$base/$selectedId/messages'
+              '${nextMessage == null ? '' : '?after=$nextMessage'}';
+          final page = await api.request('GET', endpoint) as Map<String, dynamic>;
+          latestMessages.addAll((page['items'] as List).cast<Map<String, dynamic>>());
+          nextMessage = page['next'] as String?;
+          if (nextMessage == null) break;
+        }
+      }
+      if (!mounted || streamVersion != streamGeneration ||
+          refreshVersion != refreshGeneration ||
+          listVersion != listGeneration || searchAtStart != searchQuery ||
+          tagAtStart != selectedTagId || unreadAtStart != unreadOnly ||
+          assignmentAtStart != assignmentFilter ||
+          tenant != widget.tenantId) {
+        return;
+      }
+      refreshAttempts = 0;
+      refreshRetryTimer?.cancel();
+      refreshRetryTimer = null;
+      setState(() {
+        // Notify only after a verified REST increase, never from an SSE ID
+        // alone or on the initial load. A read acknowledgement clears it.
+        final prior = {for (final row in conversations) row['id']: row};
+        for (final row in updated) {
+          final id = row['id'] as String;
+          final before = prior[id]?['unreadCount'];
+          final after = row['unreadCount'];
+          if (affected.contains(id) && before is int && after is int && after > before) {
+            newInboundAlerts.add(id);
+          }
+          if (after is int && after == 0) newInboundAlerts.remove(id);
+        }
+        newInboundAlerts.removeWhere((id) => !updated.any((row) => row['id'] == id));
+        conversations = updated;
+        conversationNext = newNext;
+        if (selectedId != null && selected?['id'] == selectedId) {
+          if (refreshedSelection != null) selected = refreshedSelection;
+          if (affected.contains(selectedId) && messageGeneration == messageVersion) {
+            messages = latestMessages;
+            messageNext = nextMessage;
+            messageError = false;
+          }
+        }
+      });
+    } catch (error) {
+      if (!mounted || streamVersion != streamGeneration || tenant != widget.tenantId) return;
+      if (error is ApiFailure && [401, 403, 404].contains(error.status)) {
+        _revokeInbox();
+      } else if (refreshVersion == refreshGeneration) {
+        // Do not advance the displayed view permanently past an unrefreshed event.
+        changedConversations.addAll(affected);
+        if (refreshRetryTimer == null) {
+          final seconds = 1 << (refreshAttempts < 4 ? refreshAttempts : 4);
+          if (refreshAttempts < 4) refreshAttempts++;
+          refreshRetryTimer = Timer(Duration(seconds: seconds), () {
+            refreshRetryTimer = null;
+            _scheduleInboxRefresh();
+          });
+        }
+      }
+    } finally {
+      if (activeRefreshStream == activeStream) {
+        activeRefreshStream = null;
+        if (mounted && refreshRetryTimer == null &&
+            changedConversations.isNotEmpty) {
+          _scheduleInboxRefresh();
+        }
+      }
+    }
+  }
+
+  Future<void> loadTagCatalog() async {
+    final version = ++tagsGeneration;
+    final tenant = widget.tenantId;
+    setState(() { tagsLoading = true; tagsError = false; });
+    try {
+      final response = await api.request('GET', '/tenants/$tenant/conversation-tags')
+          as Map<String, dynamic>;
+      final raw = (response['items'] as List).cast<Map<String, dynamic>>();
+      if (raw.length > 100 || raw.any((row) =>
+          row['id'] is! String || row['name'] is! String)) {
+        throw const FormatException('Invalid tag catalog');
+      }
+      if (!mounted || version != tagsGeneration || tenant != widget.tenantId) return;
+      setState(() => availableTags = raw);
+    } catch (_) {
+      if (!mounted || version != tagsGeneration || tenant != widget.tenantId) return;
+      setState(() { availableTags = []; tagsError = true; });
+    } finally {
+      if (mounted && version == tagsGeneration && tenant == widget.tenantId) {
+        setState(() => tagsLoading = false);
+      }
+    }
+  }
+
+  void chooseTag(String? tagId) {
+    if (selectedTagId == tagId) return;
+    setState(() {
+      selectedTagId = tagId;
+      newInboundAlerts.clear();
+      changedConversations.clear();
+    });
+    load(); // Filter change starts at page one, never reuses a stale cursor.
+  }
+
+  void chooseUnreadOnly(bool value) {
+    if (unreadOnly == value) return;
+    setState(() {
+      unreadOnly = value;
+      newInboundAlerts.clear();
+      changedConversations.clear();
+    });
+    load(); // Filter change resets the cursor and any selection.
+  }
 
   Future<void> load({bool more = false}) async {
     final generation = ++listGeneration;
     final params = <String, String>{if (searchQuery.isNotEmpty) 'q': searchQuery,
+      if (selectedTagId != null) 'tagId': selectedTagId!,
+      if (unreadOnly) 'unreadOnly': 'true',
+      if (assignmentFilter != 'all') 'assignment': assignmentFilter,
       if (more && conversationNext != null) 'after': conversationNext!};
     final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
     setState(() { loading = true; listError = false;
@@ -66,12 +385,15 @@ class _ConversationsPageState extends State<ConversationsPage> {
         setState(() {
         listError = true;
         // A refresh may reveal revoked access. Do not keep sensitive cached data visible.
-        conversations = []; selected = null; messages = []; conversationNext = null;
+        conversations = []; newInboundAlerts.clear(); selected = null; messages = []; conversationNext = null;
         messageGeneration++; reading = false; messageNext = null;
       });
       }
     }
-    if (mounted && generation == listGeneration) setState(() => loading = false);
+    if (mounted && generation == listGeneration) {
+      setState(() => loading = false);
+      if (changedConversations.isNotEmpty) _scheduleInboxRefresh();
+    }
   }
 
   Future<void> open(Map<String, dynamic> conversation, {bool more = false}) async {
@@ -95,6 +417,52 @@ class _ConversationsPageState extends State<ConversationsPage> {
     if (mounted && generation == messageGeneration) setState(() => reading = false);
   }
 
+  Future<void> markRead() async {
+    final id = selected?['id'] as String?;
+    final upTo = selected?['unreadUpTo'] as String?;
+    if (id == null || upTo == null || markingRead || reading || messageError) return;
+    final generation = messageGeneration;
+    final tenant = widget.tenantId;
+    setState(() { markingRead = true; readReceiptError = false; });
+    try {
+      final receipt = await api.request('POST', '$base/$id/read',
+          {'upTo': upTo}, false) as Map<String, dynamic>;
+      if (!mounted || generation != messageGeneration ||
+          tenant != widget.tenantId || selected?['id'] != id) {
+        return;
+      }
+      if (receipt['unreadUpTo'] is! String) {
+        throw const FormatException('Invalid read receipt');
+      }
+      setState(() {
+        conversations = conversations.map((row) {
+          if (row['id'] != id || row['unreadUpTo'] != upTo) return row;
+          newInboundAlerts.remove(id);
+          return {...row, 'unreadCount': 0};
+        }).toList();
+        if (selected?['unreadUpTo'] == upTo) {
+          selected = {...selected!, 'unreadCount': 0};
+          if (unreadOnly) conversations.removeWhere((row) => row['id'] == id);
+        }
+      });
+    } catch (_) {
+      if (mounted && generation == messageGeneration && tenant == widget.tenantId) {
+        setState(() => readReceiptError = true);
+      }
+    } finally {
+      if (mounted && tenant == widget.tenantId) setState(() => markingRead = false);
+    }
+  }
+
+  void applyConversationControl(Map<String, dynamic> update) {
+    if (!mounted || selected?['id'] != update['id']) return;
+    setState(() {
+      selected = {...selected!, ...update};
+      conversations = conversations.map((row) =>
+          row['id'] == update['id'] ? {...row, ...update} : row).toList();
+    });
+  }
+
   Widget errorPanel(VoidCallback retry) {
     final l = AppLocalizations.of(context)!;
     return Padding(padding: const EdgeInsets.all(16), child: Column(children: [
@@ -113,13 +481,81 @@ class _ConversationsPageState extends State<ConversationsPage> {
         onSubmitted: (_) { searchQuery = search.text.trim(); load(); },
       )),
       TextButton.icon(onPressed: () { searchQuery = search.text.trim(); load(); }, icon: const Icon(Icons.search), label: Text(l.conversationSearchAction)),
+      Wrap(spacing: 4, children: [
+        TextButton.icon(
+          key: const Key('inbox-filter-tags'),
+          onPressed: () {
+            setState(() => tagFilterOpen = !tagFilterOpen);
+            if (tagFilterOpen && availableTags.isEmpty) loadTagCatalog();
+          },
+          icon: const Icon(Icons.filter_alt_outlined),
+          label: Text(l.inboxTagFilter),
+        ),
+        if (selectedTagId != null)
+          TextButton(onPressed: () => chooseTag(null), child: Text(l.inboxAllTags)),
+        SizedBox(width: 264, child: DropdownButton<String>(
+          key: const Key('inbox-filter-assignment'),
+          isExpanded: true,
+          value: assignmentFilter,
+          items: [
+            DropdownMenuItem(value: 'all', child: Text(l.inboxAssignmentAll)),
+            DropdownMenuItem(value: 'mine', child: Text(l.inboxAssignmentMine)),
+            DropdownMenuItem(value: 'unassigned', child: Text(l.inboxAssignmentUnassigned)),
+          ],
+          onChanged: loading ? null : (value) {
+            if (value == null || value == assignmentFilter) return;
+            setState(() => assignmentFilter = value);
+            load();
+          },
+        )),
+        FilterChip(
+          key: const Key('inbox-filter-unread'),
+          label: Text(l.inboxUnreadOnly),
+          selected: unreadOnly,
+          onSelected: loading ? null : chooseUnreadOnly,
+        ),
+      ]),
+      if (tagFilterOpen) SizedBox(height: 92, child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Column(children: [
+          if (tagsLoading) const LinearProgressIndicator(),
+          if (tagsError) TextButton(onPressed: loadTagCatalog, child: Text(l.retry)),
+          if (!tagsLoading && !tagsError) Wrap(spacing: 8, children: [
+            ChoiceChip(
+              key: const Key('inbox-filter-all'),
+              label: Text(l.inboxAllTags),
+              selected: selectedTagId == null,
+              onSelected: (_) => chooseTag(null),
+            ),
+            for (final tag in availableTags)
+              ChoiceChip(
+                key: ValueKey('inbox-filter-${tag['id']}'),
+                label: Text(tag['name'] as String),
+                selected: selectedTagId == tag['id'],
+                onSelected: (_) => chooseTag(tag['id'] as String),
+              ),
+          ]),
+        ]),
+      )),
       if (loading) const LinearProgressIndicator(),
       if (listError) errorPanel(() => load()),
       if (!loading && !listError && conversations.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(searchQuery.isEmpty ? l.noConversations : l.conversationNoMatches)),
+      if (newInboundAlerts.isNotEmpty) ListTile(
+        leading: const Icon(Icons.notifications_active_outlined),
+        title: Text(l.inboxNewMessageAlert),
+        trailing: Badge(label: Text('${newInboundAlerts.length}'),
+          child: const Icon(Icons.mark_chat_unread_outlined)),
+      ),
       Expanded(child: ListView(children: [
         for (final c in conversations) ListTile(
           selected: selected?['id'] == c['id'],
           leading: const Icon(Icons.chat_bubble_outline),
+          trailing: c['unreadCount'] is int && (c['unreadCount'] as int) > 0
+              ? Badge(
+                  label: Text('${c['unreadCount']}'),
+                  child: const Icon(Icons.mark_chat_unread_outlined),
+                )
+              : null,
           title: Text(c['customer']['displayName'] as String),
           subtitle: Text('${c['channelConnection']['displayName']} · ${c['channelConnection']['mode'] == 'mock' ? l.testChannel : l.conversations}'),
           onTap: () => open(c),
@@ -136,9 +572,59 @@ class _ConversationsPageState extends State<ConversationsPage> {
       ListTile(
         leading: narrow ? IconButton(tooltip: l.conversations, icon: const Icon(Icons.arrow_back), onPressed: () => setState(() { messageGeneration++; selected = null; messages = []; reading = false; })) : null,
         title: Text(selected!['customer']['displayName'] as String),
-        trailing: IconButton(tooltip: l.retry, onPressed: reading ? null : () => open(selected!), icon: const Icon(Icons.refresh)),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(
+            tooltip: l.inboxTags,
+            icon: const Icon(Icons.label_outline),
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => SafeArea(child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: SingleChildScrollView(child: ConversationTags(
+                  tenantId: widget.tenantId,
+                  conversationId: selected!['id'] as String,
+                  api: api,
+                )),
+              )),
+            ),
+          ),
+          IconButton(tooltip: l.retry, onPressed: reading ? null : () => open(selected!), icon: const Icon(Icons.refresh)),
+        ]),
       ),
-      Padding(padding: const EdgeInsets.all(12), child: Text(l.readOnlyConversation)),
+      if (!reading && !messageError &&
+          selected!['unreadCount'] is int &&
+          (selected!['unreadCount'] as int) > 0 &&
+          selected!['unreadUpTo'] is String)
+        TextButton.icon(
+          onPressed: markingRead ? null : markRead,
+          icon: const Icon(Icons.done_all),
+          label: Text(l.inboxMarkRead),
+        ),
+      if (markingRead) const LinearProgressIndicator(),
+      if (readReceiptError)
+        TextButton(onPressed: markingRead ? null : markRead, child: Text(l.retry)),
+      if (selected!['mode'] is String)
+        ConversationHumanControls(
+          key: ValueKey('${widget.tenantId}/${selected!['id']}'),
+          tenantId: widget.tenantId,
+          conversation: selected!,
+          api: api,
+          onChanged: applyConversationControl,
+          onRevoked: () => load(),
+        )
+      else Padding(padding: const EdgeInsets.all(12), child: Text(l.readOnlyConversation)),
+      ConversationCustomerContext(
+        tenantId: widget.tenantId,
+        conversationId: selected!['id'] as String,
+        api: api,
+      ),
+      ConversationInternalNotes(
+        key: ValueKey('notes/${widget.tenantId}/${selected!['id']}'),
+        tenantId: widget.tenantId,
+        conversationId: selected!['id'] as String,
+        api: api,
+      ),
       if (selected!['channelConnection']['mode'] == 'mock' && selected!['channelConnectionId'] is String)
         TextButton.icon(icon: const Icon(Icons.science_outlined), label: Text(l.outboundTitle), onPressed: reading || messageError ? null : () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => OutboundPage(tenantId: widget.tenantId, conversationId: selected!['id'] as String, channelId: selected!['channelConnectionId'] as String, api: api)))),
       if (reading) const LinearProgressIndicator(),
@@ -167,7 +653,13 @@ class _ConversationsPageState extends State<ConversationsPage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return Scaffold(appBar: AppBar(title: Text(l.conversations), leading: IconButton(tooltip: l.account, icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/account'))),
+    return Scaffold(appBar: AppBar(title: Text(l.conversations), leading: IconButton(tooltip: l.account, icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/account')),
+      actions: [if (newInboundAlerts.isNotEmpty) Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Tooltip(message: l.inboxNewMessageAlert,
+          child: Badge(label: Text('${newInboundAlerts.length}'),
+            child: const Icon(Icons.notifications_active_outlined))),
+      )]),
       body: LayoutBuilder(builder: (context, constraints) {
         if (constraints.maxWidth < 760) return selected == null ? conversationList() : history(narrow: true);
         return Row(children: [SizedBox(width: 320, child: conversationList()), const VerticalDivider(width: 1), Expanded(child: history(narrow: false))]);

@@ -64,6 +64,7 @@ const schema = z.object({
   SECRET_MOUNT_DIRECTORY: z.string().max(1024).optional().or(z.literal('')),
   MEDIA_INGESTION_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   AI_OUTBOUND_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
+  HUMAN_OUTBOUND_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   AI_TURN_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   CALENDAR_SYNC_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   MALWARE_SCANNER: z.enum(['disabled', 'clamav']).default('disabled'),
@@ -237,20 +238,20 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     throw new Error(
       'Media ingestion worker requires transport, storage, quarantine keyring and malware scanner',
     );
+  const liveOutboundEnabled =
+    result.data.AI_OUTBOUND_WORKER_ENABLED === 'true' ||
+    result.data.HUMAN_OUTBOUND_WORKER_ENABLED === 'true';
   if (
-    result.data.AI_OUTBOUND_WORKER_ENABLED === 'true' &&
+    liveOutboundEnabled &&
     (result.data.SECRET_PROVIDER !== 'mounted-file' ||
       !result.data.SECRET_MOUNT_DIRECTORY ||
       !result.data.WHATSAPP_MESSAGING_API_VERSION)
   )
     throw new Error(
-      'AI outbound worker requires mounted secrets and explicit WhatsApp messaging API version',
+      'Live outbound workers require mounted secrets and explicit WhatsApp messaging API version',
     );
-  if (
-    result.data.AI_OUTBOUND_WORKER_ENABLED === 'false' &&
-    result.data.WHATSAPP_MESSAGING_API_VERSION
-  )
-    throw new Error('WhatsApp messaging API version requires AI_OUTBOUND_WORKER_ENABLED=true');
+  if (!liveOutboundEnabled && result.data.WHATSAPP_MESSAGING_API_VERSION)
+    throw new Error('WhatsApp messaging API version requires a live outbound worker');
   if (
     result.data.CALENDAR_SYNC_WORKER_ENABLED === 'true' &&
     (result.data.SECRET_PROVIDER !== 'mounted-file' || !result.data.SECRET_MOUNT_DIRECTORY)

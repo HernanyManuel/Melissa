@@ -14,6 +14,7 @@ overrides:
   js-yaml: 4.3.2
   multer: 2.3.0
   lodash: 4.18.1
+  proxy-addr: 2.0.8
   '@prisma/config>deepmerge-ts': 8.0.0
   'brace-expansion@<2': 1.1.20
   'brace-expansion@>=2 <3': 2.1.6

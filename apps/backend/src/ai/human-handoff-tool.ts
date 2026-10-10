@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Dependencies } from '../dependencies';
 import { JsonObject, JsonValue } from './ai-provider';
 import { ToolRegistry } from './tool-registry';
+import { appendInboxEvent } from '../messaging/inbox-event-store';
 
 const REASONS = ['customer_requested', 'unsupported', 'complaint', 'safety', 'other'] as const;
 type HandoffReason = (typeof REASONS)[number];
@@ -104,6 +105,11 @@ export class PrismaHumanHandoff {
         INSERT INTO audit_events (id, tenant_id, actor_id, actor_type, action, target_id)
         VALUES (${auditId}::uuid, ${input.tenantId}::uuid, NULL, 'system', 'ai.handoff_requested', ${input.conversationId}::uuid)
       `;
+      await appendInboxEvent(tx, {
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        eventType: 'conversation.handoff_requested',
+      });
 
       return { status: 'waiting_human', duplicate: false };
     });

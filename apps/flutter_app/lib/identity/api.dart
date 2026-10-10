@@ -36,6 +36,36 @@ class IdentityApi {
     }
     return response.body.isEmpty ? null : jsonDecode(response.body);
   }
+  /// Opens the authenticated Inbox SSE response without buffering its body.
+  /// Unlike ordinary JSON requests, a healthy SSE connection does not complete.
+  Future<http.StreamedResponse> openInboxEvents(
+    String tenantId, {String? after, bool retry = true}
+  ) async {
+    if (!authenticated) await refresh();
+    final uri = Uri.parse('$base/api/v1/tenants/$tenantId/inbox/events')
+        .replace(queryParameters: after == null ? null : {'after': after});
+    final req = http.Request('GET', uri);
+    req.headers['Accept'] = 'text/event-stream';
+    req.headers['Authorization'] = 'Bearer $_access';
+    if (after != null) req.headers['Last-Event-ID'] = after;
+    final response = await _client.send(req).timeout(const Duration(seconds: 15));
+    if (response.statusCode == 401 && retry) {
+      await response.stream.drain<void>();
+      await refresh();
+      return openInboxEvents(tenantId, after: after, retry: false);
+    }
+    if (response.statusCode != 200) {
+      await response.stream.drain<void>();
+      throw ApiFailure(response.statusCode);
+    }
+    if (!(response.headers['content-type'] ?? '')
+        .toLowerCase().startsWith('text/event-stream')) {
+      await response.stream.drain<void>();
+      throw const FormatException('Invalid Inbox stream content type');
+    }
+    return response;
+  }
+
   Future<void> login(String email, String password) async {
     final data = await request('POST', '/auth/login', {'email': email, 'password': password}) as Map<String, dynamic>;
     _access = data['access_token'] as String;

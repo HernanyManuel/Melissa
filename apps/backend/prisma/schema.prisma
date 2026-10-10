@@ -105,6 +105,7 @@ model Tenant {
   aiTurns            AiTurn[]
   aiUsageEvents      AiUsageEvent[]
   aiOutboundIntents  AiOutboundIntent[]
+  inboxEvents        InboxEvent[]
 
   @@map("tenants")
 }
@@ -192,9 +193,9 @@ model Faq {
 }
 
 model Staff {
-  id        String         @default(uuid()) @db.Uuid
-  tenantId  String         @map("tenant_id") @db.Uuid
-  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  id                    String         @default(uuid()) @db.Uuid
+  tenantId              String         @map("tenant_id") @db.Uuid
+  tenant                Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   userId    String?        @map("user_id") @db.Uuid
   name      String
   email     String?
@@ -205,7 +206,8 @@ model Staff {
   timezone  String
   createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  services  StaffService[]
+  services              StaffService[]
+  assignedConversations Conversation[] @relation("ConversationAssignedStaff")
 
   @@id([tenantId, id])
   @@map("staff")
@@ -350,22 +352,46 @@ model Conversation {
   channelConnection   ChannelConnection @relation(fields: [tenantId, channelConnectionId], references: [tenantId, id], onDelete: Restrict)
   status              String            @default("open")
   mode                String            @default("AI_PAUSED")
+  assignedStaffId     String?           @map("assigned_staff_id") @db.Uuid
+  assignedStaff       Staff?            @relation("ConversationAssignedStaff", fields: [tenantId, assignedStaffId], references: [tenantId, id], onDelete: Restrict)
   modeEpoch           BigInt            @default(0) @map("mode_epoch")
   stateVersion        BigInt            @default(0) @map("state_version")
   language            String            @default("pt")
   lastMessageAt       DateTime          @map("last_message_at") @db.Timestamptz(6)
   openedAt            DateTime          @default(now()) @map("opened_at") @db.Timestamptz(6)
+  closedAt            DateTime?         @map("closed_at") @db.Timestamptz(6)
   state               Json              @default("{\"version\":1,\"intent\":null,\"stage\":\"idle\",\"serviceId\":null,\"date\":null,\"staffId\":null}") @db.JsonB
   createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   messages            Message[]
   aiTurns             AiTurn[]
   aiOutboundIntents   AiOutboundIntent[]
+  inboxEvents         InboxEvent[]
+  internalNotes       ConversationInternalNote[]
+  tagLinks            ConversationTagLink[]
 
   @@id([tenantId, id])
   @@unique([tenantId, channelConnectionId, customerId])
   @@index([tenantId, lastMessageAt, id])
   @@map("conversations")
+}
+
+// Immutable notes visible only through authorized tenant-scoped APIs.
+// No relation to Message, external_event, or any outbound dispatch.
+model ConversationInternalNote {
+  id             String       @unique @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  actorId        String       @map("actor_id") @db.Uuid
+  requestId      String       @map("request_id") @db.Uuid
+  contentText    String       @map("content_text") @db.VarChar(2000)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([tenantId, id])
+  @@unique([tenantId, actorId, requestId], map: "conversation_internal_notes_request_key")
+  @@index([tenantId, conversationId, createdAt(sort: Desc), id(sort: Desc)], map: "conversation_internal_notes_page_idx")
+  @@map("conversation_internal_notes")
 }
 
 model AiTurn {
@@ -657,4 +683,101 @@ model InboundDispatch {
   @@index([state, nextAttemptAt, id])
   @@index([tenantId, state, id], map: "inbound_dispatch_tenant_state_id_idx")
   @@map("inbound_dispatch")
+}
+
+
+model InboxEvent {
+  tenantId       String       @map("tenant_id") @db.Uuid
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  sequence       BigInt
+  eventType      String       @map("event_type") @db.VarChar(48)
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  messageId      String?      @map("message_id") @db.Uuid
+  actorId        String?      @map("actor_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([tenantId, sequence])
+  @@index([tenantId, conversationId, sequence])
+  @@map("inbox_events")
+}
+
+
+model InboxReadCursor {
+  tenantId         String   @map("tenant_id") @db.Uuid
+  actorId          String   @map("actor_id") @db.Uuid
+  conversationId   String   @map("conversation_id") @db.Uuid
+  lastReadSequence BigInt   @map("last_read_sequence")
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@id([tenantId, actorId, conversationId])
+  @@map("inbox_read_cursors")
+}
+
+model ConversationTag {
+  tenantId String @map("tenant_id") @db.Uuid
+  id String @db.Uuid
+  name String @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([tenantId, id])
+  @@unique([tenantId, name])
+  @@map("conversation_tags")
+}
+
+model ConversationTagLink {
+  tenantId String @map("tenant_id") @db.Uuid
+  conversationId String @map("conversation_id") @db.Uuid
+  conversation Conversation @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
+  tagId String @map("tag_id") @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([tenantId, conversationId, tagId])
+  @@index([tenantId, tagId])
+  @@map("conversation_tag_links")
+}
+
+model HumanOutboundIntent {
+  tenantId       String    @map("tenant_id") @db.Uuid
+  id             String    @unique @default(uuid()) @db.Uuid
+  actorId        String    @map("actor_id") @db.Uuid
+  requestId      String    @map("request_id") @db.Uuid
+  conversationId String    @map("conversation_id") @db.Uuid
+  modeEpoch      BigInt    @map("mode_epoch")
+  contentText    String    @map("content_text") @db.VarChar(4096)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  abandonedAt    DateTime? @map("abandoned_at") @db.Timestamptz(6)
+  redactedAt    DateTime? @map("redacted_at") @db.Timestamptz(6)
+
+  @@id([tenantId, id])
+  @@unique([tenantId, actorId, requestId])
+  @@index([tenantId, conversationId, createdAt, id])
+  @@map("human_outbound_intents")
+}
+
+model HumanOutboundDispatch {
+  id                String    @id @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  state             String    @default("pending") @db.VarChar(24)
+  attempts          Int       @default(0)
+  nextAttemptAt     DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  providerMessageId String?   @map("provider_message_id") @db.VarChar(512)
+  acceptedAt        DateTime? @map("accepted_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, id])
+  @@index([state, nextAttemptAt, id])
+  @@map("human_outbound_dispatch")
+}
+
+model HumanOutboundDeadLetter {
+  tenantId   String   @map("tenant_id") @db.Uuid
+  dispatchId String   @map("dispatch_id") @db.Uuid
+  reason     String   @db.VarChar(32)
+  attempts   Int
+  failedAt   DateTime @default(now()) @map("failed_at") @db.Timestamptz(6)
+
+  @@id([tenantId, dispatchId])
+  @@index([failedAt, tenantId, dispatchId])
+  @@map("human_outbound_dead_letters")
 }
