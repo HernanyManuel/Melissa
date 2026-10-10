@@ -196,5 +196,11 @@
   "inboxInternalNoteUncertain": "No se pudo confirmar. Reintentar conserva la misma nota y clave.",
   "inboxTags": "Etiquetas",
   "inboxNewTag": "Nueva etiqueta",
-  "inboxCreateTag": "Crear etiqueta"
+  "inboxCreateTag": "Crear etiqueta",
+  "inboxCustomerProfile": "Perfil del cliente",
+  "inboxCustomerPhone": "Teléfono",
+  "inboxCustomerEmail": "Correo electrónico",
+  "inboxCustomerLanguage": "Idioma",
+  "inboxCustomerConsent": "Consentimiento de WhatsApp",
+  "inboxCustomerNotes": "Notas del cliente"
 }
