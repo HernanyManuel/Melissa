@@ -444,6 +444,32 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
         lastMessageAt: new Date(),
       })),
     });
+    assert.equal(
+      (await call('GET', listPath + '?assignment=invalid', undefined,
+        owner.access_token)).status, 400,
+    );
+    assert.equal((await unreadPage(owner.access_token,
+      '?unreadOnly=true&assignment=unassigned')).items[0]?.id, conversationId);
+    assert.deepEqual((await unreadPage(owner.access_token,
+      '?unreadOnly=true&assignment=mine')).items, []);
+    const staff = await admin.staff.create({
+      data: {
+        tenantId: tenant.id,
+        userId: owner.userId,
+        name: 'Operador de triagem',
+        timezone: 'Europe/Lisbon',
+      },
+    });
+    await admin.conversation.update({
+      where: { tenantId_id: { tenantId: tenant.id, id: conversationId } },
+      data: { assignedStaffId: staff.id },
+    });
+    assert.deepEqual((await unreadPage(owner.access_token,
+      '?unreadOnly=true&assignment=unassigned')).items, []);
+    assert.equal((await unreadPage(owner.access_token,
+      '?unreadOnly=true&assignment=mine')).items[0]?.id, conversationId);
+    assert.deepEqual((await unreadPage(foreign.access_token,
+      '?unreadOnly=true&assignment=mine')).items, []);
     const unreadAfterReadRows = await unreadPage(owner.access_token);
     assert.deepEqual(unreadAfterReadRows.items.map((item) => item.id), [conversationId]);
     assert.equal(unreadAfterReadRows.next, null);
