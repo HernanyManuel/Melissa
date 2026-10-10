@@ -204,5 +204,6 @@
   "inboxCustomerConsent": "WhatsApp-Einwilligung",
   "inboxCustomerNotes": "Kundennotizen",
   "inboxTagFilter": "Nach Label filtern",
-  "inboxAllTags": "Alle Labels"
+  "inboxAllTags": "Alle Labels",
+  "inboxUnreadOnly": "Nur ungelesene"
 }
