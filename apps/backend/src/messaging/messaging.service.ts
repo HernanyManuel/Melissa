@@ -146,10 +146,22 @@ export class MessagingService {
 
   conversations(actor: Actor, tenantId: string, page: ConversationQuery) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      if (page.tagId) {
+        const tag = await tx.conversationTag.findUnique({
+          where: { tenantId_id: { tenantId, id: page.tagId } },
+          select: { id: true },
+        });
+        if (!tag) throw new NotFoundException();
+      }
       if (
         page.after &&
-        !(await tx.conversation.findUnique({
-          where: { tenantId_id: { tenantId, id: page.after } },
+        !(await tx.conversation.findFirst({
+          where: {
+            tenantId,
+            id: page.after,
+            ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
+          },
+          select: { id: true },
         }))
       )
         throw new NotFoundException();
@@ -158,6 +170,7 @@ export class MessagingService {
       const rows = await tx.conversation.findMany({
         where: {
           tenantId,
+          ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
           ...(search
             ? {
                 OR: [
@@ -342,6 +355,19 @@ export class MessagingService {
         next: rows.length > 50 ? rows[49]!.id : null,
       };
     });
+  }
+
+  // Tag catalog is tenant-scoped, independent of whether a conversation is
+  // currently selected or visible in the paginated inbox.
+  conversationTagsCatalog(actor: Actor, tenantId: string) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => ({
+      items: await tx.conversationTag.findMany({
+        where: { tenantId },
+        select: { id: true, name: true },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        take: 100,
+      }),
+    }));
   }
 
   listConversationTags(actor: Actor, tenantId: string, conversationId: string) {
