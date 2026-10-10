@@ -368,6 +368,7 @@ model Conversation {
   aiOutboundIntents   AiOutboundIntent[]
   inboxEvents         InboxEvent[]
   internalNotes       ConversationInternalNote[]
+  tagLinks            ConversationTagLink[]
 
   @@id([tenantId, id])
   @@unique([tenantId, channelConnectionId, customerId])
@@ -727,6 +728,7 @@ model ConversationTag {
 model ConversationTagLink {
   tenantId String @map("tenant_id") @db.Uuid
   conversationId String @map("conversation_id") @db.Uuid
+  conversation Conversation @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict)
   tagId String @map("tag_id") @db.Uuid
   actorId String @map("actor_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
