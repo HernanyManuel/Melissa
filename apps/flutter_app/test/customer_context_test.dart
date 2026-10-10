@@ -26,6 +26,7 @@ void main() {
           'email': 'ana@example.test',
           'language': 'pt',
           'whatsappOptInStatus': 'unknown',
+          'marketingConsentStatus': 'denied',
           'notes': 'Prefere manhãs',
         }}), 200);
       }
@@ -47,6 +48,7 @@ void main() {
     expect(find.text('Ana'), findsOneWidget);
     expect(find.text('Telefone: +351912345678'), findsOneWidget);
     expect(find.text('Notas do cliente: Prefere manhãs'), findsOneWidget);
+    expect(find.text('Consentimento de marketing: denied'), findsOneWidget);
     expect(requests.where((r) => r.endsWith('/conversations/c1/customer')).length, 1);
     expect(requests.where((r) => r.contains('/messages')).isEmpty, true);
     expect(tester.takeException(), isNull);
