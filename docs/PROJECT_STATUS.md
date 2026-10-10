@@ -1,5 +1,11 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Consentimento de marketing no painel do cliente
+
+O painel do cliente no inbox apresenta agora o campo **`marketingConsentStatus`** já existente no endpoint autorizado `GET /tenants/:tenantId/conversations/:id/customer`, com rótulo localizado em pt/en/es/fr/it/de. O campo é estritamente de consulta: o Flutter não altera o consentimento, não faz pedidos de envio, não apresenta a informação como uma autorização de marketing e não cria rotas adicionais. O teste do painel valida a renderização do valor e a ausência de chamadas ao endpoint de mensagens.
+
+Esta alteração é apenas de Flutter/testes/localização; **não requer migração Prisma**, nem modificações de permissões. O endpoint continua a aplicar `customers:read` e o isolamento por tenant preexistentes. Mantêm-se pendentes gestão formal de consentimentos, política de dados pessoais, notificações fora da aplicação e E2E com Meta real; sem merge, deploy nem ativação de WhatsApp live.
+
 ## Atualização Phase 8 — Triagem por atribuição de colaborador
 
 A listagem de conversas aceita o parâmetro opcional `assignment=all|mine|unassigned`. O backend filtra `mine` pelos registos `staff.user_id` vinculados **ao ator autenticado** (nunca a um ID arbitrário enviado pelo cliente); `unassigned` seleciona conversas sem colaborador atribuído. Em ambos os caminhos de consulta, incluindo `unreadOnly=true`, os filtros são aplicados **antes** do limite de paginação. São compatíveis com pesquisa, etiquetas, `unreadOnly` e cursor, sob as permissões e RLS existentes.
