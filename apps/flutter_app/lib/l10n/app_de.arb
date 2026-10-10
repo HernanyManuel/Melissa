@@ -196,5 +196,11 @@
   "inboxInternalNoteUncertain": "Bestätigung unklar. Beim erneuten Versuch bleiben Notiz und Schlüssel gleich.",
   "inboxTags": "Etiketten",
   "inboxNewTag": "Neues Etikett",
-  "inboxCreateTag": "Etikett erstellen"
+  "inboxCreateTag": "Etikett erstellen",
+  "inboxCustomerProfile": "Kundenprofil",
+  "inboxCustomerPhone": "Telefon",
+  "inboxCustomerEmail": "E-Mail",
+  "inboxCustomerLanguage": "Sprache",
+  "inboxCustomerConsent": "WhatsApp-Einwilligung",
+  "inboxCustomerNotes": "Kundennotizen"
 }
