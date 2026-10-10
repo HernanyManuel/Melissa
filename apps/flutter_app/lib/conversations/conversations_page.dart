@@ -458,7 +458,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
         onSubmitted: (_) { searchQuery = search.text.trim(); load(); },
       )),
       TextButton.icon(onPressed: () { searchQuery = search.text.trim(); load(); }, icon: const Icon(Icons.search), label: Text(l.conversationSearchAction)),
-      Row(children: [
+      Wrap(spacing: 4, children: [
         TextButton.icon(
           key: const Key('inbox-filter-tags'),
           onPressed: () {
