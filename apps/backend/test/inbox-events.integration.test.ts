@@ -396,6 +396,64 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
     assert.equal((await list(owner.access_token))?.unreadCount, 1);
     assert.equal((await list(foreign.access_token))?.unreadCount, 1);
 
+    const unreadPage = async (token: string, params = '?unreadOnly=true') =>
+      data<{ items: Array<{ id: string; unreadCount: number }>; next: string | null }>(
+        await call('GET', listPath + params, undefined, token), 200,
+      );
+    assert.equal((await call('GET', listPath + '?unreadOnly=1', undefined,
+      owner.access_token)).status, 400);
+    assert.equal((await call('GET', listPath + '?unreadOnly=TRUE', undefined,
+      owner.access_token)).status, 400);
+    assert.equal((await unreadPage(owner.access_token, '?unreadOnly=false')).items.length, 1);
+    assert.equal((await unreadPage(owner.access_token)).items[0]?.id, conversationId);
+    assert.equal((await unreadPage(foreign.access_token)).items[0]?.id, conversationId);
+    assert.equal((await call('GET', listPath + '?unreadOnly=true', undefined,
+      viewer.access_token)).status, 403);
+
+    const createdTag = await data<{ item: { id: string } }>(
+      await call('POST', `/tenants/${tenant.id}/conversation-tags`,
+        { name: 'Pendentes' }, owner.access_token), 200,
+    );
+    assert.equal(
+      (await call('POST', `${controlPath}/tags/${createdTag.item.id}`,
+        undefined, owner.access_token)).status, 200,
+    );
+    const combined = await unreadPage(owner.access_token,
+      `?unreadOnly=true&tagId=${createdTag.item.id}&q=Inbox%20SSE`);
+    assert.deepEqual(combined.items.map((item) => item.id), [conversationId]);
+    assert.deepEqual((await unreadPage(owner.access_token,
+      '?unreadOnly=true&q=sem%20correspond%C3%AAncia')).items, []);
+
+    // Page selection is before LIMIT: 51 read conversations preceding the
+    // one unread conversation must not hide it from the first unread page.
+    const readCustomers = Array.from({ length: 51 }, (_, index) => ({
+      tenantId: tenant.id,
+      id: randomUUID(),
+      displayName: `Já lida ${index}`,
+      phoneE164: `+351930${String(index).padStart(6, '0')}`,
+    }));
+    await admin.customer.createMany({ data: readCustomers });
+    await admin.conversation.createMany({
+      data: readCustomers.map((customer, index) => ({
+        tenantId: tenant.id,
+        id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+        channelConnectionId: channelId,
+        customerId: customer.id,
+        lastMessageAt: new Date(),
+      })),
+    });
+    const unreadAfterReadRows = await unreadPage(owner.access_token);
+    assert.deepEqual(unreadAfterReadRows.items.map((item) => item.id), [conversationId]);
+    assert.equal(unreadAfterReadRows.next, null);
+    assert.equal(unreadAfterReadRows.items[0]?.unreadCount, 1);
+
+    assert.equal(
+      (await call('POST', readPath, { upTo: '7' }, owner.access_token)).status,
+      200,
+    );
+    assert.deepEqual((await unreadPage(owner.access_token)).items, []);
+    assert.equal((await unreadPage(foreign.access_token)).items[0]?.id, conversationId);
+
   } finally {
     await app.close();
     await admin.$disconnect();
