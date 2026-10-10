@@ -157,6 +157,44 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('assignment filter composes with unread and resets pagination', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final requests = <Uri>[];
+    final api = client((request) async {
+      if (request.url.path.endsWith('/conversations')) {
+        requests.add(request.url);
+        return page([conversation('A')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-unread')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-assignment')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Atribuídas a mim').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['assignment'], 'mine');
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    expect(requests.last.queryParameters.containsKey('after'), false);
+    await tester.tap(find.byKey(const Key('inbox-filter-assignment')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sem atribuição').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['assignment'], 'unassigned');
+    await tester.tap(find.byKey(const Key('inbox-filter-assignment')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Todas as atribuições').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters.containsKey('assignment'), false);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('empty conversations and failed refresh offer recovery', (tester) async {
     var fail = true;
     final api = client((_) async => fail ? http.Response('{}', 403) : page([]));
