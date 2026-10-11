@@ -25,6 +25,7 @@ import {
   ConversationTakeoverDto,
   CreateConversationTagDto,
   CreateInternalNoteDto,
+  InboxCheckpointDto,
   InboxEventQuery,
   ManualReplyDto,
   MarkConversationReadDto,
@@ -212,6 +213,32 @@ export class MessagingController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.messaging.closeConversation(req.actor, tenant, id);
+  }
+
+  @Get('inbox/checkpoint')
+  @ApiOperation({
+    summary: 'Recover the last SSE event successfully applied by this actor',
+    description: 'Actor- and tenant-scoped, independent of manual unread acknowledgements.',
+  })
+  inboxCheckpoint(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+  ) {
+    return this.messaging.inboxCheckpoint(req.actor, tenant);
+  }
+
+  @Post('inbox/checkpoint')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Persist a successfully applied SSE replay cursor',
+    description: 'Sequence must identify an existing tenant event; acknowledgements advance monotonically.',
+  })
+  applyInboxCheckpoint(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Body() body: InboxCheckpointDto,
+  ) {
+    return this.messaging.applyInboxCheckpoint(req.actor, tenant, body.after);
   }
 
   @Get('inbox/events')
