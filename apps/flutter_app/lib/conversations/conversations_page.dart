@@ -441,14 +441,18 @@ class _ConversationsPageState extends State<ConversationsPage> {
         throw const FormatException('Invalid unread summary');
       }
       if (!mounted || streamRevoked || stream != streamGeneration ||
-          generation != summaryGeneration || tenant != widget.tenantId) return;
+          generation != summaryGeneration || tenant != widget.tenantId) {
+        return;
+      }
       setState(() {
         tenantUnreadConversations = conversations;
         tenantUnreadMessages = messages;
       });
     } catch (_) {
       if (!mounted || streamRevoked || stream != streamGeneration ||
-          generation != summaryGeneration || tenant != widget.tenantId) return;
+          generation != summaryGeneration || tenant != widget.tenantId) {
+        return;
+      }
       // Never present an old tenant-wide count as a current result.
       setState(() {
         tenantUnreadConversations = null;
