@@ -209,5 +209,16 @@
   "inboxUnreadOnly": "Unread only",
   "inboxAssignmentAll": "All assignments",
   "inboxAssignmentMine": "Assigned to me",
-  "inboxAssignmentUnassigned": "Unassigned"
+  "inboxAssignmentUnassigned": "Unassigned",
+  "inboxUnreadLoadedSummary": "In loaded list: {conversations} conversations, {messages} unread messages",
+  "@inboxUnreadLoadedSummary": {
+    "placeholders": {
+      "conversations": {
+        "type": "int"
+      },
+      "messages": {
+        "type": "int"
+      }
+    }
+  }
 }
