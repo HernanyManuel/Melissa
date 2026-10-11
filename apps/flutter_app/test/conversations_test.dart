@@ -40,12 +40,12 @@ void main() {
     addTearDown(api.dispose);
     await tester.pumpWidget(screen(api));
     await tester.pumpAndSettle();
-    expect(find.text('Nesta lista: 1 conversas e 2 mensagens por ler'), findsOneWidget);
+    expect(find.text('Nesta lista — conversas por ler: 1; mensagens por ler: 2'), findsOneWidget);
     await tester.enterText(find.byType(TextField).first, 'special');
     await tester.tap(find.text('Pesquisar'));
     await tester.pumpAndSettle();
-    expect(find.text('Nesta lista: 1 conversas e 4 mensagens por ler'), findsOneWidget);
-    expect(find.text('Nesta lista: 1 conversas e 2 mensagens por ler'), findsNothing);
+    expect(find.text('Nesta lista — conversas por ler: 1; mensagens por ler: 4'), findsOneWidget);
+    expect(find.text('Nesta lista — conversas por ler: 1; mensagens por ler: 2'), findsNothing);
     expect(tester.takeException(), isNull);
   });
   testWidgets('search retains query on pagination and discards late results', (tester) async {
