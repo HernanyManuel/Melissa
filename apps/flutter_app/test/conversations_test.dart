@@ -20,6 +20,34 @@ IdentityApi client(Future<http.Response> Function(http.Request) route) => Identi
 }));
 
 void main() {
+  testWidgets('unread summary counts only loaded and filtered rows', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final api = client((r) async {
+      if (r.url.path.endsWith('/conversations')) {
+        if (r.url.queryParameters['q'] == 'special') {
+          return page([{...conversation('filtered'), 'unreadCount': 4}]);
+        }
+        return page([
+          {...conversation('first'), 'unreadCount': 2},
+          {...conversation('second'), 'unreadCount': 0},
+        ], 'next-page');
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(find.text('Nesta lista: 1 conversas e 2 mensagens por ler'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'special');
+    await tester.tap(find.text('Pesquisar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nesta lista: 1 conversas e 4 mensagens por ler'), findsOneWidget);
+    expect(find.text('Nesta lista: 1 conversas e 2 mensagens por ler'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('search retains query on pagination and discards late results', (tester) async {
     final late = Completer<http.Response>();
     final api = client((r) async {
