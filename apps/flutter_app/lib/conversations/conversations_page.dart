@@ -49,6 +49,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
   bool messageError = false;
   bool markingRead = false;
   bool readReceiptError = false;
+  int? tenantUnreadConversations;
+  int? tenantUnreadMessages;
+  int summaryGeneration = 0;
   int listGeneration = 0;
   int messageGeneration = 0;
   int streamGeneration = 0;
@@ -104,6 +107,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   void _stopInbox() {
     streamGeneration++;
+    summaryGeneration++;
+    tenantUnreadConversations = null;
+    tenantUnreadMessages = null;
     refreshGeneration++;
     activeRefreshStream = null;
     inboxSubscription?.cancel();
@@ -333,6 +339,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           }
         }
       });
+      unawaited(loadUnreadSummary());
       if (appliedThrough != null) {
         // Persist only after the REST view was applied. Failure to persist
         // causes safe replay after reload; it never confirms messages as read.
@@ -419,6 +426,37 @@ class _ConversationsPageState extends State<ConversationsPage> {
     load(); // Filter change resets the cursor and any selection.
   }
 
+  Future<void> loadUnreadSummary() async {
+    final generation = ++summaryGeneration;
+    final stream = streamGeneration;
+    final tenant = widget.tenantId;
+    try {
+      if (!api.authenticated) await api.refresh();
+      final response = await api.request('GET', '/tenants/$tenant/inbox/unread-summary')
+          as Map<String, dynamic>;
+      final conversations = response['unreadConversations'];
+      final messages = response['unreadMessages'];
+      if (conversations is! int || messages is! int ||
+          conversations < 0 || messages < 0) {
+        throw const FormatException('Invalid unread summary');
+      }
+      if (!mounted || streamRevoked || stream != streamGeneration ||
+          generation != summaryGeneration || tenant != widget.tenantId) return;
+      setState(() {
+        tenantUnreadConversations = conversations;
+        tenantUnreadMessages = messages;
+      });
+    } catch (_) {
+      if (!mounted || streamRevoked || stream != streamGeneration ||
+          generation != summaryGeneration || tenant != widget.tenantId) return;
+      // Never present an old tenant-wide count as a current result.
+      setState(() {
+        tenantUnreadConversations = null;
+        tenantUnreadMessages = null;
+      });
+    }
+  }
+
   Future<void> load({bool more = false}) async {
     final generation = ++listGeneration;
     final params = <String, String>{if (searchQuery.isNotEmpty) 'q': searchQuery,
@@ -438,12 +476,14 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (!mounted || generation != listGeneration) return;
       final rows = (page['items'] as List).cast<Map<String, dynamic>>();
       setState(() { conversations = more ? [...conversations, ...rows] : rows; conversationNext = page['next'] as String?; });
+      unawaited(loadUnreadSummary());
     } catch (_) {
       if (mounted && generation == listGeneration) {
         setState(() {
         listError = true;
         // A refresh may reveal revoked access. Do not keep sensitive cached data visible.
         conversations = []; newInboundAlerts.clear(); selected = null; messages = []; conversationNext = null;
+        summaryGeneration++; tenantUnreadConversations = null; tenantUnreadMessages = null;
         messageGeneration++; reading = false; messageNext = null;
       });
       }
@@ -503,6 +543,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           if (unreadOnly) conversations.removeWhere((row) => row['id'] == id);
         }
       });
+      unawaited(loadUnreadSummary());
     } catch (_) {
       if (mounted && generation == messageGeneration && tenant == widget.tenantId) {
         setState(() => readReceiptError = true);
@@ -620,6 +661,15 @@ class _ConversationsPageState extends State<ConversationsPage> {
         ]),
       )),
       if (loading) const LinearProgressIndicator(),
+      if (!loading && !listError && tenantUnreadConversations != null &&
+          tenantUnreadMessages != null) Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Text(
+          l.inboxUnreadTenantSummary(tenantUnreadConversations!, tenantUnreadMessages!),
+          key: const Key('inbox-unread-tenant-summary'),
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
+      ),
       if (!loading && !listError) Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         child: Text(
