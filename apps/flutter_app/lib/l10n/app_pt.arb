@@ -210,7 +210,7 @@
   "inboxAssignmentAll": "Todas as atribuições",
   "inboxAssignmentMine": "Atribuídas a mim",
   "inboxAssignmentUnassigned": "Sem atribuição",
-  "inboxUnreadLoadedSummary": "Nesta lista: {conversations} conversas e {messages} mensagens por ler",
+  "inboxUnreadLoadedSummary": "Nesta lista — conversas por ler: {conversations}; mensagens por ler: {messages}",
   "@inboxUnreadLoadedSummary": {
     "placeholders": {
       "conversations": {
