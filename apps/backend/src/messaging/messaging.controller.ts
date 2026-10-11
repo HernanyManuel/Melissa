@@ -215,6 +215,16 @@ export class MessagingController {
     return this.messaging.closeConversation(req.actor, tenant, id);
   }
 
+  @Get('inbox/unread-summary')
+  @ApiOperation({
+    summary: 'Tenant-wide unread conversation and inbound event counts for this operator',
+    description:
+      'Actor-scoped read cursors; excludes outbound/control events and ignores list search/filter/pagination.',
+  })
+  inboxUnreadSummary(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenant: string) {
+    return this.messaging.inboxUnreadSummary(req.actor, tenant);
+  }
+
   @Get('inbox/checkpoint')
   @ApiOperation({
     summary: 'Recover the last SSE event successfully applied by this actor',
