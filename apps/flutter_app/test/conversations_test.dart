@@ -56,6 +56,47 @@ void main() {
     expect(find.text('No tenant — conversas por ler: 7; mensagens por ler: 16'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('late summary from previous tenant cannot overwrite current totals', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final oldReply = Completer<http.Response>();
+    final api = client((request) async {
+      if (request.url.path.endsWith('/inbox/unread-summary')) {
+        if (request.url.path.contains('/tenant-1/')) return oldReply.future;
+        return http.Response(jsonEncode({
+          'unreadConversations': 2, 'unreadMessages': 3,
+        }), 200);
+      }
+      if (request.url.path.endsWith('/conversations')) {
+        return page([conversation(request.url.path.contains('/tenant-1/') ? 'A' : 'B')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    Widget forTenant(String id) => MaterialApp(
+      locale: const Locale('pt'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: ConversationsPage(tenantId: id, api: api, realtimeEnabled: false),
+    );
+    await tester.pumpWidget(forTenant('tenant-1'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('inbox-unread-tenant-summary')), findsNothing);
+    await tester.pumpWidget(forTenant('tenant-2'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cliente A'), findsNothing);
+    expect(find.text('No tenant — conversas por ler: 2; mensagens por ler: 3'), findsOneWidget);
+    oldReply.complete(http.Response(jsonEncode({
+      'unreadConversations': 99, 'unreadMessages': 999,
+    }), 200));
+    await tester.pumpAndSettle();
+    expect(find.text('No tenant — conversas por ler: 2; mensagens por ler: 3'), findsOneWidget);
+    expect(find.textContaining('999'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('search retains query on pagination and discards late results', (tester) async {
     final late = Completer<http.Response>();
     final api = client((r) async {
