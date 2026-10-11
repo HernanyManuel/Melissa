@@ -214,12 +214,41 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     );
     assert.deepEqual(catalog.items, [{ id: createdTag.item.id, name: createdTag.item.name }]);
     assert.equal((await call('GET', tagPath, undefined, foreign.access_token)).status, 404);
+    const statusPath = `/tenants/${tenant.id}/conversations`;
+    assert.deepEqual(
+      (await data<{ items: { id: string }[] }>(
+        await call('GET', statusPath + '?status=open', undefined, owner.access_token), 200,
+      )).items.map((item) => item.id), [conversationId],
+    );
+    assert.deepEqual(
+      (await data<{ items: unknown[] }>(
+        await call('GET', statusPath + '?status=closed', undefined, owner.access_token), 200,
+      )).items, [],
+    );
+    assert.equal((await call('GET', statusPath + '?status=archived',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', statusPath + '?status=closed',
+      undefined, foreign.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath +
+      `?status=closed&after=${conversationId}`, undefined, owner.access_token)).status, 404);
     const filteredPath = `/tenants/${tenant.id}/conversations?tagId=${createdTag.item.id}`;
     const filtered = await data<{ items: { id: string }[]; next: string | null }>(
       await call('GET', filteredPath, undefined, owner.access_token), 200,
     );
     assert.deepEqual(filtered.items.map((item) => item.id), [conversationId]);
     assert.equal(filtered.next, null);
+    assert.deepEqual(
+      (await data<{ items: { id: string }[] }>(
+        await call('GET', filteredPath + '&status=open',
+          undefined, owner.access_token), 200,
+      )).items.map((item) => item.id), [conversationId],
+    );
+    assert.deepEqual(
+      (await data<{ items: unknown[] }>(
+        await call('GET', filteredPath + '&status=closed',
+          undefined, owner.access_token), 200,
+      )).items, [],
+    );
     assert.equal((await data<{ items: unknown[] }>(
       await call('GET', filteredPath + '&q=not-matching', undefined, owner.access_token),
       200,
@@ -385,6 +414,41 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     assert.equal(closed.mode, 'CLOSED');
     assert.equal(closed.assignedStaffId, null);
     assert(closed.closedAt);
+    await admin.$executeRaw`
+      INSERT INTO inbox_events (tenant_id, event_type, conversation_id)
+      VALUES (${tenant.id}::uuid, 'message.received', ${conversationId}::uuid)
+    `;
+    const closedOnly = await data<{ items: { id: string; status: string }[]; next: string | null }>(
+      await call('GET', statusPath + '?status=closed&unreadOnly=true',
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(closedOnly.items.map((item) => item.id), [conversationId]);
+    assert.equal(closedOnly.items[0]?.status, 'closed');
+    assert.equal(closedOnly.next, null);
+    assert.deepEqual(
+      (await data<{ items: unknown[] }>(
+        await call('GET', statusPath + '?status=open&unreadOnly=true',
+          undefined, owner.access_token), 200,
+      )).items, [],
+    );
+    assert.deepEqual(
+      (await data<{ items: { id: string }[] }>(
+        await call('GET', statusPath + '?status=closed',
+          undefined, owner.access_token), 200,
+      )).items.map((item) => item.id), [conversationId],
+    );
+    assert.deepEqual(
+      (await data<{ items: unknown[] }>(
+        await call('GET', statusPath + '?status=open',
+          undefined, owner.access_token), 200,
+      )).items, [],
+    );
+    assert.deepEqual(
+      (await data<{ items: unknown[] }>(
+        await call('GET', statusPath + `?status=closed&after=${conversationId}`,
+          undefined, owner.access_token), 200,
+      )).items, [],
+    );
 
     const afterClose = await admin.conversation.findUniqueOrThrow({
       where: { tenantId_id: { tenantId: tenant.id, id: conversationId } },
