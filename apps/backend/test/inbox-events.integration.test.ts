@@ -284,6 +284,63 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
     assert.equal(replayed.id, '2');
     assert.equal(replayed.event, 'conversation.ai_reactivated');
     assert.equal(replayed.data.conversationId, conversationId);
+    const checkpointPath = `/tenants/${tenant.id}/inbox/checkpoint`;
+    assert.deepEqual(
+      await data<{ after: null }>(
+        await call('GET', checkpointPath, undefined, owner.access_token), 200,
+      ),
+      { after: null },
+    );
+    assert.equal(
+      (await call('GET', checkpointPath, undefined, foreign.access_token)).status,
+      404,
+    );
+    assert.equal(
+      (await call('POST', checkpointPath, { after: '0' }, owner.access_token)).status,
+      400,
+    );
+    assert.equal(
+      (await call('POST', checkpointPath, { after: 'not-a-number' }, owner.access_token)).status,
+      400,
+    );
+    assert.equal(
+      (await call('POST', checkpointPath, { after: '9223372036854775808' },
+        owner.access_token)).status,
+      400,
+    );
+    assert.equal(
+      (await call('POST', checkpointPath, { after: '9999' }, owner.access_token)).status,
+      409,
+    );
+    assert.deepEqual(
+      await data<{ after: string; duplicate: boolean }>(
+        await call('POST', checkpointPath, { after: '1' }, owner.access_token), 200,
+      ),
+      { after: '1', duplicate: false },
+    );
+    assert.deepEqual(
+      await data<{ after: string; duplicate: boolean }>(
+        await call('POST', checkpointPath, { after: '2' }, owner.access_token), 200,
+      ),
+      { after: '2', duplicate: false },
+    );
+    assert.deepEqual(
+      await data<{ after: string; duplicate: boolean }>(
+        await call('POST', checkpointPath, { after: '1' }, owner.access_token), 200,
+      ),
+      { after: '2', duplicate: true },
+    );
+    assert.deepEqual(
+      await data<{ after: string }>(
+        await call('GET', checkpointPath, undefined, owner.access_token), 200,
+      ),
+      { after: '2' },
+    );
+    const durableCheckpoint = await admin.inboxStreamCheckpoint.findUniqueOrThrow({
+      where: { tenantId_actorId: { tenantId: tenant.id, actorId: owner.userId } },
+    });
+    assert.equal(durableCheckpoint.lastAppliedSequence, 2n);
+
 
     assert.equal(
       (
@@ -313,6 +370,25 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
     await admin.membership.create({
       data: { tenantId: tenant.id, userId: foreign.userId, role: 'staff' },
     });
+    assert.deepEqual(
+      await data<{ after: null }>(
+        await call('GET', checkpointPath, undefined, foreign.access_token), 200,
+      ),
+      { after: null },
+    );
+    assert.deepEqual(
+      await data<{ after: string; duplicate: boolean }>(
+        await call('POST', checkpointPath, { after: '1' }, foreign.access_token), 200,
+      ),
+      { after: '1', duplicate: false },
+    );
+    assert.deepEqual(
+      await data<{ after: string }>(
+        await call('GET', checkpointPath, undefined, owner.access_token), 200,
+      ),
+      { after: '2' },
+    );
+
     await admin.$executeRaw`
       INSERT INTO inbox_events (tenant_id, event_type, conversation_id)
       VALUES (${tenant.id}::uuid, 'message.received', ${conversationId}::uuid)
