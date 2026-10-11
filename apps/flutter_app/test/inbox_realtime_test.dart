@@ -121,6 +121,70 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('reload restores only the REST-applied checkpoint, never a failed refresh', (tester) async {
+    final events = StreamController<InboxEvent>.broadcast();
+    addTearDown(events.close);
+    final restored = <String?>[];
+    String? saved;
+    var failRefresh = false;
+    var listRequests = 0;
+    final api = apiFor((request) async {
+      if (request.url.path.endsWith('/inbox/checkpoint')) {
+        if (request.method == 'GET') {
+          return http.Response(jsonEncode({'after': saved}), 200);
+        }
+        saved = (jsonDecode(request.body) as Map<String, dynamic>)['after'] as String;
+        return http.Response(jsonEncode({'after': saved, 'duplicate': false}), 200);
+      }
+      if (request.url.path.endsWith('/conversations')) {
+        listRequests++;
+        if (failRefresh && listRequests > 1) return http.Response('{}', 503);
+        return page([conversation('A')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    Stream<InboxEvent> source(String tenant, String? after) {
+      restored.add(after);
+      return events.stream;
+    }
+
+    await tester.pumpWidget(screen(api, source));
+    await tester.pumpAndSettle();
+    expect(restored, [null]);
+    events.add(const InboxEvent(
+      sequence: '7', type: 'conversation.takeover', conversationId: 'A',
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpAndSettle();
+    expect(saved, '7');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    listRequests = 0;
+    failRefresh = true;
+    await tester.pumpWidget(screen(api, source));
+    await tester.pumpAndSettle();
+    expect(restored, [null, '7']);
+    events.add(const InboxEvent(
+      sequence: '8', type: 'message.received', conversationId: 'A',
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(saved, '7'); // REST failed: sequence 8 must not be checkpointed.
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    failRefresh = false;
+    listRequests = 0;
+    await tester.pumpWidget(screen(api, source));
+    await tester.pumpAndSettle();
+    expect(restored, [null, '7', '7']);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('reconnect resumes from last applied cursor and ignores replay', (tester) async {
     final sessions = <StreamController<InboxEvent>>[];
     final cursors = <String?>[];
