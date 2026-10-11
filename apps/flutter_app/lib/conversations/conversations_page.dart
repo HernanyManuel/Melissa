@@ -32,6 +32,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   String? selectedTagId;
   bool unreadOnly = false;
   String assignmentFilter = 'all';
+  String statusFilter = 'all';
   List<Map<String, dynamic>> availableTags = [];
   bool tagFilterOpen = false;
   bool tagsLoading = false;
@@ -80,7 +81,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       streamRevoked = false;
       search.clear(); searchQuery = '';
       tagsGeneration++; availableTags = []; selectedTagId = null;
-      unreadOnly = false; assignmentFilter = 'all';
+      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       messageGeneration++;
       conversations = []; messages = []; selected = null;
@@ -128,7 +129,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     setState(() {
       conversations = [];
       availableTags = []; selectedTagId = null; tagsGeneration++;
-      unreadOnly = false; assignmentFilter = 'all';
+      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       newInboundAlerts.clear();
       selected = null;
@@ -214,6 +215,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final tagAtStart = selectedTagId;
     final unreadAtStart = unreadOnly;
     final assignmentAtStart = assignmentFilter;
+    final statusAtStart = statusFilter;
     final listPages = ((conversations.length + 49) ~/ 50).clamp(1, 10);
     final messagePages = ((messages.length ~/ 50) + 1).clamp(1, 10);
     try {
@@ -225,6 +227,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           if (tagAtStart != null) 'tagId': tagAtStart,
           if (unreadAtStart) 'unreadOnly': 'true',
           if (assignmentAtStart != 'all') 'assignment': assignmentAtStart,
+          if (statusAtStart != 'all') 'status': statusAtStart,
           if (after != null) 'after': after,
         };
         final suffix = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
@@ -260,6 +263,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           listVersion != listGeneration || searchAtStart != searchQuery ||
           tagAtStart != selectedTagId || unreadAtStart != unreadOnly ||
           assignmentAtStart != assignmentFilter ||
+          statusAtStart != statusFilter ||
           tenant != widget.tenantId) {
         return;
       }
@@ -368,6 +372,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (selectedTagId != null) 'tagId': selectedTagId!,
       if (unreadOnly) 'unreadOnly': 'true',
       if (assignmentFilter != 'all') 'assignment': assignmentFilter,
+      if (statusFilter != 'all') 'status': statusFilter,
       if (more && conversationNext != null) 'after': conversationNext!};
     final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
     setState(() { loading = true; listError = false;
@@ -510,6 +515,21 @@ class _ConversationsPageState extends State<ConversationsPage> {
           onChanged: loading ? null : (value) {
             if (value == null || value == assignmentFilter) return;
             setState(() => assignmentFilter = value);
+            load();
+          },
+        )),
+        SizedBox(width: 216, child: DropdownButton<String>(
+          key: const Key('inbox-filter-status'),
+          isExpanded: true,
+          value: statusFilter,
+          items: [
+            DropdownMenuItem(value: 'all', child: Text(l.inboxStatusAll)),
+            DropdownMenuItem(value: 'open', child: Text(l.inboxStatusOpen)),
+            DropdownMenuItem(value: 'closed', child: Text(l.inboxStatusClosed)),
+          ],
+          onChanged: loading ? null : (value) {
+            if (value == null || value == statusFilter) return;
+            setState(() => statusFilter = value);
             load();
           },
         )),
