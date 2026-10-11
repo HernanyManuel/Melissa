@@ -209,5 +209,16 @@
   "inboxUnreadOnly": "Solo no leídas",
   "inboxAssignmentAll": "Todas las asignaciones",
   "inboxAssignmentMine": "Asignadas a mí",
-  "inboxAssignmentUnassigned": "Sin asignar"
+  "inboxAssignmentUnassigned": "Sin asignar",
+  "inboxUnreadLoadedSummary": "En la lista cargada: {conversations} conversaciones y {messages} mensajes sin leer",
+  "@inboxUnreadLoadedSummary": {
+    "placeholders": {
+      "conversations": {
+        "type": "int"
+      },
+      "messages": {
+        "type": "int"
+      }
+    }
+  }
 }
