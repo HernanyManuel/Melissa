@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Totais globais de mensagens por ler por operador
+
+O novo `GET /tenants/:tenantId/inbox/unread-summary` calcula `unreadConversations` e `unreadMessages` em **todo o tenant autorizado**, independente dos filtros/páginas do inbox. Apenas eventos duráveis `message.received` depois do cursor pessoal `inbox_read_cursors` contam; eventos enviados, mudanças de modo ou checkpoints SSE não contam. A rota exige `messages:read`, associa o cursor ao ator autenticado e utiliza as mesmas restrições tenant/RLS do resto do inbox.
+
+No Flutter, o resumo **global do tenant** aparece separadamente do resumo **local da lista carregada**. Os totais globais são atualizados após consulta de lista, refresh SSE confirmado por REST e ação explícita «Marcar como lida»; erros escondem valores globais antigos e respostas atrasadas de outro tenant são descartadas. Rótulos localizados em pt/en/es/fr/it/de, sem migração adicional ou alteração do envio.
+
+Testes HTTP abrangem dois operadores com confirmações distintas, outros tenants e papéis sem acesso; testes Flutter abrangem filtros, SSE, leitura e resposta antiga após troca de tenant. [ADR-095](decisions/ADR-095-tenant-wide-actor-unread-summary.md).
+
+**Limites:** as consultas REST distintas não partilham snapshot atómico; os contadores representam eventos por ler, não prova de visualização. Podem requerer otimização/indexação em tenants de alto volume. Não são notificações push, não incluem alterações de permissões de atribuição e não autorizam deploy, merge nem Meta live.
+
 ## Atualização Phase 8 — Checkpoint SSE durável após reload
 
 A migração **62** acrescenta `inbox_stream_checkpoints` por `(tenant_id, actor_id)`, com FK para um evento real do mesmo tenant, RLS forçada por tenant e operador, e grants mínimos à role runtime. O `GET /inbox/checkpoint` recupera o último cursor aplicado e o `POST /inbox/checkpoint` exige `messages:read`, valida que a sequência existe no tenant e impede regressão, duplicação com efeito ou posições futuras. O readiness exige `schema_version=62`.
