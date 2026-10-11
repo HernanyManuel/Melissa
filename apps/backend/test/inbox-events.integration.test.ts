@@ -401,6 +401,16 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
       INSERT INTO inbox_events (tenant_id, event_type, conversation_id)
       VALUES (${tenant.id}::uuid, 'message.sent', ${conversationId}::uuid)
     `;
+    const summaryPath = `/tenants/${tenant.id}/inbox/unread-summary`;
+    const summary = (token: string) => data<{
+      unreadConversations: number; unreadMessages: number;
+    }>(call('GET', summaryPath, undefined, token), 200);
+    assert.deepEqual(await summary(owner.access_token),
+      { unreadConversations: 1, unreadMessages: 2 });
+    assert.deepEqual(await summary(foreign.access_token),
+      { unreadConversations: 1, unreadMessages: 2 });
+    assert.equal((await call('GET', summaryPath)).status, 401);
+    assert.equal((await call('GET', summaryPath, undefined, viewer.access_token)).status, 403);
     const listPath = `/tenants/${tenant.id}/conversations`;
     const list = async (token: string) => {
       const response = await data<{ items: Array<{
@@ -437,6 +447,10 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
     );
     assert.equal((await list(owner.access_token))?.unreadCount, 0);
     assert.equal((await list(foreign.access_token))?.unreadCount, 2);
+    assert.deepEqual(await summary(owner.access_token),
+      { unreadConversations: 0, unreadMessages: 0 });
+    assert.deepEqual(await summary(foreign.access_token),
+      { unreadConversations: 1, unreadMessages: 2 });
 
     const duplicate = await data<{ unreadUpTo: string; duplicate: boolean }>(
       await call('POST', readPath, { upTo: '3' }, owner.access_token),
@@ -450,6 +464,8 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
       200,
     );
     assert.equal((await list(foreign.access_token))?.unreadCount, 0);
+    assert.deepEqual(await summary(foreign.access_token),
+      { unreadConversations: 0, unreadMessages: 0 });
 
     const foreignTenant = await data<{ id: string }>(
       await call('POST', '/tenants', {
@@ -471,6 +487,17 @@ test('Inbox SSE replays missed tenant events without cross-tenant access', { tim
     `;
     assert.equal((await list(owner.access_token))?.unreadCount, 1);
     assert.equal((await list(foreign.access_token))?.unreadCount, 1);
+    assert.deepEqual(await summary(owner.access_token),
+      { unreadConversations: 1, unreadMessages: 1 });
+    assert.deepEqual(await summary(foreign.access_token),
+      { unreadConversations: 1, unreadMessages: 1 });
+    assert.equal((await call('GET',
+      `/tenants/${foreignTenant.id}/inbox/unread-summary`,
+      undefined, owner.access_token)).status, 404);
+    assert.deepEqual(await data<{ unreadConversations: number; unreadMessages: number }>(
+      call('GET', `/tenants/${foreignTenant.id}/inbox/unread-summary`,
+        undefined, foreign.access_token), 200,
+    ), { unreadConversations: 0, unreadMessages: 0 });
 
     const unreadPage = async (token: string, params = '?unreadOnly=true') =>
       data<{ items: Array<{ id: string; unreadCount: number }>; next: string | null }>(
