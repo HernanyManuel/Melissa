@@ -743,6 +743,43 @@ export class MessagingService {
     });
   }
 
+  inboxCheckpoint(actor: Actor, tenantId: string) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      const checkpoint = await tx.inboxStreamCheckpoint.findUnique({
+        where: { tenantId_actorId: { tenantId, actorId: actor.userId } },
+        select: { lastAppliedSequence: true },
+      });
+      return { after: checkpoint?.lastAppliedSequence.toString() ?? null };
+    });
+  }
+
+  async applyInboxCheckpoint(actor: Actor, tenantId: string, after: string) {
+    if (!/^[1-9]\\d{0,18}$/.test(after) || BigInt(after) > 9_223_372_036_854_775_807n)
+      throw new BadRequestException();
+    const sequence = BigInt(after);
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      // Never accept a guessed future position that would skip live messages.
+      const event = await tx.inboxEvent.findUnique({
+        where: { tenantId_sequence: { tenantId, sequence } },
+        select: { sequence: true },
+      });
+      if (!event) throw new ConflictException();
+
+      // TenantService.scoped serializes this tenant's writes. A second tab
+      // cannot regress the actor's checkpoint by acknowledging an older event.
+      const key = { tenantId_actorId: { tenantId, actorId: actor.userId } };
+      const previous = await tx.inboxStreamCheckpoint.findUnique({ where: key });
+      if (previous && previous.lastAppliedSequence >= sequence)
+        return { after: previous.lastAppliedSequence.toString(), duplicate: true };
+      await tx.inboxStreamCheckpoint.upsert({
+        where: key,
+        create: { tenantId, actorId: actor.userId, lastAppliedSequence: sequence },
+        update: { lastAppliedSequence: sequence, updatedAt: new Date() },
+      });
+      return { after, duplicate: false };
+    });
+  }
+
   inboxEvents(actor: Actor, tenantId: string, after: bigint) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       const rows = await tx.$queryRaw<
