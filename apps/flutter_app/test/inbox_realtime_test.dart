@@ -87,6 +87,12 @@ void main() {
     var unread = 0;
     var readCalls = 0;
     final api = apiFor((request) async {
+      if (request.url.path.endsWith('/inbox/unread-summary')) {
+        return http.Response(jsonEncode({
+          'unreadConversations': unread > 0 ? 1 : 0,
+          'unreadMessages': unread,
+        }), 200);
+      }
       if (request.url.path.endsWith('/conversations')) {
         return page([{
           ...conversation('A'),
@@ -106,6 +112,7 @@ void main() {
     await tester.pumpWidget(screen(api, (_, __) => events.stream));
     await tester.pumpAndSettle();
     expect(find.text('Novas mensagens recebidas'), findsNothing);
+    expect(find.text('No tenant — conversas por ler: 0; mensagens por ler: 0'), findsOneWidget);
     unread = 1;
     events.add(const InboxEvent(
       sequence: '12', type: 'message.received', conversationId: 'A',
@@ -114,12 +121,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpAndSettle();
     expect(find.text('Novas mensagens recebidas'), findsWidgets);
+    expect(find.text('No tenant — conversas por ler: 1; mensagens por ler: 1'), findsOneWidget);
     await tester.tap(find.text('Cliente A'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Marcar como lida'));
     await tester.pumpAndSettle();
     expect(readCalls, 1);
     expect(find.text('Novas mensagens recebidas'), findsNothing);
+    expect(find.text('No tenant — conversas por ler: 0; mensagens por ler: 0'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
