@@ -50,6 +50,14 @@ export class ConversationQuery extends MessagePageDto {
   @IsOptional()
   @Matches(/^(all|mine|unassigned)$/)
   assignment?: string;
+
+  @ApiPropertyOptional({
+    enum: ['all', 'open', 'closed'],
+    description: 'Filter conversation lifecycle status before pagination; defaults to all.',
+  })
+  @IsOptional()
+  @Matches(/^(all|open|closed)$/)
+  status?: string;
 }
 
 export class ConversationTakeoverDto {
