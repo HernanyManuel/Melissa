@@ -223,5 +223,12 @@
   },
   "inboxStatusAll": "Tous les statuts",
   "inboxStatusOpen": "Ouvertes",
-  "inboxStatusClosed": "Fermées"
+  "inboxStatusClosed": "Fermées",
+  "inboxUnreadTenantSummary": "Dans tout le tenant : {conversations} conversations et {messages} messages non lus",
+  "@inboxUnreadTenantSummary": {
+    "placeholders": {
+      "conversations": {"type": "int"},
+      "messages": {"type": "int"}
+    }
+  }
 }
