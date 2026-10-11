@@ -220,5 +220,8 @@
         "type": "int"
       }
     }
-  }
+  },
+  "inboxStatusAll": "Tutti gli stati",
+  "inboxStatusOpen": "Aperte",
+  "inboxStatusClosed": "Chiuse"
 }
