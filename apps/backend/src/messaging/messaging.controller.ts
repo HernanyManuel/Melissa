@@ -220,10 +220,7 @@ export class MessagingController {
     summary: 'Recover the last SSE event successfully applied by this actor',
     description: 'Actor- and tenant-scoped, independent of manual unread acknowledgements.',
   })
-  inboxCheckpoint(
-    @Req() req: AuthRequest,
-    @Param('tenantId', ParseUUIDPipe) tenant: string,
-  ) {
+  inboxCheckpoint(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenant: string) {
     return this.messaging.inboxCheckpoint(req.actor, tenant);
   }
 
