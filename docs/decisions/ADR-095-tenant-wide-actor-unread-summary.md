@@ -2,7 +2,7 @@
 
 ## Estado
 
-Fatia incremental da Phase 8, ainda no PR draft #7. Não autoriza merge, deploy ou integração live com a Meta.
+Fatia incremental da Phase 8, ainda no PR draft #7. Implementação funcional validada no commit `c85b535c5c81ba6a3f04ea4d4c80ebe4d9b085ec`, [workflow 38173756512](https://github.com/HernanyManuel/Melissa/actions/runs/38173756512) integralmente verde (backend, Flutter e Compose). Não autoriza merge, deploy ou integração live com a Meta.
 
 ## Contexto
 
@@ -18,7 +18,7 @@ A ADR-085 criou cursores de leitura duráveis por operador, e o Flutter passou a
 
 ## Verificação
 
-A integração HTTP/PostgreSQL verifica contagem inicial, exclusão de eventos outbound, alterações após confirmação de leitura, independência entre dois operadores com cursores diferentes, permissões viewer e isolamento entre tenants. Testes Flutter verificam independência face ao filtro de pesquisa, atualização após SSE e «Marcar como lida» e descarte de um resultado atrasado do tenant anterior. A compilação e os testes devem passar pelo CI do PR antes de considerar esta fatia validada.
+A integração HTTP/PostgreSQL verifica contagem inicial, exclusão de eventos outbound, alterações após confirmação de leitura, independência entre dois operadores com cursores diferentes, permissões viewer e isolamento entre tenants. Testes Flutter verificam independência face ao filtro de pesquisa, atualização após SSE e «Marcar como lida» e descarte de um resultado atrasado do tenant anterior. O workflow [38173756512](https://github.com/HernanyManuel/Melissa/actions/runs/38173756512) confirmou formatação, lint, tipos, testes PostgreSQL/RLS e worker, Flutter analyze/test/build web e Compose.
 
 ## Limitações
 
