@@ -754,7 +754,7 @@ export class MessagingService {
   }
 
   async applyInboxCheckpoint(actor: Actor, tenantId: string, after: string) {
-    if (!/^[1-9]\\d{0,18}$/.test(after) || BigInt(after) > 9_223_372_036_854_775_807n)
+    if (!/^[1-9]\d{0,18}$/.test(after) || BigInt(after) > 9_223_372_036_854_775_807n)
       throw new BadRequestException();
     const sequence = BigInt(after);
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
