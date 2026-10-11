@@ -209,5 +209,16 @@
   "inboxUnreadOnly": "Solo non lette",
   "inboxAssignmentAll": "Tutte le assegnazioni",
   "inboxAssignmentMine": "Assegnate a me",
-  "inboxAssignmentUnassigned": "Non assegnate"
+  "inboxAssignmentUnassigned": "Non assegnate",
+  "inboxUnreadLoadedSummary": "Nell'elenco caricato: {conversations} conversazioni e {messages} messaggi non letti",
+  "@inboxUnreadLoadedSummary": {
+    "placeholders": {
+      "conversations": {
+        "type": "int"
+      },
+      "messages": {
+        "type": "int"
+      }
+    }
+  }
 }
