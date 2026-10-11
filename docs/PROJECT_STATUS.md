@@ -1,5 +1,11 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Resumo local de mensagens por ler
+
+O inbox Flutter mostra o número de **conversas** com mensagens não lidas e o número de **eventos de entrada ainda não marcados como lidos** nas conversas atualmente carregadas, respeitando pesquisa, etiqueta, atribuição, filtro de não lidas e paginação. O resumo é explicitamente local à lista carregada — não representa um total global de tenant nem revela conteúdo das mensagens. A interface usa contagens `unreadCount` já produzidas pelo backend sob RLS por operador; não requer endpoint novo, migração ou alteração de permissões.
+
+Os rótulos estão disponíveis em pt/en/es/fr/it/de, e o teste Flutter confirma que alterar a pesquisa atualiza ambas as contagens, sem herdar números do filtro anterior. **CI funcional:** [38114724780](https://github.com/HernanyManuel/Melissa/actions/runs/38114724780). Sem merge/deploy, push, áudio nem ativação de WhatsApp live.
+
 ## Atualização Phase 8 — Consentimento de marketing no painel do cliente
 
 O painel do cliente no inbox apresenta agora o campo **`marketingConsentStatus`** já existente no endpoint autorizado `GET /tenants/:tenantId/conversations/:id/customer`, com rótulo localizado em pt/en/es/fr/it/de. O campo é estritamente de consulta: o Flutter não altera o consentimento, não faz pedidos de envio, não apresenta a informação como uma autorização de marketing e não cria rotas adicionais. O teste do painel valida a renderização do valor e a ausência de chamadas ao endpoint de mensagens.
