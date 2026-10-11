@@ -743,6 +743,32 @@ export class MessagingService {
     });
   }
 
+  // Tenant-wide totals, independent of the list's filters and pagination.
+  // Read acknowledgements remain actor-owned; neither SSE controls nor
+  // outbound messages count as unread customer messages.
+  inboxUnreadSummary(actor: Actor, tenantId: string) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      const [row] = await tx.$queryRaw<
+        Array<{ unreadConversations: bigint; unreadMessages: bigint }>
+      >`
+        SELECT COUNT(DISTINCT e.conversation_id)::bigint AS "unreadConversations",
+               COUNT(*)::bigint AS "unreadMessages"
+        FROM inbox_events e
+        LEFT JOIN inbox_read_cursors r
+          ON r.tenant_id=e.tenant_id
+          AND r.conversation_id=e.conversation_id
+          AND r.actor_id=${actor.userId}::uuid
+        WHERE e.tenant_id=${tenantId}::uuid
+          AND e.event_type='message.received'
+          AND e.sequence > COALESCE(r.last_read_sequence, 0)
+      `;
+      return {
+        unreadConversations: Number(row?.unreadConversations ?? 0n),
+        unreadMessages: Number(row?.unreadMessages ?? 0n),
+      };
+    });
+  }
+
   inboxCheckpoint(actor: Actor, tenantId: string) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       const checkpoint = await tx.inboxStreamCheckpoint.findUnique({
