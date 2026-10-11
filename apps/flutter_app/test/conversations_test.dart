@@ -26,6 +26,11 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final api = client((r) async {
+      if (r.url.path.endsWith('/inbox/unread-summary')) {
+        return http.Response(jsonEncode({
+          'unreadConversations': 7, 'unreadMessages': 16,
+        }), 200);
+      }
       if (r.url.path.endsWith('/conversations')) {
         if (r.url.queryParameters['q'] == 'special') {
           return page([{...conversation('filtered'), 'unreadCount': 4}]);
@@ -41,11 +46,14 @@ void main() {
     await tester.pumpWidget(screen(api));
     await tester.pumpAndSettle();
     expect(find.text('Nesta lista — conversas por ler: 1; mensagens por ler: 2'), findsOneWidget);
+    expect(find.text('No tenant — conversas por ler: 7; mensagens por ler: 16'), findsOneWidget);
     await tester.enterText(find.byType(TextField).first, 'special');
     await tester.tap(find.text('Pesquisar'));
     await tester.pumpAndSettle();
     expect(find.text('Nesta lista — conversas por ler: 1; mensagens por ler: 4'), findsOneWidget);
     expect(find.text('Nesta lista — conversas por ler: 1; mensagens por ler: 2'), findsNothing);
+    // Tenant total is unaffected by pagination or the local search filter.
+    expect(find.text('No tenant — conversas por ler: 7; mensagens por ler: 16'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   testWidgets('search retains query on pagination and discards late results', (tester) async {
