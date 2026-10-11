@@ -56,6 +56,9 @@ void main() {
         return page([message('Primeira'), if (messageVersion == 2) message('Segunda')]);
       }
       if (request.url.path.endsWith('/B/messages')) return page([message('Outra')]);
+      if (request.url.path.endsWith('/inbox/checkpoint')) {
+        return http.Response('{"after":null}', 200);
+      }
       return http.Response('{}', 404);
     });
     addTearDown(api.dispose);
