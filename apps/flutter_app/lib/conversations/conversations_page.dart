@@ -518,21 +518,25 @@ class _ConversationsPageState extends State<ConversationsPage> {
             load();
           },
         )),
-        SizedBox(width: 216, child: DropdownButton<String>(
+        PopupMenuButton<String>(
           key: const Key('inbox-filter-status'),
-          isExpanded: true,
-          value: statusFilter,
-          items: [
-            DropdownMenuItem(value: 'all', child: Text(l.inboxStatusAll)),
-            DropdownMenuItem(value: 'open', child: Text(l.inboxStatusOpen)),
-            DropdownMenuItem(value: 'closed', child: Text(l.inboxStatusClosed)),
+          tooltip: statusFilter == 'open' ? l.inboxStatusOpen :
+              statusFilter == 'closed' ? l.inboxStatusClosed : l.inboxStatusAll,
+          enabled: !loading,
+          initialValue: statusFilter,
+          icon: Icon(statusFilter == 'all'
+              ? Icons.filter_list_outlined : Icons.filter_alt),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'all', child: Text(l.inboxStatusAll)),
+            PopupMenuItem(value: 'open', child: Text(l.inboxStatusOpen)),
+            PopupMenuItem(value: 'closed', child: Text(l.inboxStatusClosed)),
           ],
-          onChanged: loading ? null : (value) {
-            if (value == null || value == statusFilter) return;
+          onSelected: (value) {
+            if (value == statusFilter) return;
             setState(() => statusFilter = value);
             load();
           },
-        )),
+        ),
         FilterChip(
           key: const Key('inbox-filter-unread'),
           label: Text(l.inboxUnreadOnly),
