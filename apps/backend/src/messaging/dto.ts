@@ -64,6 +64,15 @@ export class ConversationTakeoverDto {
   @ApiProperty({ format: 'uuid' }) @IsUUID() staffId!: string;
 }
 
+export class InboxCheckpointDto {
+  @ApiProperty({
+    description: 'A tenant event sequence applied by a successful authorized REST refresh.',
+    example: '42',
+  })
+  @Matches(/^[1-9]\\d{0,18}$/)
+  after!: string;
+}
+
 export class InboxEventQuery {
   @ApiPropertyOptional({
     description: 'Tenant-local durable event cursor. Omit or use 0 for the beginning.',
