@@ -209,5 +209,16 @@
   "inboxUnreadOnly": "Nur ungelesene",
   "inboxAssignmentAll": "Alle Zuweisungen",
   "inboxAssignmentMine": "Mir zugewiesen",
-  "inboxAssignmentUnassigned": "Nicht zugewiesen"
+  "inboxAssignmentUnassigned": "Nicht zugewiesen",
+  "inboxUnreadLoadedSummary": "In der geladenen Liste: {conversations} Unterhaltungen und {messages} ungelesene Nachrichten",
+  "@inboxUnreadLoadedSummary": {
+    "placeholders": {
+      "conversations": {
+        "type": "int"
+      },
+      "messages": {
+        "type": "int"
+      }
+    }
+  }
 }
