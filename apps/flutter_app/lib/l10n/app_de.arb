@@ -220,5 +220,8 @@
         "type": "int"
       }
     }
-  }
+  },
+  "inboxStatusAll": "Alle Status",
+  "inboxStatusOpen": "Offen",
+  "inboxStatusClosed": "Geschlossen"
 }
