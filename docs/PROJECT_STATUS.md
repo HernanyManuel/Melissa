@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Checkpoint SSE durável após reload
+
+A migração **62** acrescenta `inbox_stream_checkpoints` por `(tenant_id, actor_id)`, com FK para um evento real do mesmo tenant, RLS forçada por tenant e operador, e grants mínimos à role runtime. O `GET /inbox/checkpoint` recupera o último cursor aplicado e o `POST /inbox/checkpoint` exige `messages:read`, valida que a sequência existe no tenant e impede regressão, duplicação com efeito ou posições futuras. O readiness exige `schema_version=62`.
+
+No Flutter, o início de uma sessão no inbox recupera o checkpoint antes de abrir o stream. A posição persistente avança **só após o refresh REST autorizado ter atualizado a vista**; falhas de REST conservam os eventos pendentes, e falhas temporárias na gravação resultam em replay seguro num próximo reload. O cursor SSE continua **separado** do comando explícito de marcar mensagens como lidas. Trocar de tenant invalida streams e callbacks antigos.
+
+**CI funcional:** [38168100442](https://github.com/HernanyManuel/Melissa/actions/runs/38168100442) integralmente verde (backend PostgreSQL/RLS/worker, Flutter analyze/test/build web e Compose), com testes de isolamento entre operadores, cursores inválidos, monotonicidade e reload após falha REST. [ADR-094](decisions/ADR-094-durable-actor-scoped-inbox-sse-checkpoints.md).
+
+**Limites:** checkpoint não representa prova de leitura nem sincronização integral de todas as páginas; vários separadores do mesmo operador partilham a posição durável, mas cada vista reconsulta o REST ao abrir. Não há notificações fora da aplicação, nem E2E Meta real, merge ou deploy.
+
 ## Atualização Phase 8 — Filtro por estado aberto/encerrado
 
 A listagem `GET /conversations` aceita agora `status=all|open|closed` e aplica a condição **antes** de paginação, tanto na consulta padrão como no caminho `unreadOnly=true`. O backend valida o valor (HTTP 400 para inválidos) e exige que um cursor `after` pertença ao tenant e ao estado filtrado (HTTP 404 em caso contrário). Pesquisa, etiqueta, atribuição e cursor continuam combináveis; o estado omitido mantém a listagem prévia, incluindo conversas arquivadas quando existirem.
