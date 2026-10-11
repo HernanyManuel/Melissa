@@ -6,7 +6,7 @@ O novo `GET /tenants/:tenantId/inbox/unread-summary` calcula `unreadConversation
 
 No Flutter, o resumo **global do tenant** aparece separadamente do resumo **local da lista carregada**. Os totais globais são atualizados após consulta de lista, refresh SSE confirmado por REST e ação explícita «Marcar como lida»; erros escondem valores globais antigos e respostas atrasadas de outro tenant são descartadas. Rótulos localizados em pt/en/es/fr/it/de, sem migração adicional ou alteração do envio.
 
-Testes HTTP abrangem dois operadores com confirmações distintas, outros tenants e papéis sem acesso; testes Flutter abrangem filtros, SSE, leitura e resposta antiga após troca de tenant. [ADR-095](decisions/ADR-095-tenant-wide-actor-unread-summary.md).
+Testes HTTP abrangem dois operadores com confirmações distintas, outros tenants e papéis sem acesso; testes Flutter abrangem filtros, SSE, leitura e resposta antiga após troca de tenant. **CI funcional:** [38173756512](https://github.com/HernanyManuel/Melissa/actions/runs/38173756512) **integralmente verde** (backend PostgreSQL/RLS/worker, Flutter analyze/test/build web e Compose) no commit `c85b535c5c81ba6a3f04ea4d4c80ebe4d9b085ec`. [ADR-095](decisions/ADR-095-tenant-wide-actor-unread-summary.md).
 
 **Limites:** as consultas REST distintas não partilham snapshot atómico; os contadores representam eventos por ler, não prova de visualização. Podem requerer otimização/indexação em tenants de alto volume. Não são notificações push, não incluem alterações de permissões de atribuição e não autorizam deploy, merge nem Meta live.
 
