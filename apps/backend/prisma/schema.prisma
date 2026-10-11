@@ -703,6 +703,16 @@ model InboxEvent {
 }
 
 
+model InboxStreamCheckpoint {
+  tenantId            String   @map("tenant_id") @db.Uuid
+  actorId             String   @map("actor_id") @db.Uuid
+  lastAppliedSequence BigInt   @map("last_applied_sequence")
+  updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@id([tenantId, actorId])
+  @@map("inbox_stream_checkpoints")
+}
+
 model InboxReadCursor {
   tenantId         String   @map("tenant_id") @db.Uuid
   actorId          String   @map("actor_id") @db.Uuid
