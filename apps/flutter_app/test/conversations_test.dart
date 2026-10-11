@@ -189,6 +189,64 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('lifecycle filter combines with assignment and retains paged cursors', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final requests = <Uri>[];
+    final api = client((request) async {
+      if (request.url.path.endsWith('/conversations')) {
+        requests.add(request.url);
+        if (request.url.queryParameters['status'] == 'closed') {
+          return request.url.queryParameters['after'] == 'cursor'
+              ? page([conversation('second')])
+              : page([conversation('first')], 'cursor');
+        }
+        return page([conversation('all')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(find.text('Cliente all'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-status')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Encerradas').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['status'], 'closed');
+    expect(requests.last.queryParameters.containsKey('after'), false);
+    expect(find.text('Cliente first'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-assignment')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Atribuídas a mim').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['status'], 'closed');
+    expect(requests.last.queryParameters['assignment'], 'mine');
+    await tester.ensureVisible(find.text('Carregar mais'));
+    await tester.tap(find.text('Carregar mais'));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['after'], 'cursor');
+    expect(requests.last.queryParameters['status'], 'closed');
+    expect(requests.last.queryParameters['assignment'], 'mine');
+    expect(find.text('Cliente second'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-status')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abertas').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['status'], 'open');
+    expect(requests.last.queryParameters['assignment'], 'mine');
+    expect(requests.last.queryParameters.containsKey('after'), false);
+    expect(find.text('Cliente all'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-status')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Todos os estados').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters.containsKey('status'), false);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('assignment filter composes with unread and resets pagination', (tester) async {
     tester.view.physicalSize = const Size(1100, 1000);
     tester.view.devicePixelRatio = 1;
