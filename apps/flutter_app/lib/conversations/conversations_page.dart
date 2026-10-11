@@ -58,6 +58,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   int? activeRefreshStream;
   bool streamRevoked = false;
   String? eventCursor;
+  String? pendingAppliedCursor;
   StreamSubscription<InboxEvent>? inboxSubscription;
   Timer? reconnectTimer;
   Timer? updateTimer;
@@ -70,8 +71,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   void initState() {
     super.initState();
     api = widget.api ?? IdentityApi();
-    load();
-    _connectInbox();
+    _startInbox();
   }
   @override
   void didUpdateWidget(covariant ConversationsPage oldWidget) {
@@ -89,8 +89,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       conversationNext = null; messageNext = null;
       reading = false; messageError = false;
       markingRead = false; readReceiptError = false;
-      load();
-      _connectInbox();
+      _startInbox();
     }
   }
   @override
@@ -119,6 +118,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     changedConversations.clear();
     newInboundAlerts.clear();
     eventCursor = null;
+    pendingAppliedCursor = null;
     reconnectAttempts = 0;
   }
 
@@ -146,6 +146,41 @@ class _ConversationsPageState extends State<ConversationsPage> {
     });
   }
 
+  /// Recover only this authenticated actor's checkpoint. If the lookup fails
+  /// transiently, replay from zero rather than guessing a position.
+  Future<void> _startInbox() async {
+    final version = streamGeneration;
+    final tenant = widget.tenantId;
+    try {
+      if (!api.authenticated) await api.refresh();
+      final response = await api.request('GET', '/tenants/$tenant/inbox/checkpoint')
+          as Map<String, dynamic>;
+      final cursor = response['after'];
+      if (cursor != null &&
+          (cursor is! String || !validInboxCursor(cursor) || cursor == '0')) {
+        throw const FormatException('Invalid persisted inbox checkpoint');
+      }
+      if (!mounted || version != streamGeneration || tenant != widget.tenantId) return;
+      eventCursor = cursor as String?;
+    } catch (error) {
+      if (!mounted || version != streamGeneration || tenant != widget.tenantId) return;
+      if (error is ApiFailure && [401, 403, 404].contains(error.status)) {
+        _revokeInbox();
+        return;
+      }
+      eventCursor = null; // Never skip events because checkpoint recovery failed.
+    }
+    if (!mounted || version != streamGeneration || tenant != widget.tenantId) return;
+    load();
+    _connectInbox();
+  }
+
+  String? _maxCursor(String? first, String? second) {
+    if (first == null) return second;
+    if (second == null) return first;
+    return BigInt.parse(first) >= BigInt.parse(second) ? first : second;
+  }
+
   void _connectInbox() {
     if (!mounted || !widget.realtimeEnabled || streamRevoked) return;
     final version = streamGeneration;
@@ -159,6 +194,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
         return;
       }
       eventCursor = event.sequence;
+      pendingAppliedCursor = _maxCursor(pendingAppliedCursor, event.sequence);
       reconnectAttempts = 0;
       changedConversations.add(event.conversationId);
       _scheduleInboxRefresh();
@@ -204,7 +240,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final activeStream = streamGeneration;
     activeRefreshStream = activeStream;
     final affected = Set<String>.of(changedConversations);
+    final appliedThrough = pendingAppliedCursor;
     changedConversations.clear();
+    pendingAppliedCursor = null;
     final refreshVersion = ++refreshGeneration;
     final streamVersion = streamGeneration;
     final listVersion = listGeneration;
@@ -295,6 +333,20 @@ class _ConversationsPageState extends State<ConversationsPage> {
           }
         }
       });
+      if (appliedThrough != null) {
+        // Persist only after the REST view was applied. Failure to persist
+        // causes safe replay after reload; it never confirms messages as read.
+        try {
+          await api.request('POST', '/tenants/$tenant/inbox/checkpoint',
+              {'after': appliedThrough}, false);
+        } catch (error) {
+          if (mounted && streamVersion == streamGeneration &&
+              tenant == widget.tenantId &&
+              error is ApiFailure && [401, 403, 404].contains(error.status)) {
+            _revokeInbox();
+          }
+        }
+      }
     } catch (error) {
       if (!mounted || streamVersion != streamGeneration || tenant != widget.tenantId) return;
       if (error is ApiFailure && [401, 403, 404].contains(error.status)) {
@@ -302,6 +354,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       } else if (refreshVersion == refreshGeneration) {
         // Do not advance the displayed view permanently past an unrefreshed event.
         changedConversations.addAll(affected);
+        pendingAppliedCursor = _maxCursor(pendingAppliedCursor, appliedThrough);
         if (refreshRetryTimer == null) {
           final seconds = 1 << (refreshAttempts < 4 ? refreshAttempts : 4);
           if (refreshAttempts < 4) refreshAttempts++;
