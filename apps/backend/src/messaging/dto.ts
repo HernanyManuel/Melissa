@@ -69,7 +69,7 @@ export class InboxCheckpointDto {
     description: 'A tenant event sequence applied by a successful authorized REST refresh.',
     example: '42',
   })
-  @Matches(/^[1-9]\\d{0,18}$/)
+  @Matches(/^[1-9]\d{0,18}$/)
   after!: string;
 }
 
