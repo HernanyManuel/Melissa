@@ -82,6 +82,10 @@ void main() {
   });
 
   testWidgets('new-message alert requires verified unread increase and clears on read', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final events = StreamController<InboxEvent>.broadcast();
     addTearDown(events.close);
     var unread = 0;
@@ -122,8 +126,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Novas mensagens recebidas'), findsWidgets);
     expect(find.text('No tenant — conversas por ler: 1; mensagens por ler: 1'), findsOneWidget);
+    await tester.ensureVisible(find.text('Cliente A'));
     await tester.tap(find.text('Cliente A'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Marcar como lida'));
     await tester.tap(find.text('Marcar como lida'));
     await tester.pumpAndSettle();
     expect(readCalls, 1);
