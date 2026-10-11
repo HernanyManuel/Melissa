@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Filtro por estado aberto/encerrado
+
+A listagem `GET /conversations` aceita agora `status=all|open|closed` e aplica a condição **antes** de paginação, tanto na consulta padrão como no caminho `unreadOnly=true`. O backend valida o valor (HTTP 400 para inválidos) e exige que um cursor `after` pertença ao tenant e ao estado filtrado (HTTP 404 em caso contrário). Pesquisa, etiqueta, atribuição e cursor continuam combináveis; o estado omitido mantém a listagem prévia, incluindo conversas arquivadas quando existirem.
+
+No Flutter, um menu compacto «Todos os estados / Abertas / Encerradas» evita aumentar a altura fixa dos controlos no telemóvel. Mudanças de estado reiniciam a paginação, e o refresh SSE conserva/verifica a seleção antes de mostrar resultados atrasados. Os rótulos existem em pt/en/es/fr/it/de. Não há novo endpoint de escrita, migração ou efeito sobre a entrega de mensagens.
+
+**Validação:** [workflow 38139479035](https://github.com/HernanyManuel/Melissa/actions/runs/38139479035) **integralmente verde** — backend/PostgreSQL/RLS/worker, Flutter analyze/test/build web e Compose. Testes cobrem alterações reais `open → closed`, `unreadOnly` combinado, etiquetas, cursores incompatíveis, isolamento tenant e UI/paginação; [ADR-093](decisions/ADR-093-inbox-conversation-status-filter.md).
+
+**Limites:** `archived` fica apenas na vista «Todos os estados»; não existe reabertura automática, alteração de estado via filtro, notificações push ou merge/deploy. A Phase 8 mantém pendentes operações avançadas de atendimento e validação E2E Meta real.
+
 ## Atualização Phase 8 — Resumo local de mensagens por ler
 
 O inbox Flutter mostra o número de **conversas** com mensagens não lidas e o número de **eventos de entrada ainda não marcados como lidos** nas conversas atualmente carregadas, respeitando pesquisa, etiqueta, atribuição, filtro de não lidas e paginação. O resumo é explicitamente local à lista carregada — não representa um total global de tenant nem revela conteúdo das mensagens. A interface usa contagens `unreadCount` já produzidas pelo backend sob RLS por operador; não requer endpoint novo, migração ou alteração de permissões.
