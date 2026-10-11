@@ -148,6 +148,7 @@ export class MessagingService {
   // prettier-ignore
   conversations(actor: Actor, tenantId: string, page: ConversationQuery) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      const status = page.status ?? 'all';
       if (page.tagId) {
         const tag = await tx.conversationTag.findUnique({
           where: { tenantId_id: { tenantId, id: page.tagId } },
@@ -161,6 +162,7 @@ export class MessagingService {
           where: {
             tenantId,
             id: page.after,
+            ...(status !== 'all' ? { status } : {}),
             ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
           },
           select: { id: true },
@@ -185,6 +187,7 @@ export class MessagingService {
             SELECT c.id::text AS id
             FROM conversations c
             WHERE c.tenant_id=${tenantId}::uuid
+              ${status !== 'all' ? Prisma.sql`AND c.status=${status}` : Prisma.empty}
               ${page.after ? Prisma.sql`AND c.id > ${page.after}::uuid` : Prisma.empty}
               ${
                 assignment === 'unassigned'
@@ -250,6 +253,7 @@ export class MessagingService {
         : await tx.conversation.findMany({
             where: {
               tenantId,
+              ...(status !== 'all' ? { status } : {}),
               ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
               ...(assignment === 'unassigned' ? { assignedStaffId: null } : {}),
               ...(assignment === 'mine'
