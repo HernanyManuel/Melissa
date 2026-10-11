@@ -231,7 +231,8 @@ export class MessagingController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Persist a successfully applied SSE replay cursor',
-    description: 'Sequence must identify an existing tenant event; acknowledgements advance monotonically.',
+    description:
+      'Sequence must identify an existing tenant event; acknowledgements advance monotonically.',
   })
   applyInboxCheckpoint(
     @Req() req: AuthRequest,
