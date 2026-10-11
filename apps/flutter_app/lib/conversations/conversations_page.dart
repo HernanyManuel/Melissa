@@ -472,6 +472,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   Widget conversationList() {
     final l = AppLocalizations.of(context)!;
+    // Only counts the current filtered/paginated REST rows, not the tenant.
+    final unreadRows = conversations.where((row) =>
+        row['unreadCount'] is int && (row['unreadCount'] as int) > 0).toList();
+    final unreadMessages = unreadRows.fold<int>(0,
+        (sum, row) => sum + (row['unreadCount'] as int));
     return Column(children: [
       ListTile(title: Text(l.conversations), trailing: IconButton(tooltip: l.retry, onPressed: loading ? null : () => load(), icon: const Icon(Icons.refresh))),
       Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: TextField(
@@ -538,6 +543,14 @@ class _ConversationsPageState extends State<ConversationsPage> {
         ]),
       )),
       if (loading) const LinearProgressIndicator(),
+      if (!loading && !listError) Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Text(
+          l.inboxUnreadLoadedSummary(unreadRows.length, unreadMessages),
+          key: const Key('inbox-unread-loaded-summary'),
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
+      ),
       if (listError) errorPanel(() => load()),
       if (!loading && !listError && conversations.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(searchQuery.isEmpty ? l.noConversations : l.conversationNoMatches)),
       if (newInboundAlerts.isNotEmpty) ListTile(
