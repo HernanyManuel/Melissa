@@ -347,6 +347,21 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     assert.equal(taken.id, conversationId);
     assert.equal(taken.status, 'open');
     assert.equal(taken.mode, 'HUMAN_ACTIVE');
+    // Control-state triage is a read-only filter, not a takeover or dispatch.
+    assert.equal((await call('GET', statusPath + '?controlMode=invalid',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', statusPath + '?controlMode=HUMAN_ACTIVE',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', statusPath + '?controlMode=human',
+      undefined, foreign.access_token)).status, 404);
+    assert.deepEqual((await data<{ items: Array<{ id: string }> }>(
+      await call('GET', statusPath + '?controlMode=human&status=open',
+        undefined, owner.access_token), 200,
+    )).items.map((row) => row.id), [conversationId]);
+    assert.deepEqual((await data<{ items: unknown[] }>(
+      await call('GET', statusPath + '?controlMode=ai',
+        undefined, owner.access_token), 200,
+    )).items, []);
     assert.equal(taken.assignedStaffId, staffId);
     assert.equal(taken.closedAt, null);
 
@@ -390,6 +405,13 @@ test('human takeover fences automatic outbound and supports reactivation and clo
       200,
     );
     assert.equal(reactivated.mode, 'AI_ACTIVE');
+    assert.deepEqual((await data<{ items: Array<{ id: string }> }>(
+      await call('GET', statusPath + '?controlMode=ai',
+        undefined, owner.access_token), 200,
+    )).items.map((row) => row.id), [conversationId]);
+    assert.equal((await call('GET', statusPath +
+      '?controlMode=human&after=' + conversationId,
+      undefined, owner.access_token)).status, 404);
     assert.equal(reactivated.assignedStaffId, null);
     const afterReactivation = await admin.conversation.findUniqueOrThrow({
       where: { tenantId_id: { tenantId: tenant.id, id: conversationId } },
@@ -412,6 +434,14 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     );
     assert.equal(closed.status, 'closed');
     assert.equal(closed.mode, 'CLOSED');
+    assert.deepEqual((await data<{ items: unknown[] }>(
+      await call('GET', statusPath + '?controlMode=human',
+        undefined, owner.access_token), 200,
+    )).items, []);
+    assert.deepEqual((await data<{ items: unknown[] }>(
+      await call('GET', statusPath + '?controlMode=ai&status=closed',
+        undefined, owner.access_token), 200,
+    )).items, []);
     assert.equal(closed.assignedStaffId, null);
     assert(closed.closedAt);
     await admin.$executeRaw`
@@ -724,6 +754,36 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     );
     assert.deepEqual(narrow.items.map((row) => row.id), [lastChannel.conversationId]);
     assert.equal(narrow.next, null);
+    // The paused subset is selected before LIMIT 51, not from an already
+    // sliced page; after-cursors belong to the chosen control state.
+    const firstPaused = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', statusPath + '?controlMode=paused',
+        undefined, owner.access_token), 200,
+    );
+    assert.equal(firstPaused.items.length, 50);
+    assert(firstPaused.next);
+    const remainingPaused = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', statusPath + '?controlMode=paused&after=' + firstPaused.next,
+        undefined, owner.access_token), 200,
+    );
+    const pausedIds = [...firstPaused.items, ...remainingPaused.items].map((row) => row.id);
+    assert.equal(pausedIds.length, 52);
+    assert.equal(new Set(pausedIds).size, 52);
+    assert.deepEqual(pausedIds, [...pausedIds].sort());
+    assert.equal(remainingPaused.next, null);
+    assert.equal((await call('GET', statusPath +
+      '?controlMode=paused&after=' + conversationId,
+      undefined, owner.access_token)).status, 404);
+    assert.deepEqual((await data<{ items: Array<{ id: string }> }>(
+      await call('GET', statusPath +
+        '?controlMode=paused&unreadOnly=true&channelId=' + mockChannelId,
+        undefined, owner.access_token), 200,
+    )).items.map((row) => row.id), [mockConversationId]);
+    assert.deepEqual((await data<{ items: unknown[] }>(
+      await call('GET', statusPath +
+        '?controlMode=ai&unreadOnly=true&channelId=' + mockChannelId,
+        undefined, owner.access_token), 200,
+    )).items, []);
   } finally {
     await app.close();
     await admin.$disconnect();
