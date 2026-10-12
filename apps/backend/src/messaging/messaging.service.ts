@@ -204,32 +204,7 @@ export class MessagingService {
           })
         : [];
       // Escape LIKE metacharacters: user input is a literal name fragment.
-      const search = page.q?.replace(/[\\%_]/g, '\\      if (
-        page.after &&
-        !(await tx.conversation.findFirst({
-          where: {
-            tenantId,
-            id: page.after,
-            ...(status !== 'all' ? { status } : {}),
-            ...(controlModeState ? { mode: controlModeState } : {}),
-            ...(channelMode !== 'all' ? { channelConnection: { mode: channelMode } } : {}),
-            ...(page.channelId ? { channelConnectionId: page.channelId } : {}),
-            ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
-          },
-          select: { id: true },
-        }))
-      )
-        throw new NotFoundException();
-      const assignment = page.assignment ?? 'all';
-      const assignedTo = assignment === 'mine'
-        ? await tx.staff.findMany({
-            where: { tenantId, userId: actor.userId },
-            select: { id: true },
-          })
-        : [];
-      // Escape LIKE metacharacters: user input is a literal name fragment.
       const search = page.q?.replace(/[\\%_]/g, '\\$&');
-');
       // The cursor must still belong to the entire active filtered set. Shared
       // Prisma predicates prevent validation and selection from drifting apart.
       const visibleWhere: Prisma.ConversationWhereInput = {
