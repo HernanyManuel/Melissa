@@ -147,14 +147,22 @@ class _ConversationCustomerContextState extends State<ConversationCustomerContex
               const SizedBox(height: 12),
               Text(l.inboxCustomerOtherConversations,
                 style: Theme.of(context).textTheme.titleSmall),
-              for (final related in relatedConversations)
-                ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.forum_outlined),
-                  title: Text(related['channelName'] as String),
-                  subtitle: Text(_relatedSummary(context, l, related)),
+              SizedBox(
+                height: 152,
+                child: ListView(
+                  primary: false,
+                  children: [
+                    for (final related in relatedConversations)
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.forum_outlined),
+                        title: Text(related['channelName'] as String),
+                        subtitle: Text(_relatedSummary(context, l, related)),
+                      ),
+                  ],
                 ),
+              ),
               if (hasMoreRelated) Text(l.inboxCustomerMoreConversations),
             ],
           ]),
