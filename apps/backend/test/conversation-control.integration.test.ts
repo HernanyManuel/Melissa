@@ -784,6 +784,69 @@ test('human takeover fences automatic outbound and supports reactivation and clo
         '?controlMode=ai&unreadOnly=true&channelId=' + mockChannelId,
         undefined, owner.access_token), 200,
     )).items, []);
+    // ADR-100: same timestamp requires an ID tie-breaker across a 50-row
+    // boundary. Keep default ID order unchanged and test both SQL paths.
+    assert.equal((await call('GET', statusPath + '?sort=RECENT',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', statusPath + '?sort=latest',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', statusPath + '?sort=recent',
+      undefined, foreign.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath +
+      '?sort=recent&controlMode=paused&after=' + conversationId,
+      undefined, owner.access_token)).status, 404);
+    const tieAt = new Date('2030-01-01T12:00:00.000Z');
+    await admin.conversation.updateMany({
+      where: { tenantId: tenant.id, id: { in: extra.map((item) => item.conversationId) } },
+      data: { lastMessageAt: tieAt },
+    });
+    await admin.conversation.update({
+      where: { tenantId_id: { tenantId: tenant.id, id: mockConversationId } },
+      data: { lastMessageAt: new Date('2029-01-01T00:00:00.000Z') },
+    });
+    const orderPath = statusPath + '?sort=recent&controlMode=paused&channelMode=mock';
+    const expectedRecentIds = [
+      ...extra.map((item) => item.conversationId).sort().reverse(), mockConversationId,
+    ];
+    const recentFirst = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', orderPath, undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(recentFirst.items.map((row) => row.id), expectedRecentIds.slice(0, 50));
+    assert.equal(recentFirst.next, expectedRecentIds[49]);
+    const recentLast = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', orderPath + '&after=' + recentFirst.next,
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(recentLast.items.map((row) => row.id), expectedRecentIds.slice(50));
+    assert.equal(recentLast.next, null);
+    const defaultId = await data<{ items: Array<{ id: string }> }>(
+      await call('GET', statusPath + '?sort=id&controlMode=paused&channelMode=mock',
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(defaultId.items.map((row) => row.id),
+      [...expectedRecentIds].sort().slice(0, 50));
+    // The SQL unread branch must select *and order* before LIMIT. 51 fresh
+    // synthetic inbound events turn all tie rows unread for this actor.
+    await admin.$executeRaw`
+      INSERT INTO inbox_events (tenant_id, event_type, conversation_id)
+      SELECT c.tenant_id, 'message.received', c.id
+      FROM conversations c
+      JOIN channel_connections ch
+        ON ch.tenant_id=c.tenant_id AND ch.id=c.channel_connection_id
+      WHERE c.tenant_id=${tenant.id}::uuid AND ch.display_name LIKE 'Channel option %'
+    `;
+    const unreadPath = orderPath + '&unreadOnly=true&status=open';
+    const unreadFirst = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', unreadPath, undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(unreadFirst.items.map((row) => row.id), expectedRecentIds.slice(0, 50));
+    assert.equal(unreadFirst.next, expectedRecentIds[49]);
+    const unreadLast = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', unreadPath + '&after=' + unreadFirst.next,
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(unreadLast.items.map((row) => row.id), expectedRecentIds.slice(50));
+    assert.equal(unreadLast.next, null);
   } finally {
     await app.close();
     await admin.$disconnect();
