@@ -847,6 +847,62 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     );
     assert.deepEqual(unreadLast.items.map((row) => row.id), expectedRecentIds.slice(50));
     assert.equal(unreadLast.next, null);
+    // ADR-101: cursor membership includes assignment, literal search and
+    // per-actor unread state, for BOTH default/recent orders and SQL/Prisma.
+    const cursor = mockConversationId;
+    assert.equal((await call('GET', statusPath +
+      '?assignment=mine&after=' + cursor,
+      undefined, owner.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath +
+      '?sort=recent&assignment=mine&after=' + cursor,
+      undefined, owner.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath +
+      '?q=nonmatching&after=' + cursor,
+      undefined, owner.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath +
+      '?sort=recent&q=nonmatching&unreadOnly=true&after=' + cursor,
+      undefined, owner.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath +
+      '?q=Sandbox&unreadOnly=true&after=' + cursor,
+      undefined, owner.access_token)).status, 200);
+    await admin.conversation.update({
+      where: { tenantId_id: { tenantId: tenant.id, id: cursor } },
+      data: { assignedStaffId: staffId },
+    });
+    assert.equal((await call('GET', statusPath +
+      '?assignment=unassigned&after=' + cursor,
+      undefined, owner.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath +
+      '?sort=recent&assignment=mine&q=Sandbox&after=' + cursor,
+      undefined, owner.access_token)).status, 200);
+    assert.equal((await call('GET', statusPath +
+      '?unreadOnly=true&assignment=mine&after=' + cursor,
+      undefined, owner.access_token)).status, 200);
+    const latestInbound = await admin.inboxEvent.findFirstOrThrow({
+      where: { tenantId: tenant.id, conversationId: cursor, eventType: 'message.received' },
+      orderBy: { sequence: 'desc' },
+      select: { sequence: true },
+    });
+    await admin.inboxReadCursor.upsert({
+      where: { tenantId_actorId_conversationId: {
+        tenantId: tenant.id, actorId: owner.userId, conversationId: cursor,
+      } },
+      create: { tenantId: tenant.id, actorId: owner.userId,
+        conversationId: cursor, lastReadSequence: latestInbound.sequence },
+      update: { lastReadSequence: latestInbound.sequence },
+    });
+    assert.equal((await call('GET', statusPath +
+      '?unreadOnly=true&assignment=mine&after=' + cursor,
+      undefined, owner.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath +
+      '?sort=recent&unreadOnly=true&assignment=mine&after=' + cursor,
+      undefined, owner.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath +
+      '?unreadOnly=true&assignment=mine',
+      undefined, owner.access_token)).status, 200);
+    assert.equal((await call('GET', statusPath +
+      '?assignment=mine&after=' + cursor,
+      undefined, owner.access_token)).status, 200);
   } finally {
     await app.close();
     await admin.$disconnect();

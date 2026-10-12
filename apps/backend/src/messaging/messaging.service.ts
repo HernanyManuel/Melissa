@@ -196,7 +196,15 @@ export class MessagingService {
         });
         if (!tag) throw new NotFoundException();
       }
-      if (
+      const assignment = page.assignment ?? 'all';
+      const assignedTo = assignment === 'mine'
+        ? await tx.staff.findMany({
+            where: { tenantId, userId: actor.userId },
+            select: { id: true },
+          })
+        : [];
+      // Escape LIKE metacharacters: user input is a literal name fragment.
+      const search = page.q?.replace(/[\\%_]/g, '\\      if (
         page.after &&
         !(await tx.conversation.findFirst({
           where: {
@@ -221,6 +229,62 @@ export class MessagingService {
         : [];
       // Escape LIKE metacharacters: user input is a literal name fragment.
       const search = page.q?.replace(/[\\%_]/g, '\\$&');
+');
+      // The cursor must still belong to the entire active filtered set. Shared
+      // Prisma predicates prevent validation and selection from drifting apart.
+      const visibleWhere: Prisma.ConversationWhereInput = {
+        tenantId,
+        ...(status !== 'all' ? { status } : {}),
+        ...(controlModeState ? { mode: controlModeState } : {}),
+        ...(channelMode !== 'all' ? { channelConnection: { mode: channelMode } } : {}),
+        ...(page.channelId ? { channelConnectionId: page.channelId } : {}),
+        ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
+        ...(assignment === 'unassigned' ? { assignedStaffId: null } : {}),
+        ...(assignment === 'mine'
+          ? { assignedStaffId: { in: assignedTo.map((row) => row.id) } }
+          : {}),
+        ...(search
+          ? {
+              OR: [
+                {
+                  customer: {
+                    displayName: { contains: search, mode: 'insensitive' as const },
+                  },
+                },
+                {
+                  channelConnection: {
+                    displayName: { contains: search, mode: 'insensitive' as const },
+                  },
+                },
+              ],
+            }
+          : {}),
+      };
+      if (page.after) {
+        if (!(await tx.conversation.findFirst({
+          where: { ...visibleWhere, id: page.after },
+          select: { id: true },
+        }))) throw new NotFoundException();
+        // An actor may mark the cursor conversation read between pages.
+        // Reject that stale cursor instead of silently skipping unread rows.
+        if (page.unreadOnly === 'true') {
+          const found = await tx.$queryRaw<Array<{ hasUnread: boolean }>>`
+            SELECT EXISTS (
+              SELECT 1 FROM inbox_events e
+              WHERE e.tenant_id=${tenantId}::uuid
+                AND e.conversation_id=${page.after}::uuid
+                AND e.event_type='message.received'
+                AND e.sequence > COALESCE((
+                  SELECT r.last_read_sequence FROM inbox_read_cursors r
+                  WHERE r.tenant_id=e.tenant_id
+                    AND r.conversation_id=e.conversation_id
+                    AND r.actor_id=${actor.userId}::uuid
+                ), 0)
+            ) AS "hasUnread"
+          `;
+          if (!found[0]?.hasUnread) throw new NotFoundException();
+        }
+      }
       // The unread-only page is selected in SQL BEFORE applying LIMIT 51.
       // Filtering only the 50 already-paginated Prisma rows would skip
       // conversations and yield incorrect cursors and next pages.
@@ -309,34 +373,7 @@ export class MessagingService {
             })
           : []
         : await tx.conversation.findMany({
-            where: {
-              tenantId,
-              ...(status !== 'all' ? { status } : {}),
-              ...(controlModeState ? { mode: controlModeState } : {}),
-              ...(channelMode !== 'all' ? { channelConnection: { mode: channelMode } } : {}),
-              ...(page.channelId ? { channelConnectionId: page.channelId } : {}),
-              ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
-              ...(assignment === 'unassigned' ? { assignedStaffId: null } : {}),
-              ...(assignment === 'mine'
-                ? { assignedStaffId: { in: assignedTo.map((row) => row.id) } }
-                : {}),
-              ...(search
-                ? {
-                    OR: [
-                      {
-                        customer: {
-                          displayName: { contains: search, mode: 'insensitive' as const },
-                        },
-                      },
-                      {
-                        channelConnection: {
-                          displayName: { contains: search, mode: 'insensitive' as const },
-                        },
-                      },
-                    ],
-                  }
-                : {}),
-            },
+            where: visibleWhere,
             orderBy: ordering,
             take: 51,
             ...(page.after
