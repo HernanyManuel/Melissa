@@ -507,6 +507,69 @@ test('human takeover fences automatic outbound and supports reactivation and clo
       }),
       1,
     );
+
+    // Customer context is bounded and cross-channel, never cross-customer.
+    // Add the related records only after conversation-list filter assertions.
+    const otherCustomerId = randomUUID();
+    await admin.customer.create({
+      data: {
+        tenantId: tenant.id,
+        id: otherCustomerId,
+        displayName: 'Unrelated customer',
+        phoneE164: '+351910000322',
+      },
+    });
+    const relatedIds: string[] = [];
+    for (let index = 0; index < 7; index++) {
+      const otherChannelId = randomUUID();
+      const otherConversationId = randomUUID();
+      await admin.channelConnection.create({
+        data: {
+          tenantId: tenant.id,
+          id: otherChannelId,
+          channelType: 'webchat',
+          mode: 'mock',
+          externalAccountId: randomUUID(),
+          externalPhoneId: randomUUID(),
+          displayName: `Related channel ${index}`,
+        },
+      });
+      await admin.conversation.create({
+        data: {
+          tenantId: tenant.id,
+          id: otherConversationId,
+          customerId: index === 6 ? otherCustomerId : customerId,
+          channelConnectionId: otherChannelId,
+          mode: 'AI_ACTIVE',
+          lastMessageAt: new Date(Date.UTC(2026, 9, 9, index)),
+        },
+      });
+      if (index < 6) relatedIds.push(otherConversationId);
+    }
+    const detailed = await data<{
+      item: { id: string };
+      relatedConversations: {
+        items: Array<{ id: string; status: string; lastMessageAt: string; channelName: string }>;
+        hasMore: boolean;
+      };
+    }>(await call('GET', customerPath, undefined, owner.access_token), 200);
+    assert.equal(detailed.item.id, customerId);
+    assert.equal(detailed.relatedConversations.items.length, 5);
+    assert.equal(detailed.relatedConversations.hasMore, true);
+    assert.deepEqual(
+      detailed.relatedConversations.items.map((row) => row.id),
+      relatedIds.slice(1).reverse(),
+    );
+    for (const row of detailed.relatedConversations.items) {
+      assert.equal(row.status, 'open');
+      assert.match(row.channelName, /^Related channel [1-5]$/);
+      assert(!Object.keys(row).includes('state'));
+      assert(!Object.keys(row).includes('contentText'));
+    }
+    assert.equal(
+      (await call('GET', customerPath, undefined, foreign.access_token)).status,
+      404,
+    );
   } finally {
     await app.close();
     await admin.$disconnect();
