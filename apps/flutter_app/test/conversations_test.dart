@@ -298,6 +298,61 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('recent activity order follows page cursors and filters', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final requests = <Uri>[];
+    final api = client((request) async {
+      if (request.url.path.endsWith('/conversations')) {
+        requests.add(request.url);
+        if (request.url.queryParameters['sort'] == 'recent') {
+          return request.url.queryParameters['after'] == 'recent-cursor'
+              ? page([conversation('older')])
+              : page([conversation('newer')], 'recent-cursor');
+        }
+        return page([conversation('default')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters.containsKey('sort'), false);
+    await tester.tap(find.byKey(const Key('inbox-sort')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Atividade recente primeiro').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['sort'], 'recent');
+    expect(find.text('Cliente newer'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-control-mode')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Atendimento humano').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-unread')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['sort'], 'recent');
+    expect(requests.last.queryParameters['controlMode'], 'human');
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    await tester.ensureVisible(find.text('Carregar mais').last);
+    await tester.tap(find.text('Carregar mais').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['after'], 'recent-cursor');
+    expect(requests.last.queryParameters['sort'], 'recent');
+    expect(find.text('Cliente older'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-sort')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ordenar por ID').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters.containsKey('sort'), false);
+    expect(requests.last.queryParameters.containsKey('after'), false);
+    expect(requests.last.queryParameters['controlMode'], 'human');
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    expect(find.text('Cliente default'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('channel mode combines with filters, paginates and resets cursor', (tester) async {
     tester.view.physicalSize = const Size(1100, 1000);
     tester.view.devicePixelRatio = 1;
