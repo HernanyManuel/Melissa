@@ -22,6 +22,7 @@ interface SignedStripeEvent {
 
 // Accept only bounded and coherent signed test events with the minimal
 // envelope Stripe promises. No metadata-based tenant routing or side effects.
+// prettier-ignore
 export function parseStripeEvent(body: Buffer): SignedStripeEvent | null {
   let value: unknown;
   try {
@@ -48,6 +49,7 @@ export function parseStripeEvent(body: Buffer): SignedStripeEvent | null {
   return e as unknown as SignedStripeEvent;
 }
 
+// prettier-ignore
 @Injectable()
 export class StripeWebhookInbox {
   constructor(private readonly deps: Dependencies) {}

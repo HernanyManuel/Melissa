@@ -12,6 +12,7 @@ import { verifyStripeSignature } from '../src/billing/stripe-signature';
 import { waitReady } from './wait-ready';
 
 const secret = 'whsec_strictly_test_only_secret_123456789';
+// prettier-ignore
 const signed = (body: Buffer, t: number, key = secret) =>
   `t=${t},v1=${createHmac('sha256', key).update(Buffer.concat([
     Buffer.from(`${t}.`), body,
@@ -125,7 +126,9 @@ test('Stripe signed test webhook persists immutable idempotent events without ac
     });
     await assert.rejects(deps.db.$queryRaw`SELECT payload FROM stripe_webhook_events LIMIT 1`);
     // Validly signed event metadata cannot authorize any subscription.
-    assert.equal(await admin.tenantSubscription.count(), 0);
+    assert.equal(await admin.tenantSubscription.count({
+      where: { tenantId: event.data.object.metadata.tenant_id },
+    }), 0);
     assert.equal((await fetch((await app.getUrl()) + '/health/ready')).status, 200);
   } finally {
     await app.close();

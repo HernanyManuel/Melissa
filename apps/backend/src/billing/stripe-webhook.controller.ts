@@ -1,6 +1,12 @@
 import {
-  Controller, HttpCode, HttpException, INestApplication, Inject, NotFoundException,
-  Post, Req,
+  Controller,
+  HttpCode,
+  HttpException,
+  INestApplication,
+  Inject,
+  NotFoundException,
+  Post,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request, Response, NextFunction, raw } from 'express';
@@ -9,6 +15,7 @@ import { parseStripeEvent, StripeWebhookInbox } from './stripe-webhook.inbox';
 import { verifyStripeSignature } from './stripe-signature';
 
 // Body handling MUST run before the default Nest JSON parser.
+// prettier-ignore
 export function configureStripeWebhookBody(app: INestApplication, config: Configuration): void {
   const parser = raw({ type: 'application/json', limit: '256kb', inflate: false });
   app.use('/webhooks/stripe', (req: Request, res: Response, next: NextFunction) => {
@@ -24,6 +31,7 @@ export function configureStripeWebhookBody(app: INestApplication, config: Config
   });
 }
 
+// prettier-ignore
 @ApiTags('Stripe test webhooks (disabled by default)')
 @Controller('webhooks/stripe')
 export class StripeWebhookController {

@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 // Stripe signs `${timestamp}.${raw UTF-8 body}` with HMAC-SHA256.
 // Never sign JSON re-serialization or trust event identifiers before this.
+// prettier-ignore
 export function verifyStripeSignature(
   body: Buffer,
   signature: string | string[] | undefined,
