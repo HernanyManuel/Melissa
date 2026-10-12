@@ -106,6 +106,7 @@ model Tenant {
   aiUsageEvents      AiUsageEvent[]
   aiOutboundIntents  AiOutboundIntent[]
   inboxEvents        InboxEvent[]
+  subscription       TenantSubscription?
 
   @@map("tenants")
 }
@@ -790,4 +791,55 @@ model HumanOutboundDeadLetter {
   @@id([tenantId, dispatchId])
   @@index([failedAt, tenantId, dispatchId])
   @@map("human_outbound_dead_letters")
+}
+
+ 
+// Provider-configured commercial catalog. No prices or entitlements are
+// hardcoded/seeded; catalog publishing is a privileged offline operation.
+model BillingPlan {
+  id                          String   @id @db.Uuid
+  key                         String   @unique @db.VarChar(64)
+  name                        String   @db.VarChar(120)
+  currency                    String   @db.VarChar(3)
+  basePrice                   Decimal  @map("base_price") @db.Decimal(20, 6)
+  billingInterval             String   @map("billing_interval") @db.VarChar(16)
+  includedConversations       Int      @map("included_conversations")
+  includedMessages            Int?     @map("included_messages")
+  includedStaff               Int      @map("included_staff")
+  includedChannels            Int      @map("included_channels")
+  includedLocations           Int      @map("included_locations")
+  overagePricePerConversation Decimal  @map("overage_price_per_conversation") @db.Decimal(20, 6)
+  features                    Json     @default("{}") @db.JsonB
+  stripeProductId             String?  @map("stripe_product_id") @db.VarChar(255)
+  stripePriceId               String?  @map("stripe_price_id") @db.VarChar(255)
+  active                      Boolean  @default(false)
+  createdAt                   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  subscriptions               TenantSubscription[]
+
+  @@map("plans")
+}
+
+// A single tenant snapshot reconciled from the billing provider in a later
+// phase. Runtime has SELECT only, so HTTP redirects cannot activate paid access.
+model TenantSubscription {
+  id                     String    @db.Uuid
+  tenantId               String    @unique @map("tenant_id") @db.Uuid
+  tenant                 Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  planId                 String    @map("plan_id") @db.Uuid
+  plan                   BillingPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  provider               String    @db.VarChar(16)
+  providerCustomerId     String    @map("provider_customer_id") @db.VarChar(255)
+  providerSubscriptionId String    @map("provider_subscription_id") @db.VarChar(255)
+  status                 String    @db.VarChar(32)
+  currentPeriodStart     DateTime  @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd       DateTime  @map("current_period_end") @db.Timestamptz(6)
+  cancelAtPeriodEnd      Boolean   @default(false) @map("cancel_at_period_end")
+  trialEnd               DateTime? @map("trial_end") @db.Timestamptz(6)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@id([tenantId, id])
+  @@unique([provider, providerSubscriptionId])
+  @@map("subscriptions")
 }

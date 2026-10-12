@@ -11,6 +11,8 @@ import { TenantService } from './tenancy/tenant.service';
 import { TenantController } from './tenancy/tenant.controller';
 import { BusinessController } from './business/business.controller';
 import { BusinessService } from './business/business.service';
+import { BillingController } from './billing/billing.controller';
+import { BillingService } from './billing/billing.service';
 import { BookingAdminService } from './business/booking-admin.service';
 import { CustomerController } from './customers/customer.controller';
 import { CustomerService } from './customers/customer.service';
@@ -35,6 +37,7 @@ import {
     AuthController,
     TenantController,
     BusinessController,
+    BillingController,
     CustomerController,
     ChannelController,
     MessagingController,
@@ -50,6 +53,7 @@ import {
     IdentityRateLimit,
     TenantService,
     BusinessService,
+    BillingService,
     BookingAdminService,
     CustomerService,
     ChannelService,
