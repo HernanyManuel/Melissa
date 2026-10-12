@@ -2,7 +2,7 @@
 
 ## Estado
 
-Implementado em `feature/phase-8-inbox`, PR #7 draft. CI final a verificar. Sem merge, deploy ou ativação real de serviços externos.
+Implementado em `feature/phase-8-inbox`, PR #7 draft. [CI funcional #38226730460](https://github.com/HernanyManuel/Melissa/actions/runs/38226730460) integralmente verde no commit `a1c243e283d85e72d5b65801bde5210f1c001153`. Sem merge, deploy ou ativação real de serviços externos.
 
 ## Contexto
 
@@ -16,6 +16,9 @@ A ADR-100 acrescentou ordenação por `lastMessageAt DESC, id DESC` e a ADR-101 
 4. Reutilizar índice existente `(tenant_id,last_message_at,id)` e schema 62; manter `messages:read`, tenant/RLS/RBAC, pontos de decisão de leitura, mensagens, workers, idempotência e fencing inalterados.
 
 ## Verificação
+
+Os jobs backend, Flutter e Compose passaram, incluindo integração real PostgreSQL/RLS e worker, reexecução/recovery Redis, OpenAPI e build Web. O seletor de atividade foi deslocado da área de filtros para o cabeçalho compacto depois de a primeira execução detetar regressões de altura em testes a 800×600. A versão corrigida passou toda a suite Flutter, incluindo os testes existentes de pesquisa/paginação e seleção de conversa.
+
 
 Integração HTTP com 51 conversas à mesma data e uma anterior: limite inclusivo, páginas de 50/1, desempate por ID, omissão/explicitação de sort, leitura unread na via SQL, validação 400 de datas inválidas e 404 de cursor fora do filtro ou tenant alheio. Widget test com presets 24h/7d/all e composição com `sort=recent`, `unreadOnly`, `after` confirma persistência exata do cutoff.
 
