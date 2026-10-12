@@ -6,7 +6,7 @@ O inbox permite filtrar conversas por modo da ligação ao canal: `channelMode=a
 
 O Flutter apresenta um seletor compacto e localizado em pt/en/es/fr/it/de, mantém o modo na paginação e nos refreshes SSE por REST, descarta respostas tardias para filtros alterados e reinicia a paginação quando o operador muda o modo. O filtro não executa takeover, marcação de leitura nem qualquer envio; não cria novos endpoints de escrita, filas, workers ou migração (schema permanece 62). Testes HTTP cobrem isolamento, valores inválidos, combinação com não lidas/estado e cursor incompatível; testes Flutter cobrem filtro, composição e paginação.
 
-**Validação:** acrescentada à suite existente; verificar o CI do HEAD após esta atualização antes de marcar a fatia como validada. [ADR-097](decisions/ADR-097-inbox-channel-mode-filter.md).
+**Validação:** [CI funcional #38201834312](https://github.com/HernanyManuel/Melissa/actions/runs/38201834312) **integralmente verde** no commit `f50fb0a0e0f2a001d192a9191a6fde9d4b67c818`: backend (formatação, lint, tipos, unitários, PostgreSQL/RLS e integração com worker separado, recuperação após restart/Redis, OpenAPI, audit), Flutter (analyze/test/build web) e Docker Compose. O primeiro CI da fatia falhou devido a uma fixture de teste `mock` que não respeitava a constraint `mock:` dos IDs externos; o commit `f50fb0a` corrigiu-a sem alterar schema nem produção. [ADR-097](decisions/ADR-097-inbox-channel-mode-filter.md).
 
 **Limites:** modo `mock/live` é uma característica da ligação atual, não um indicador garantido de entregabilidade do provider; ainda não existe triagem por ligação específica, notificações push ou E2E Meta live. Nenhum merge, deploy ou ativação de serviços externos.
 

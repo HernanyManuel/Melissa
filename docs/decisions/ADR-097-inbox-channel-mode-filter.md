@@ -16,6 +16,10 @@ O mesmo tenant pode conter conversas de testes em ligações `mock` e conversas 
 - A UI oferece um menu compacto, com traduções pt/en/es/fr/it/de, para «Todos os modos de canal», «Simulados» e «Ao vivo». A consulta não dá acesso a credenciais ou IDs de provider além da projeção anterior, nem interfere com contadores de não lidas, cursores, notas, etiquetas ou operações de resposta.
 - Não há migração, endpoint de escrita, alteração de `mode_epoch`, idempotência de envio, fencing, workers, checkpoint ou integrações. O schema permanece 62.
 
+## Validação
+
+[Workflow #38201834312](https://github.com/HernanyManuel/Melissa/actions/runs/38201834312) verde nos três jobs no commit `f50fb0a0e0f2a001d192a9191a6fde9d4b67c818`, incluindo integração HTTP/PostgreSQL/RLS, suites unitárias, recuperação do worker após restart/Redis, auditoria, Flutter analyze/test/build web e Compose. A primeira execução revelou uma fixture `mock` com IDs externos sem o prefixo obrigatório `mock:`; a correção manteve a constraint e não modificou regras operacionais.
+
 ## Testes
 
 A suite HTTP exercita filtros `all/live/mock`, valores inválidos, outro tenant, rejeição de cursor incompatível e combinação com `status=closed` e `unreadOnly=true`, com duas ligações de modos distintos e eventos reais `message.received`. O widget test verifica mudança de modo, paginação, composição com estado/não lidas e reset do cursor. Permanecem em vigor os testes de SSE, autorização, recuperação e respostas humanas das ADR anteriores.
