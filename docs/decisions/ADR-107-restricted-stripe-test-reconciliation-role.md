@@ -16,6 +16,10 @@ A ADR-106 usa `MIGRATION_DATABASE_URL` para aceder a snapshots Stripe previament
 4. O teste de reconciliação usa um PrismaClient com credenciais de migração **somente para criar fixtures e ler provas**, e um segundo PrismaClient com role restrita **para todas as chamadas reais ao reconciliador**. Verifica SUPERUSER/BYPASSRLS desativados, ausência de direitos sobre tenant e alterações proibidas, assim como UPDATE autorizado apenas em colunas de período e estado. Mantém testes de replays, payload adversarial, correspondência de IDs e periodização Stripe Basil.
 5. `Dependencies.ready` exige schema 66; sem role provisionada ou grants a migração falha em vez de criar um reconciliador com privilégios máximos.
 
+## Validação
+
+[CI #38275639528](https://github.com/HernanyManuel/Melissa/actions/runs/38275639528) **3/3 verde** no commit `55cef3ed75057674d076bdfcb2649415986bc5f8` (backend com testes PostgreSQL/RLS e role limitada, Flutter analyze/widgets/build Web, Compose readiness). A execução de integração testou a reconciliação sob o login real limitado, enquanto fixtures de pagamento são criadas exclusivamente por uma conexão privilegiada separada. O SQL de auditoria não permite definir `created_at`: o valor é gerado pela base de dados, não pelo comando Stripe. Os primeiros testes revelaram uma variável local duplicada e uma inserção Prisma com timestamp explícito; ambas foram corrigidas, sem abrir novas permissões.
+
 ## Limitações
 
 Trata-se de uma role offline com visão transversal sobre *bindings de subscrições Stripe*. Ela não é uma credencial apropriada para utilização na API pública. Para um worker permanente, serão necessários circuito operacional auditado, gestão e rotação de segredos, controlo de execução, quotas, retrais/observabilidade, controlo explícito de entitlement e testes E2E com Stripe real em test-mode. Estas alterações não resolvem a aquisição do primeiro binding Stripe: só Checkout verificado poderá estabelecê-lo. Não há merge nem deploy.
