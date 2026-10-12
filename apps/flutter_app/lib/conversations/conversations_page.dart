@@ -694,10 +694,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
             setState(() => channelOptionsOpen = !channelOptionsOpen);
             if (channelOptionsOpen && channelOptions.isEmpty) loadChannelOptions();
           },
-          icon: const Icon(Icons.hub_outlined),
+          icon: Icon(selectedChannelId == null ? Icons.hub_outlined : Icons.hub),
         ),
-        if (selectedChannelId != null)
-          TextButton(onPressed: () => chooseChannel(null), child: Text(l.inboxAllChannels)),
         SizedBox(width: 264, child: DropdownButton<String>(
           key: const Key('inbox-filter-assignment'),
           isExpanded: true,
