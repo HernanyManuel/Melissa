@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import {
   reconcileStoredStripeTestEvent,
   stripeTestSubscriptionSnapshot,
@@ -63,7 +63,7 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
         eventId: event.id, eventType: event.type,
         providerCreatedAt: new Date(event.created * 1000),
         payloadSha256: 'a'.repeat(64),
-        payload: event,
+        payload: JSON.parse(JSON.stringify(event)) as Prisma.InputJsonValue,
         livemode: false,
       },
     });
