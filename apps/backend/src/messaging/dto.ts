@@ -58,6 +58,14 @@ export class ConversationQuery extends MessagePageDto {
   @IsOptional()
   @Matches(/^(all|open|closed)$/)
   status?: string;
+
+  @ApiPropertyOptional({
+    enum: ['all', 'mock', 'live'],
+    description: 'Filter by channel connection mode before pagination; default all.',
+  })
+  @IsOptional()
+  @Matches(/^(all|mock|live)$/)
+  channelMode?: string;
 }
 
 export class ConversationTakeoverDto {

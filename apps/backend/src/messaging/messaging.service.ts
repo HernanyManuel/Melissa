@@ -149,6 +149,7 @@ export class MessagingService {
   conversations(actor: Actor, tenantId: string, page: ConversationQuery) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       const status = page.status ?? 'all';
+      const channelMode = page.channelMode ?? 'all';
       if (page.tagId) {
         const tag = await tx.conversationTag.findUnique({
           where: { tenantId_id: { tenantId, id: page.tagId } },
@@ -163,6 +164,7 @@ export class MessagingService {
             tenantId,
             id: page.after,
             ...(status !== 'all' ? { status } : {}),
+            ...(channelMode !== 'all' ? { channelConnection: { mode: channelMode } } : {}),
             ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
           },
           select: { id: true },
@@ -188,6 +190,11 @@ export class MessagingService {
             FROM conversations c
             WHERE c.tenant_id=${tenantId}::uuid
               ${status !== 'all' ? Prisma.sql`AND c.status=${status}` : Prisma.empty}
+              ${channelMode !== 'all' ? Prisma.sql`AND EXISTS (
+                SELECT 1 FROM channel_connections ch
+                WHERE ch.tenant_id=c.tenant_id AND ch.id=c.channel_connection_id
+                  AND ch.mode=${channelMode}
+              )` : Prisma.empty}
               ${page.after ? Prisma.sql`AND c.id > ${page.after}::uuid` : Prisma.empty}
               ${
                 assignment === 'unassigned'
@@ -254,6 +261,7 @@ export class MessagingService {
             where: {
               tenantId,
               ...(status !== 'all' ? { status } : {}),
+              ...(channelMode !== 'all' ? { channelConnection: { mode: channelMode } } : {}),
               ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
               ...(assignment === 'unassigned' ? { assignedStaffId: null } : {}),
               ...(assignment === 'mine'
