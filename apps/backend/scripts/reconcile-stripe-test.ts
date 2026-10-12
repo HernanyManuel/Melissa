@@ -10,11 +10,21 @@ async function main(): Promise<void> {
   if (process.env.NODE_ENV !== 'test' ||
       process.env.STRIPE_TEST_RECONCILE_ENABLED !== 'true')
     throw new Error('Stripe reconciliation is disabled outside explicit test mode');
-  const url = process.env.MIGRATION_DATABASE_URL;
+  const url = process.env.STRIPE_TEST_RECONCILE_DATABASE_URL;
   const key = process.env.STRIPE_TEST_SECRET_KEY;
   const id = process.argv[2];
   if (!url || !key || !id || process.argv.length !== 3)
-    throw new Error('Test database, Stripe test secret, and event ID are required');
+    throw new Error('Restricted test database, Stripe test secret, and event ID are required');
+  // A migration/owner credential has unrestricted writes and MUST NOT be
+  // accepted by this operator command, even in a test environment.
+  let username: string;
+  try {
+    username = new URL(url).username;
+  } catch {
+    throw new Error('Invalid restricted Stripe reconciliation database URL');
+  }
+  if (username !== 'melissa_stripe_reconciler')
+    throw new Error('Dedicated Stripe reconciliation role required');
   const provider = new StripeTestSubscriptionReader(key);
   const db = new PrismaClient({ datasources: { db: { url } } });
   try {

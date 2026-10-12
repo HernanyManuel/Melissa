@@ -1,5 +1,13 @@
 # Estado do projeto
 
+## Atualização Phase 9 — Papel PostgreSQL restrito para reconciliação Stripe test (ADR-107, schema 66)
+
+Criado `melissa_stripe_reconciler` como role de base de dados distinto de `melissa_runtime` e do utilizador de migrações. Provisionamento de credencial exclusivamente via `infra/scripts/stripe-reconciler-role.sql` e Secret Manager/variável externa (sem credencial em código). A migração 66 concede somente leitura de eventos Stripe verificados e planos, leitura/UPDATE de campos limitados de subscrições Stripe já associadas e INSERT append-only da auditoria. RLS forçada permanece; política específica permite acesso transversal aos identificadores Stripe já mapeados, exclusivamente a este role offline, sem SELECT/INSERT/UPDATE/DELETE sobre tenants e sem poder alterar associações de provider, plano ou cliente.
+
+O comando manual de teste exige `STRIPE_TEST_RECONCILE_DATABASE_URL` com utilizador exato `melissa_stripe_reconciler` e rejeita a credencial `MIGRATION_DATABASE_URL` privilegiada. CI fornece uma credencial descartável e executa os testes de reconciliação **através do role restrito real**, além de confirmar ausência de SUPERUSER/BYPASSRLS e bloqueio de alterações de planos, bindings, inbox e auditoria. **Validação CI final pendente**. [ADR-107](decisions/ADR-107-restricted-stripe-test-reconciliation-role.md).
+
+Fora de escopo: Stripe Checkout/test E2E externo, ativação de entitlements, workers automáticos, quotas, cobranças e deploy. A nova role não deve ser usada pela API pública. Sem merge nem produção.
+
 ## Atualização Phase 9 — Reconciliador Stripe test de subscrições pré-associadas (ADR-106, schema 65)
 
 Implementado reconciliador **offline, manual e opt-in exclusivamente de teste** (não faz parte do servidor API ou de um worker contínuo). O comando `NODE_ENV=test STRIPE_TEST_RECONCILE_ENABLED=true STRIPE_TEST_SECRET_KEY=sk_test_... MIGRATION_DATABASE_URL=... pnpm --filter @melissa/backend stripe:reconcile-test evt_...` obtém um evento *já assinado e persistido* em `stripe_webhook_events`, extrai apenas o ID de subscrição permitido e procura uma associação Stripe **já existente e globalmente única** em `subscriptions.provider_subscription_id`. Ignora completamente `metadata.tenant_id` para escolher empresa. Eventos sem associação prévia ficam `unmapped`, sem criação de subscrição ou consulta a IDs desconhecidos.

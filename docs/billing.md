@@ -1,5 +1,10 @@
 # Billing, entitlements e utilização
 
+## Segurança de reconciliação — ADR-107 (schema 66)
+
+O comando manual `stripe:reconcile-test` já não aceita `MIGRATION_DATABASE_URL`; precisa de `STRIPE_TEST_RECONCILE_DATABASE_URL`, com utilizador de BD `melissa_stripe_reconciler`, provisionado por administrador através de `infra/scripts/stripe-reconciler-role.sql`. A role tem somente leitura de `plans` e eventos assinados em modo test, leitura de subscrições Stripe existentes, escrita limitada a estado/períodos e inserção de auditoria. Não pode provisionar planos, subscrições, alterar associação tenant/customer/plan ou editar eventos. A API pública continua a usar `melissa_runtime`. Não há qualquer entitlement ou cobrança, e role dedicada não substitui a aprovação de Checkout/reconciliação real. [ADR-107](decisions/ADR-107-restricted-stripe-test-reconciliation-role.md).
+
+
 ## Terceira fatia implementada — ADR-106 (schema 65)
 
 `stripe-reconciler.ts` disponibiliza uma operação **manual de teste** sobre eventos Stripe assinados e já armazenados. A associação a empresa só é feita por `subscriptions.provider_subscription_id` **previamente registado** (nunca por metadata do webhook). Para cada associação conhecida, bloqueia a subscrição no PostgreSQL, consulta o estado atual do Stripe por API test restrita, verifica cliente, ID de subscrição e preço configurado, e só então atualiza status, período, cancelamento e trial. As modificações são transacionais e gravam uma tentativa em `stripe_reconciliation_attempts` (schema 65; RLS sem grants de runtime); eventos desconhecidos, período inválido, múltiplos itens, contas divergentes, API indisponível ou live mode **nunca** criam subscrições ou desbloqueiam direitos.
