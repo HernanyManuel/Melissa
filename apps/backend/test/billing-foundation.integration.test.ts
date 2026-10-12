@@ -13,6 +13,7 @@ import { waitReady } from './wait-ready';
 
 // No Stripe transport is configured. These are provider snapshots seeded by
 // the privileged test role, never created by any untrusted HTTP caller.
+// prettier-ignore
 test('Phase 9 billing foundation isolates tenant subscriptions and fails closed', { timeout: 30000 }, async () => {
   const migrationUrl = process.env.MIGRATION_DATABASE_URL;
   assert(migrationUrl, 'billing integration requires MIGRATION_DATABASE_URL');
@@ -149,6 +150,7 @@ test('Phase 9 billing foundation isolates tenant subscriptions and fails closed'
       relrowsecurity: boolean; relforcerowsecurity: boolean;
     }>>`SELECT relrowsecurity, relforcerowsecurity
         FROM pg_class WHERE relname='subscriptions'`;
+    assert(rls);
     assert.equal(rls.relrowsecurity, true);
     assert.equal(rls.relforcerowsecurity, true);
     const [grants] = await deps.db.$queryRaw<Array<{
@@ -160,6 +162,7 @@ test('Phase 9 billing foundation isolates tenant subscriptions and fails closed'
     assert.deepEqual(grants, { canInsert: false, canUpdate: false, canDelete: false });
     const [visible] = await deps.db.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*)::bigint AS count FROM subscriptions`;
+    assert(visible);
     assert.equal(visible.count, 0n);
     const readiness = await data<{ status: string }>(
       await fetch(base + '/health/ready'), 200,
