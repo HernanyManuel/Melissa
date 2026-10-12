@@ -903,6 +903,62 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     assert.equal((await call('GET', statusPath +
       '?assignment=mine&after=' + cursor,
       undefined, owner.access_token)).status, 200);
+    // ADR-102: one UTC threshold is stable across page 1, page 2 and
+    // unread SQL. Exactly-equal timestamps belong to the filtered set.
+    const cutoff = '2030-01-01T12:00:00.000Z';
+    const activePath = statusPath +
+      '?activitySince=' + cutoff + '&sort=recent&controlMode=paused&channelMode=mock';
+    assert.equal((await call('GET', statusPath + '?activitySince=invalid',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', statusPath +
+      '?activitySince=2030-02-31T00:00:00.000Z',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', statusPath +
+      '?activitySince=2030-01-01T12:00:00Z',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', statusPath +
+      '?activitySince=2030-01-01T12:00:00.000%2B01:00',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', activePath,
+      undefined, foreign.access_token)).status, 404);
+    assert.equal((await call('GET', activePath + '&after=' + mockConversationId,
+      undefined, owner.access_token)).status, 404);
+    const recentActive = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', activePath, undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(recentActive.items.map((row) => row.id), expectedRecentIds.slice(0, 50));
+    assert.equal(recentActive.next, expectedRecentIds[49]);
+    const recentActiveLast = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', activePath + '&after=' + recentActive.next,
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(recentActiveLast.items.map((row) => row.id),
+      expectedRecentIds.slice(50, 51));
+    assert.equal(recentActiveLast.next, null);
+    const activeId = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', statusPath +
+        '?activitySince=' + cutoff + '&controlMode=paused&channelMode=mock',
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(activeId.items.map((row) => row.id),
+      [...expectedRecentIds.slice(0, 51)].sort().slice(0, 50));
+    const activeUnreadPath = activePath + '&unreadOnly=true';
+    const activeUnread = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', activeUnreadPath, undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(activeUnread.items.map((row) => row.id), expectedRecentIds.slice(0, 50));
+    assert.equal(activeUnread.next, expectedRecentIds[49]);
+    const activeUnreadLast = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', activeUnreadPath + '&after=' + activeUnread.next,
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(activeUnreadLast.items.map((row) => row.id),
+      expectedRecentIds.slice(50, 51));
+    assert.equal(activeUnreadLast.next, null);
+    assert.deepEqual((await data<{ items: unknown[] }>(
+      await call('GET', activePath.replace(cutoff, '2031-01-01T00:00:00.000Z'),
+        undefined, owner.access_token), 200,
+    )).items, []);
   } finally {
     await app.close();
     await admin.$disconnect();
