@@ -2,7 +2,7 @@
 
 ## Estado
 
-Phase 9, terceira fatia após ADR-104/105, schema **65**, branch `feature/phase-8-inbox` e PR #7 ainda em draft. CI final a confirmar. **Não** foi integrado um worker automático ou Checkout Stripe, nem foram ativadas cobranças reais.
+Phase 9, terceira fatia após ADR-104/105, schema **65**, branch `feature/phase-8-inbox` e PR #7 ainda em draft. [CI funcional #38274571857](https://github.com/HernanyManuel/Melissa/actions/runs/38274571857) integralmente verde no commit `091f0cb78eb0986cddbf76335a4865c6f46eecdc`. **Não** foi integrado um worker automático ou Checkout Stripe, nem foram ativadas cobranças reais.
 
 ## Problema e restrições
 
@@ -19,7 +19,7 @@ O inbox de ADR-105 guarda eventos assinados mas não autoriza subscrições. Ass
 
 ## Provas
 
-Teste de integração usa PostgreSQL real e fixtures controladas com duas empresas. Valida reconciliação com `metadata.tenant_id` forjado, out-of-order/deleted consultando provider atual, invoice no formato Basil, item único e períodos, rejeição de customer/preço/provider livemode errados, período inválido/multi-item, assinatura já persistida, replay idempotente, provider falhado marcado `deferred` sem persistir stack trace, logs sem atribuição a outra empresa, unicidade do estado local e inbox original imutável. Não é um E2E com credenciais Stripe test reais; esse teste externo é um **gate pendente**. CI a verificar.
+Teste de integração usa PostgreSQL real e fixtures controladas com duas empresas. Valida reconciliação com `metadata.tenant_id` forjado, out-of-order/deleted consultando provider atual, invoice no formato Basil, item único e períodos, rejeição de customer/preço/provider livemode errados, período inválido/multi-item, assinatura já persistida, replay idempotente, provider falhado marcado `deferred` sem persistir stack trace, logs sem atribuição a outra empresa, unicidade do estado local e inbox original imutável. Não é um E2E com credenciais Stripe test reais; esse teste externo é um **gate pendente**. CI funcional confirmado na execução #38274571857, com backend e integração PostgreSQL/worker, Flutter e Compose aprovados.
 
 ## Seguimento
 
