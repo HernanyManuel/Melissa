@@ -36,6 +36,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
   String channelModeFilter = 'all';
   String controlModeFilter = 'all';
   String sortFilter = 'id';
+  String activityWindow = 'all';
+  String? activitySince;
   String? selectedChannelId;
   List<Map<String, dynamic>> channelOptions = [];
   String? channelOptionsNext;
@@ -97,7 +99,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       channelOptionsGeneration++; channelOptions = []; selectedChannelId = null;
       channelOptionsNext = null; channelOptionsOpen = false;
       channelOptionsLoading = false; channelOptionsError = false;
-      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all'; controlModeFilter = 'all'; sortFilter = 'id';
+      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all'; controlModeFilter = 'all'; sortFilter = 'id'; activityWindow = 'all'; activitySince = null;
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       messageGeneration++;
       conversations = []; messages = []; selected = null;
@@ -152,7 +154,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       channelOptionsGeneration++; channelOptions = []; selectedChannelId = null;
       channelOptionsNext = null; channelOptionsOpen = false;
       channelOptionsLoading = false; channelOptionsError = false;
-      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all'; controlModeFilter = 'all'; sortFilter = 'id';
+      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all'; controlModeFilter = 'all'; sortFilter = 'id'; activityWindow = 'all'; activitySince = null;
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       newInboundAlerts.clear();
       selected = null;
@@ -280,6 +282,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final channelModeAtStart = channelModeFilter;
     final controlModeAtStart = controlModeFilter;
     final sortAtStart = sortFilter;
+    final activityAtStart = activitySince;
     final channelAtStart = selectedChannelId;
     final listPages = ((conversations.length + 49) ~/ 50).clamp(1, 10);
     final messagePages = ((messages.length ~/ 50) + 1).clamp(1, 10);
@@ -296,6 +299,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           if (channelModeAtStart != 'all') 'channelMode': channelModeAtStart,
           if (controlModeAtStart != 'all') 'controlMode': controlModeAtStart,
           if (sortAtStart != 'id') 'sort': sortAtStart,
+          if (activityAtStart != null) 'activitySince': activityAtStart,
           if (channelAtStart != null) 'channelId': channelAtStart,
           if (after != null) 'after': after,
         };
@@ -336,6 +340,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           channelModeAtStart != channelModeFilter ||
           controlModeAtStart != controlModeFilter ||
           sortAtStart != sortFilter ||
+          activityAtStart != activitySince ||
           channelAtStart != selectedChannelId ||
           tenant != widget.tenantId) {
         return;
@@ -563,6 +568,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (channelModeFilter != 'all') 'channelMode': channelModeFilter,
       if (controlModeFilter != 'all') 'controlMode': controlModeFilter,
       if (sortFilter != 'id') 'sort': sortFilter,
+      if (activitySince != null) 'activitySince': activitySince!,
       if (selectedChannelId != null) 'channelId': selectedChannelId!,
       if (more && conversationNext != null) 'after': conversationNext!};
     final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
@@ -813,6 +819,37 @@ class _ConversationsPageState extends State<ConversationsPage> {
             if (value == channelModeFilter) return;
             setState(() {
               channelModeFilter = value;
+              newInboundAlerts.clear();
+              changedConversations.clear();
+            });
+            load();
+          },
+        ),
+        PopupMenuButton<String>(
+          key: const Key('inbox-filter-activity'),
+          tooltip: activityWindow == 'day' ? l.inboxActivityDay :
+              activityWindow == 'week' ? l.inboxActivityWeek :
+              activityWindow == 'month' ? l.inboxActivityMonth : l.inboxActivityAll,
+          enabled: !loading,
+          initialValue: activityWindow,
+          icon: Icon(activityWindow == 'all' ? Icons.history_toggle_off : Icons.history),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'all', child: Text(l.inboxActivityAll)),
+            PopupMenuItem(value: 'day', child: Text(l.inboxActivityDay)),
+            PopupMenuItem(value: 'week', child: Text(l.inboxActivityWeek)),
+            PopupMenuItem(value: 'month', child: Text(l.inboxActivityMonth)),
+          ],
+          onSelected: (value) {
+            if (value == activityWindow) return;
+            // Capture the time once, never recompute during pagination or
+            // SSE reconciliation. This is an inclusive UTC threshold.
+            final days = value == 'day' ? 1 : value == 'week' ? 7 : 30;
+            final cutoff = DateTime.now().toUtc().subtract(Duration(days: days));
+            setState(() {
+              activityWindow = value;
+              activitySince = value == 'all' ? null :
+                  DateTime.fromMillisecondsSinceEpoch(cutoff.millisecondsSinceEpoch,
+                      isUtc: true).toIso8601String();
               newInboundAlerts.clear();
               changedConversations.clear();
             });
