@@ -8,7 +8,7 @@ A composição mantém filtros de estado open/closed, atribuição, canal espec�
 
 No Flutter, o seletor de controlo encontra-se no cabeçalho do inbox, sem aumentar a altura dos filtros em ecrãs estreitos; rótulos pt/en/es/fr/it/de. O filtro acompanha as páginas, refresh REST/SSE e geração de listagem, e reinicia o cursor ao ser alterado. Testes HTTP abrangem estados após takeover/reativação/fecho, autorização de tenant, validação, combinação com não lidas e paginação de 52 conversas em pausa. Testes de widget verificam combinação, paginação e reset.
 
-**Validação:** a suite do CI está a ser executada para este incremento; confirmar resultado verde do HEAD final. [ADR-099](decisions/ADR-099-inbox-control-state-triage.md). **Schema 62**, sem migração nem alteração aos workers, envios, idempotência, fencing ou checkpoints.
+**Validação:** [CI funcional #38215255905](https://github.com/HernanyManuel/Melissa/actions/runs/38215255905) **integralmente verde** no commit `8e2e85760be43ff4194a89a26f3c04019ec7c293`: formatação, lint, tipos, unitários, PostgreSQL/RLS e integração com worker separado, recuperação após restart/Redis, OpenAPI, auditoria de dependências, Flutter analyze/test/build Web e Compose readiness. A primeira execução identificou uma única questão de formatação do DTO, corrigida sem mudança semântica. [ADR-099](decisions/ADR-099-inbox-control-state-triage.md). **Schema 62**, sem migração nem alteração aos workers, envios, idempotência, fencing ou checkpoints.
 
 **Limites:** `HUMAN_ACTIVE` representa o controlo persistido, não a presença online de um operador; `AI_PAUSED` não equivale a um erro de provider. Nenhuma notificação externa, merge, deploy ou ativação real foi efetuada.
 

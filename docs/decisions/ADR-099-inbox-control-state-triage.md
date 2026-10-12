@@ -2,7 +2,7 @@
 
 ## Estado
 
-Implementação na `feature/phase-8-inbox`, PR #7 draft. CI de verificação do incremento ainda em curso. Sem merge, deploy ou serviços live.
+Implementação na `feature/phase-8-inbox`, PR #7 draft, validada no [workflow #38215255905](https://github.com/HernanyManuel/Melissa/actions/runs/38215255905), commit `8e2e85760be43ff4194a89a26f3c04019ec7c293`. Sem merge, deploy ou serviços live.
 
 ## Contexto
 
@@ -17,6 +17,8 @@ ADR-076 fornece o controlo humano com fencing e reativação da IA; as ADR-090 a
 - Não há migração: schema 62; `mode_epoch`, `stateVersion`, locking/fencing, idempotência, envios e recuperação de worker permanecem inalterados.
 
 ## Verificação
+
+O CI funcional terminou verde nos três jobs (backend incluindo PostgreSQL/RLS, integração com worker, recuperação após reinício/Redis, OpenAPI e auditoria; Flutter gen-l10n/analyze/test/build Web; Compose readiness). Corrigiu-se apenas a formatação de uma descrição no DTO antes da execução verde.
 
 A integração exercita seleção após takeover e reativação, exclusão do encerrado, validação 400, outro tenant 404, cursor de modo incompatível 404, seleção paginada de 52 conversas em pausa e combinação com não lidas de um canal mock. Testes Flutter verificam labels, composição com estado/não lidas, manutenção de cursor na segunda página e reset ao mudar de modo.
 
