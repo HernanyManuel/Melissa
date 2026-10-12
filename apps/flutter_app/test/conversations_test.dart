@@ -353,6 +353,71 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('activity window pins UTC cutoff across sort, pages and reset', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final requests = <Uri>[];
+    final api = client((request) async {
+      if (!request.url.path.endsWith('/conversations')) return page([]);
+      requests.add(request.url);
+      if (request.url.queryParameters.containsKey('activitySince')) {
+        return request.url.queryParameters['after'] == 'cutoff-cursor'
+            ? page([conversation('second')])
+            : page([conversation('first')], 'cutoff-cursor');
+      }
+      return page([conversation('all')]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters.containsKey('activitySince'), false);
+    await tester.tap(find.byKey(const Key('inbox-filter-activity')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Últimas 24 horas').last);
+    await tester.pumpAndSettle();
+    final pinned = requests.last.queryParameters['activitySince'];
+    expect(pinned, isNotNull);
+    expect(pinned, matches(RegExp(r'^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$')));
+    expect(DateTime.parse(pinned!).isUtc, isTrue);
+    expect(find.text('Cliente first'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-sort')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Atividade recente primeiro').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['activitySince'], pinned);
+    expect(requests.last.queryParameters['sort'], 'recent');
+    await tester.tap(find.byKey(const Key('inbox-filter-unread')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['activitySince'], pinned);
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    await tester.ensureVisible(find.text('Carregar mais').last);
+    await tester.tap(find.text('Carregar mais').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['activitySince'], pinned);
+    expect(requests.last.queryParameters['after'], 'cutoff-cursor');
+    expect(find.text('Cliente second'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-activity')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Últimos 7 dias').last);
+    await tester.pumpAndSettle();
+    final week = requests.last.queryParameters['activitySince'];
+    expect(week, isNotNull);
+    expect(DateTime.parse(week!).isBefore(DateTime.parse(pinned)), isTrue);
+    expect(requests.last.queryParameters.containsKey('after'), isFalse);
+    expect(requests.last.queryParameters['sort'], 'recent');
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    await tester.tap(find.byKey(const Key('inbox-filter-activity')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Toda a atividade').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters.containsKey('activitySince'), isFalse);
+    expect(requests.last.queryParameters.containsKey('after'), isFalse);
+    expect(find.text('Cliente all'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('channel mode combines with filters, paginates and resets cursor', (tester) async {
     tester.view.physicalSize = const Size(1100, 1000);
     tester.view.devicePixelRatio = 1;
