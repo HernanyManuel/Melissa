@@ -1,5 +1,17 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Ordenação opcional por atividade recente (ADR-100)
+
+O `GET /tenants/:tenantId/conversations` recebe `sort=id|recent`. O valor omisso ou `id` preserva a ordenação anterior (`id ASC`); `recent` ordena por `lastMessageAt DESC, id DESC`, colocando a atividade mais recente primeiro e resolvendo empates pela chave única da conversa. Valores desconhecidos ou em maiúsculas são rejeitados com HTTP 400. A consulta exige `messages:read` e conserva tenant/RLS/RBAC, todos os filtros anteriores (`q`, `tagId`, `channelId`, `channelMode`, `controlMode`, `status`, `assignment`, `unreadOnly`) e páginas de 50.
+
+Na via Prisma, o cursor por UUID e `orderBy` composto formam a paginação keyset; na via SQL `unreadOnly=true`, o filtro de cursor usa a comparação precisa no PostgreSQL `(last_message_at,id) < (last_message_at_do_cursor,id_do_cursor)`, dentro do tenant, antes de `LIMIT 51`. Um cursor inexistente ou incompatível com o tenant/estado/canal/etiqueta devolve 404. Não se ordena em memória após a paginação nem se transforma o timestamp em milissegundos no cliente. O índice existente `(tenantId,lastMessageAt,id)` suporta a ordenação sem migração.
+
+Flutter acrescenta um menu compacto no cabeçalho para alternar entre ordem anterior e atividade recente, com tradução pt/en/es/fr/it/de. Uma mudança de ordem limpa o cursor anterior, mantém os outros filtros e descarta resultados de refresh REST/SSE iniciados na ordem antiga. Testes de integração cobrem empates de timestamp, fronteira de 50/52, página 2, modo por canal, RLS, valores inválidos, ordem predefinida e a via não lidas; testes Flutter verificam composição, paginação e reset.
+
+**CI:** validação integral em curso neste incremento; atualizar após confirmação do HEAD. [ADR-100](decisions/ADR-100-inbox-recent-activity-keyset-sort.md). **Schema 62**, sem migrações, mudanças no worker ou alterações a envios, outbox, fencing, idempotência e checkpoints SSE.
+
+**Limites:** com novas mensagens e reordenações concorrentes entre chamadas, as páginas não são um snapshot congelado e uma conversa pode subir de posição; um refresh ou reinício da listagem reconcilia os resultados. `lastMessageAt` é a atividade registada, não uma garantia de entrega ou disponibilidade do provider. Sem notificações push/email ou E2E Meta live.
+
 ## Atualização Phase 8 — Triagem pelo controlo atual da conversa (ADR-099)
 
 O inbox aceita agora `controlMode=all|human|ai|paused` em `GET /tenants/:tenantId/conversations`. Os valores correspondem estritamente ao estado persistido `HUMAN_ACTIVE`, `AI_ACTIVE` e `AI_PAUSED`; a omissão/`all` preserva todos os estados anteriores, incluindo `CLOSED`. Isto é distinto de `channelMode`, que classifica a **ligação** (`mock/live`). O filtro é apenas de leitura, exige `messages:read` e é aplicado na transação tenant/RLS, antes de `LIMIT 51`, tanto na consulta Prisma como na via SQL `unreadOnly=true`.
