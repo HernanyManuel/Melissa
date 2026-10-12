@@ -136,9 +136,12 @@ export async function reconcileStoredStripeTestEvent(
     reason: StripeReconcileReason,
     tenantId?: string,
     tx?: Prisma.TransactionClient,
-  ) => (tx ?? db).stripeReconciliationAttempt.create({
-    data: { id: randomUUID(), eventId, outcome, reason, tenantId },
-  }).then(() => ({ outcome, reason }));
+  ) => (tx ?? db).$executeRaw`
+    INSERT INTO stripe_reconciliation_attempts
+      (id,event_id,outcome,reason,tenant_id)
+    VALUES
+      (${randomUUID()}::uuid,${eventId},${outcome},${reason},${tenantId ?? null}::uuid)
+  `.then(() => ({ outcome, reason }));
 
   if (event.livemode) return attempt('rejected', 'live_mode_forbidden');
   const eligible = [
