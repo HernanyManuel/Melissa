@@ -173,6 +173,10 @@ export class MessagingService {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       const status = page.status ?? 'all';
       const channelMode = page.channelMode ?? 'all';
+      // Distinct from connection mode: conversation control is never changed by this filter.
+      const controlModeState = page.controlMode === 'human' ? 'HUMAN_ACTIVE'
+        : page.controlMode === 'ai' ? 'AI_ACTIVE'
+        : page.controlMode === 'paused' ? 'AI_PAUSED' : null;
       if (
         page.channelId &&
         !(await tx.channelConnection.findUnique({
@@ -195,6 +199,7 @@ export class MessagingService {
             tenantId,
             id: page.after,
             ...(status !== 'all' ? { status } : {}),
+            ...(controlModeState ? { mode: controlModeState } : {}),
             ...(channelMode !== 'all' ? { channelConnection: { mode: channelMode } } : {}),
             ...(page.channelId ? { channelConnectionId: page.channelId } : {}),
             ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
@@ -222,6 +227,7 @@ export class MessagingService {
             FROM conversations c
             WHERE c.tenant_id=${tenantId}::uuid
               ${status !== 'all' ? Prisma.sql`AND c.status=${status}` : Prisma.empty}
+              ${controlModeState ? Prisma.sql`AND c.mode=${controlModeState}` : Prisma.empty}
               ${channelMode !== 'all' ? Prisma.sql`AND EXISTS (
                 SELECT 1 FROM channel_connections ch
                 WHERE ch.tenant_id=c.tenant_id AND ch.id=c.channel_connection_id
@@ -294,6 +300,7 @@ export class MessagingService {
             where: {
               tenantId,
               ...(status !== 'all' ? { status } : {}),
+              ...(controlModeState ? { mode: controlModeState } : {}),
               ...(channelMode !== 'all' ? { channelConnection: { mode: channelMode } } : {}),
               ...(page.channelId ? { channelConnectionId: page.channelId } : {}),
               ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
