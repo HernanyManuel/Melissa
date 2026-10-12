@@ -28,6 +28,7 @@ export interface StripeReconciliationResult {
 const SUBSCRIPTION_ID = /^sub_[A-Za-z0-9_]{1,250}$/;
 const CUSTOMER_ID = /^cus_[A-Za-z0-9_]{1,250}$/;
 const PRICE_ID = /^price_[A-Za-z0-9_-]{1,249}$/;
+// prettier-ignore
 const STATUSES = new Set([
   'incomplete', 'incomplete_expired', 'trialing', 'active',
   'past_due', 'canceled', 'unpaid', 'paused',
@@ -39,6 +40,7 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+// prettier-ignore
 function eventSubscriptionId(eventType: string, payload: unknown): string | null {
   const root = record(payload);
   const object = record(record(root?.data)?.object);
@@ -70,6 +72,7 @@ interface ProviderSnapshot {
   trialEnd: Date | null;
 }
 
+// prettier-ignore
 function unixSeconds(value: unknown): number | null {
   return typeof value === 'number' && Number.isSafeInteger(value) &&
     value >= 1_000_000_000 && value < 253_402_300_800 ? value : null;
@@ -78,6 +81,7 @@ function unixSeconds(value: unknown): number | null {
 // Since 2025-03-31.basil Stripe removed top-level current_period_*.
 // Multiple subscription items can have different billing periods; do not
 // invent a single period for a multi-item or paginated subscription.
+// prettier-ignore
 export function stripeTestSubscriptionSnapshot(value: unknown): ProviderSnapshot | null {
   const object = record(value);
   if (!object || object.object !== 'subscription' || object.livemode !== false ||

@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { reconcileStoredStripeTestEvent } from '../src/billing/stripe-reconciler';
 import { StripeTestSubscriptionReader } from '../src/billing/stripe-test-subscription-reader';
 
+// prettier-ignore
 async function main(): Promise<void> {
   // This is a deliberate *offline* test-only operator command, not a
   // scheduled worker and never a public API or production payment path.

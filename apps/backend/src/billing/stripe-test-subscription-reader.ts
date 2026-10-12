@@ -3,6 +3,7 @@ import { StripeSubscriptionReader } from './stripe-reconciler';
 // Hard-coded origin, test credentials only, no redirects, bounded time/body.
 // The provider response is authoritative only after matching the already
 // linked subscription/customer/price against the local database.
+// prettier-ignore
 export class StripeTestSubscriptionReader implements StripeSubscriptionReader {
   constructor(private readonly secretKey: string) {
     if (!/^sk_test_[A-Za-z0-9_-]{16,256}$/.test(secretKey))
