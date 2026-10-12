@@ -2,7 +2,7 @@
 
 ## Estado
 
-Phase 9, primeira fatia no PR #7 draft (`feature/phase-8-inbox`), schema 63. CI final por confirmar. Sem merge, deploy, credenciais ou cobrança Stripe.
+Phase 9, primeira fatia no PR #7 draft (`feature/phase-8-inbox`), schema 63. [CI funcional #38244880710](https://github.com/HernanyManuel/Melissa/actions/runs/38244880710) integralmente verde no commit `9b1484bef1641741f4bd72a39151cb29c39ddc90`. Sem merge, deploy, credenciais ou cobrança Stripe.
 
 ## Contexto e decisões de produto
 
@@ -17,6 +17,9 @@ A especificação §§42–46 exige `plans`, `subscriptions` e enforcement de li
 5. Até existir verificação Stripe real e um `EntitlementService` integrado em cada mutação paga, `entitlements.automationEnabled=false` e `billingVerified=false` **sempre**, mesmo se um fixture administrativo marcar `status=active`. `activation.allowed=false` e blocker `subscription` não mudam. `Dependencies.ready` requer `schema_version=63` e role runtime não-owner.
 
 ## Verificação
+
+A execução #38244880710 confirmou migração 63, readiness, formatter/lint/strict TS, unitários, integração real PostgreSQL/RLS/Redis com worker, OpenAPI, auditoria de dependências, Flutter analyze/widget/build e Compose. Foram corrigidos formato Prettier e verificações de nullability do teste detetadas pelo CI inicial; não houve alterações à semântica de cobrança.
+
 
 Teste integrado próprio registado em `pnpm test:integration`: PostgreSQL + Redis reais, duas contas/tenants, 401 sem token, 404 outro tenant, 403 viewer, catálogo vazio antes de configuração, catálogo com preço/configuração verificados na DB, ocultação de planos inativos e referências Stripe, snapshot por tenant, 404 nas tentativas POST, RLS forçada, ausência de grants write, SELECT sem tenant vazio e ativação bloqueada. Fixture administrativo cria uma snapshot `active` para provar **explicitamente** que nenhuma funcionalidade paga é desbloqueada.
 

@@ -4,7 +4,7 @@
 
 As tabelas `plans` e `subscriptions` existem, mas sem seed de preços e **sem qualquer escrita HTTP ou Stripe**. A runtime role lê somente colunas públicas do catálogo e projeções da subscrição sob RLS; referências de cliente/subscrição/product/price do Stripe não são legíveis via API. Owner/admin podem consultar `GET /api/v1/tenants/:tenantId/billing/plans` e `GET /billing/subscription`. A ausência de subscrição devolve `subscription:null`. Mesmo uma snapshot de teste com `status=active` continua a devolver `automationEnabled:false` e `billingVerified:false`, enquanto não houver confirmação assinada, reconciliação e enforcement de quotas. O onboarding não foi desbloqueado.
 
-Esta fundação não implementa ainda checkout, webhooks assinados, invoices, cobrança, quotas, reconciliação ou ativação. Não confundir estados visíveis na DB com direito a serviço. Testes integrados e ADR [104](decisions/ADR-104-billing-catalog-subscription-read-only-foundation.md).
+Esta fundação não implementa ainda checkout, webhooks assinados, invoices, cobrança, quotas, reconciliação ou ativação. Não confundir estados visíveis na DB com direito a serviço. Testes integrados [CI funcional #38244880710](https://github.com/HernanyManuel/Melissa/actions/runs/38244880710), verde no commit `9b1484bef1641741f4bd72a39151cb29c39ddc90`, e ADR [104](decisions/ADR-104-billing-catalog-subscription-read-only-foundation.md).
 
 Stripe gere pagamentos/subscrições; PostgreSQL conserva estado local reconciliado e ledger de uso. Preços/limites configurados em plans e mapeados para Stripe; exemplos de §43 são seeds editáveis, não constantes no código.
 
