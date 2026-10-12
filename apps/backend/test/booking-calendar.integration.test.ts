@@ -42,7 +42,7 @@ class RecordingProvider implements CalendarProvider {
 
 test(
   'booking calendar runtime delivers an opaque dispatch exactly once',
-  { timeout: 15000 },
+  { timeout: 45000 },
   async () => {
     const migrationUrl = process.env.MIGRATION_DATABASE_URL;
     assert(migrationUrl, 'booking calendar integration requires MIGRATION_DATABASE_URL');
@@ -60,6 +60,21 @@ test(
     const provider = new RecordingProvider();
     const secrets = { resolve: async () => null };
     let stop: (() => Promise<void>) | undefined;
+    // A running worker may share Redis/DB capacity with other integration
+    // suites. Accept/reconcile persists the outbox row after provider calls.
+    // Poll committed state rather than racing an in-memory call counter.
+    const awaitProcessed = async (dispatchId: string): Promise<void> => {
+      for (let attempt = 0; attempt < 120; attempt++) {
+        const [row] = await admin.$queryRaw<Array<{ state: string }>>`
+          SELECT state FROM booking_outbox
+          WHERE tenant_id=${tenantId}::uuid AND id=${dispatchId}::uuid
+        `;
+        if (row?.state === 'processed') return;
+        if (row?.state === 'failed') assert.fail('Booking calendar dispatch failed');
+        await delay(100);
+      }
+      assert.fail('Booking calendar dispatch did not finish within bounded wait');
+    };
 
     try {
       await admin.tenant.create({
@@ -185,7 +200,7 @@ test(
         INSERT INTO booking_calendar_dispatch (tenant_id, id)
         VALUES (${tenantId}::uuid, ${rescheduleId}::uuid)
       `;
-      for (let attempt = 0; attempt < 50 && provider.calls.length < 2; attempt++) await delay(100);
+      await awaitProcessed(rescheduleId);
       assert.equal(provider.calls.length, 2);
       assert.equal(provider.calls[1]?.startsAt, '2030-01-01T11:00:00.000Z');
       const [rescheduled] = await admin.$queryRaw<
@@ -218,8 +233,7 @@ test(
         INSERT INTO booking_calendar_dispatch (tenant_id, id)
         VALUES (${tenantId}::uuid, ${cancelId}::uuid)
       `;
-      for (let attempt = 0; attempt < 50 && provider.cancellations.length < 1; attempt++)
-        await delay(100);
+      await awaitProcessed(cancelId);
       assert.equal(provider.cancellations.length, 1);
       const [cancelled] = await admin.$queryRaw<
         Array<{
