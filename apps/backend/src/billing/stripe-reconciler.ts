@@ -92,7 +92,7 @@ export function stripeTestSubscriptionSnapshot(value: unknown): ProviderSnapshot
     return null;
   const items = record(object.items);
   if (!items || !Array.isArray(items.data) || items.data.length !== 1 ||
-      items.has_more === true)
+      items.has_more !== false)
     return null;
   const item = record(items.data[0]);
   const price = record(item?.price);
