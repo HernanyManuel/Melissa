@@ -508,6 +508,71 @@ test('human takeover fences automatic outbound and supports reactivation and clo
       1,
     );
 
+    // Channel mode is a read-only tenant-scoped filter, including unread SQL.
+    assert.equal((await call('GET', statusPath + '?channelMode=invalid',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', statusPath + '?channelMode=LIVE',
+      undefined, owner.access_token)).status, 400);
+    const liveModePage = await data<{ items: { id: string }[] }>(
+      await call('GET', statusPath + '?channelMode=live',
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(liveModePage.items.map((item) => item.id), [conversationId]);
+    assert.deepEqual((await data<{ items: unknown[] }>(
+      await call('GET', statusPath + '?channelMode=mock',
+        undefined, owner.access_token), 200,
+    )).items, []);
+    assert.equal((await call('GET', statusPath + '?channelMode=mock',
+      undefined, foreign.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath + '?channelMode=mock&after=' + conversationId,
+      undefined, owner.access_token)).status, 404);
+    assert.deepEqual((await data<{ items: { id: string }[] }>(
+      await call('GET', statusPath + '?channelMode=live&status=closed&unreadOnly=true',
+        undefined, owner.access_token), 200,
+    )).items.map((item) => item.id), [conversationId]);
+    assert.deepEqual((await data<{ items: unknown[] }>(
+      await call('GET', statusPath + '?channelMode=mock&unreadOnly=true',
+        undefined, owner.access_token), 200,
+    )).items, []);
+    const mockChannelId = randomUUID();
+    const mockCustomerId = randomUUID();
+    const mockConversationId = randomUUID();
+    await admin.channelConnection.create({ data: {
+      tenantId: tenant.id, id: mockChannelId, channelType: 'webchat', mode: 'mock',
+      externalAccountId: randomUUID(), externalPhoneId: randomUUID(),
+      displayName: 'Sandbox triage channel',
+    } });
+    await admin.customer.create({ data: {
+      tenantId: tenant.id, id: mockCustomerId,
+      displayName: 'Sandbox triage customer', phoneE164: '+351910000323',
+    } });
+    await admin.conversation.create({ data: {
+      tenantId: tenant.id, id: mockConversationId,
+      channelConnectionId: mockChannelId, customerId: mockCustomerId,
+      lastMessageAt: new Date(),
+    } });
+    const mockPage = await data<{ items: { id: string }[]; next: string | null }>(
+      await call('GET', statusPath + '?channelMode=mock',
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(mockPage.items.map((item) => item.id), [mockConversationId]);
+    assert.equal(mockPage.next, null);
+    assert.equal((await call('GET', statusPath + '?channelMode=live&after=' + mockConversationId,
+      undefined, owner.access_token)).status, 404);
+    await admin.$executeRaw`
+      INSERT INTO inbox_events (tenant_id, event_type, conversation_id)
+      VALUES (${tenant.id}::uuid, 'message.received', ${mockConversationId}::uuid)
+    `;
+    const mockUnread = await data<{ items: { id: string }[] }>(
+      await call('GET', statusPath + '?channelMode=mock&unreadOnly=true',
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(mockUnread.items.map((item) => item.id), [mockConversationId]);
+    const combinedLive = await data<{ items: { id: string }[] }>(
+      await call('GET', statusPath + '?channelMode=live&status=closed&unreadOnly=true',
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(combinedLive.items.map((item) => item.id), [conversationId]);
     // Customer context is bounded and cross-channel, never cross-customer.
     // Add the related records only after conversation-list filter assertions.
     const otherCustomerId = randomUUID();
