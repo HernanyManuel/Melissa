@@ -54,7 +54,7 @@ export class MessagingController {
   @ApiOperation({
     summary: 'List or search conversations',
     description:
-      'Optional literal name search q, tenant-owned tagId, actor-scoped unreadOnly=true, assignment, channelMode=mock|live and lifecycle status=open|closed. Fixed pages of 50 ordered by ID. Retain all filters when following a cursor; reset the cursor when changing filters.',
+      'Optional literal name search q, tenant-owned tagId, actor-scoped unreadOnly=true, assignment, channelId, channelMode=mock|live and lifecycle status=open|closed. Fixed pages of 50 ordered by ID. Retain all filters when following a cursor; reset the cursor when changing filters.',
   })
   conversations(
     @Req() req: AuthRequest,
@@ -71,6 +71,20 @@ export class MessagingController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.messaging.conversationCustomer(req.actor, tenant, id);
+  }
+
+  @Get('inbox/channel-options')
+  @ApiOperation({
+    summary: 'Page minimal channel options for authorized inbox triage',
+    description:
+      'Only channel ID, public name and mock/live mode. Pages of 50; no credentials or provider identifiers.',
+  })
+  inboxChannelOptions(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenant: string,
+    @Query() page: MessagePageDto,
+  ) {
+    return this.messaging.inboxChannelOptions(req.actor, tenant, page);
   }
 
   @Get('conversation-tags')

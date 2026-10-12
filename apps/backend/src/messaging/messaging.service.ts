@@ -144,12 +144,38 @@ export class MessagingService {
     });
   }
 
+  inboxChannelOptions(actor: Actor, tenantId: string, page: MessagePageDto) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
+      // A deliberately narrow projection, paged before reaching the Flutter client.
+      const visible = { tenantId, conversations: { some: { tenantId } } };
+      if (
+        page.after &&
+        !(await tx.channelConnection.findFirst({
+          where: { ...visible, id: page.after },
+          select: { id: true },
+        }))
+      ) throw new NotFoundException();
+      const rows = await tx.channelConnection.findMany({
+        where: visible,
+        ...(page.after ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 } : {}),
+        orderBy: { id: 'asc' },
+        take: 51,
+        select: { id: true, displayName: true, mode: true },
+      });
+      return { items: rows.slice(0, 50), next: rows.length > 50 ? rows[49]!.id : null };
+    });
+  }
+
   // The raw SQL branches keep aligned, parameterized predicates for both paging paths.
   // prettier-ignore
   conversations(actor: Actor, tenantId: string, page: ConversationQuery) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       const status = page.status ?? 'all';
       const channelMode = page.channelMode ?? 'all';
+      if (page.channelId && !(await tx.channelConnection.findUnique({
+        where: { tenantId_id: { tenantId, id: page.channelId } },
+        select: { id: true },
+      }))) throw new NotFoundException();
       if (page.tagId) {
         const tag = await tx.conversationTag.findUnique({
           where: { tenantId_id: { tenantId, id: page.tagId } },
@@ -165,6 +191,7 @@ export class MessagingService {
             id: page.after,
             ...(status !== 'all' ? { status } : {}),
             ...(channelMode !== 'all' ? { channelConnection: { mode: channelMode } } : {}),
+            ...(page.channelId ? { channelConnectionId: page.channelId } : {}),
             ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
           },
           select: { id: true },
@@ -195,6 +222,7 @@ export class MessagingService {
                 WHERE ch.tenant_id=c.tenant_id AND ch.id=c.channel_connection_id
                   AND ch.mode=${channelMode}
               )` : Prisma.empty}
+              ${page.channelId ? Prisma.sql`AND c.channel_connection_id=${page.channelId}::uuid` : Prisma.empty}
               ${page.after ? Prisma.sql`AND c.id > ${page.after}::uuid` : Prisma.empty}
               ${
                 assignment === 'unassigned'
@@ -262,6 +290,7 @@ export class MessagingService {
               tenantId,
               ...(status !== 'all' ? { status } : {}),
               ...(channelMode !== 'all' ? { channelConnection: { mode: channelMode } } : {}),
+              ...(page.channelId ? { channelConnectionId: page.channelId } : {}),
               ...(page.tagId ? { tagLinks: { some: { tenantId, tagId: page.tagId } } } : {}),
               ...(assignment === 'unassigned' ? { assignedStaffId: null } : {}),
               ...(assignment === 'mine'

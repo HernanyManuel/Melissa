@@ -36,6 +36,14 @@ export class ConversationQuery extends MessagePageDto {
   tagId?: string;
 
   @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Select conversations from this tenant-owned channel connection.',
+  })
+  @IsOptional()
+  @IsUUID()
+  channelId?: string;
+
+  @ApiPropertyOptional({
     enum: ['true', 'false'],
     description: 'Show only conversations with unread inbound events for the authenticated actor.',
   })
