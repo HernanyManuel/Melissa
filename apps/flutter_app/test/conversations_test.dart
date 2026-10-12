@@ -238,6 +238,66 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('control-state triage combines filters and resets pagination', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final requests = <Uri>[];
+    final api = client((request) async {
+      if (request.url.path.endsWith('/conversations')) {
+        requests.add(request.url);
+        if (request.url.queryParameters['controlMode'] == 'human') {
+          return request.url.queryParameters['after'] == 'cursor'
+              ? page([conversation('human-second')])
+              : page([conversation('human-first')], 'cursor');
+        }
+        return page([conversation('other')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-control-mode')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Atendimento humano').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['controlMode'], 'human');
+    expect(requests.last.queryParameters.containsKey('after'), false);
+    expect(find.text('Cliente human-first'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-status')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abertas').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-unread')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['controlMode'], 'human');
+    expect(requests.last.queryParameters['status'], 'open');
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    await tester.ensureVisible(find.text('Carregar mais').last);
+    await tester.tap(find.text('Carregar mais').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['after'], 'cursor');
+    expect(requests.last.queryParameters['controlMode'], 'human');
+    expect(find.text('Cliente human-second'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-control-mode')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('IA em pausa').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['controlMode'], 'paused');
+    expect(requests.last.queryParameters.containsKey('after'), false);
+    expect(requests.last.queryParameters['status'], 'open');
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    expect(find.text('Cliente other'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('inbox-filter-control-mode')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Todos os controlos').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters.containsKey('controlMode'), false);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('channel mode combines with filters, paginates and resets cursor', (tester) async {
     tester.view.physicalSize = const Size(1100, 1000);
     tester.view.devicePixelRatio = 1;
