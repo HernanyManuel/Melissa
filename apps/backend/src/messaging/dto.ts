@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
+import { IsISO8601, IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class MockInboundDto {
@@ -92,6 +92,17 @@ export class ConversationQuery extends MessagePageDto {
   @IsOptional()
   @Matches(/^(id|recent)$/)
   sort?: string;
+
+  @ApiPropertyOptional({
+    format: 'date-time',
+    example: '2026-10-01T00:00:00.000Z',
+    description:
+      'Inclusive fixed UTC last-activity threshold. Keep the same value on every page and SSE refresh.',
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+  @IsISO8601({ strict: true, strictSeparator: true })
+  activitySince?: string;
 }
 
 export class ConversationTakeoverDto {

@@ -172,6 +172,7 @@ export class MessagingService {
   conversations(actor: Actor, tenantId: string, page: ConversationQuery) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       const status = page.status ?? 'all';
+      const activitySince = page.activitySince ? new Date(page.activitySince) : null;
       const sortRecent = page.sort === 'recent';
       const ordering: Prisma.ConversationOrderByWithRelationInput[] = sortRecent
         ? [{ lastMessageAt: 'desc' }, { id: 'desc' }]
@@ -210,6 +211,7 @@ export class MessagingService {
       const visibleWhere: Prisma.ConversationWhereInput = {
         tenantId,
         ...(status !== 'all' ? { status } : {}),
+        ...(activitySince ? { lastMessageAt: { gte: activitySince } } : {}),
         ...(controlModeState ? { mode: controlModeState } : {}),
         ...(channelMode !== 'all' ? { channelConnection: { mode: channelMode } } : {}),
         ...(page.channelId ? { channelConnectionId: page.channelId } : {}),
@@ -270,6 +272,7 @@ export class MessagingService {
             FROM conversations c
             WHERE c.tenant_id=${tenantId}::uuid
               ${status !== 'all' ? Prisma.sql`AND c.status=${status}` : Prisma.empty}
+              ${activitySince ? Prisma.sql`AND c.last_message_at >= ${activitySince}::timestamptz` : Prisma.empty}
               ${controlModeState ? Prisma.sql`AND c.mode=${controlModeState}` : Prisma.empty}
               ${channelMode !== 'all' ? Prisma.sql`AND EXISTS (
                 SELECT 1 FROM channel_connections ch
