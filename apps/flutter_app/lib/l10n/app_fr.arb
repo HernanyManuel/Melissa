@@ -221,6 +221,9 @@
       }
     }
   },
+  "inboxChannelFilter": "Filtrer par canal",
+  "inboxAllChannels": "Tous les canaux",
+  "inboxMoreChannels": "Charger plus de canaux",
   "inboxChannelModeAll": "Tous les modes de canal",
   "inboxChannelModeMock": "Simulés",
   "inboxChannelModeLive": "En direct",

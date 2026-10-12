@@ -34,6 +34,13 @@ class _ConversationsPageState extends State<ConversationsPage> {
   String assignmentFilter = 'all';
   String statusFilter = 'all';
   String channelModeFilter = 'all';
+  String? selectedChannelId;
+  List<Map<String, dynamic>> channelOptions = [];
+  String? channelOptionsNext;
+  bool channelOptionsOpen = false;
+  bool channelOptionsLoading = false;
+  bool channelOptionsError = false;
+  int channelOptionsGeneration = 0;
   List<Map<String, dynamic>> availableTags = [];
   bool tagFilterOpen = false;
   bool tagsLoading = false;
@@ -85,6 +92,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
       streamRevoked = false;
       search.clear(); searchQuery = '';
       tagsGeneration++; availableTags = []; selectedTagId = null;
+      channelOptionsGeneration++; channelOptions = []; selectedChannelId = null;
+      channelOptionsNext = null; channelOptionsOpen = false;
+      channelOptionsLoading = false; channelOptionsError = false;
       unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       messageGeneration++;
@@ -100,6 +110,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   void dispose() {
     _stopInbox();
     tagsGeneration++;
+    channelOptionsGeneration++;
     search.dispose();
     if (widget.api == null) api.dispose();
     super.dispose();
@@ -262,6 +273,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final assignmentAtStart = assignmentFilter;
     final statusAtStart = statusFilter;
     final channelModeAtStart = channelModeFilter;
+    final channelAtStart = selectedChannelId;
     final listPages = ((conversations.length + 49) ~/ 50).clamp(1, 10);
     final messagePages = ((messages.length ~/ 50) + 1).clamp(1, 10);
     try {
@@ -275,6 +287,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           if (assignmentAtStart != 'all') 'assignment': assignmentAtStart,
           if (statusAtStart != 'all') 'status': statusAtStart,
           if (channelModeAtStart != 'all') 'channelMode': channelModeAtStart,
+          if (channelAtStart != null) 'channelId': channelAtStart,
           if (after != null) 'after': after,
         };
         final suffix = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
@@ -312,6 +325,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           assignmentAtStart != assignmentFilter ||
           statusAtStart != statusFilter ||
           channelModeAtStart != channelModeFilter ||
+          channelAtStart != selectedChannelId ||
           tenant != widget.tenantId) {
         return;
       }
@@ -384,6 +398,61 @@ class _ConversationsPageState extends State<ConversationsPage> {
         }
       }
     }
+  }
+
+  Future<void> loadChannelOptions({bool more = false}) async {
+    if (channelOptionsLoading) return;
+    final generation = ++channelOptionsGeneration;
+    final tenant = widget.tenantId;
+    final after = more ? channelOptionsNext : null;
+    setState(() {
+      channelOptionsLoading = true;
+      channelOptionsError = false;
+    });
+    try {
+      final params = after == null ? '' : '?after=$after';
+      final result = await api.request('GET',
+          '/tenants/$tenant/inbox/channel-options$params') as Map<String, dynamic>;
+      final items = (result['items'] as List).cast<Map<String, dynamic>>();
+      final next = result['next'];
+      if (items.length > 50 || (next != null && next is! String) ||
+          items.any((item) => item['id'] is! String ||
+              item['displayName'] is! String ||
+              !['mock', 'live'].contains(item['mode']))) {
+        throw const FormatException('Invalid channel catalog');
+      }
+      if (!mounted || generation != channelOptionsGeneration ||
+          tenant != widget.tenantId) return;
+      setState(() {
+        channelOptions = more ? [...channelOptions, ...items] : items;
+        channelOptionsNext = next as String?;
+      });
+    } catch (_) {
+      if (!mounted || generation != channelOptionsGeneration ||
+          tenant != widget.tenantId) return;
+      setState(() {
+        if (!more) {
+          channelOptions = [];
+          channelOptionsNext = null;
+        }
+        channelOptionsError = true;
+      });
+    } finally {
+      if (mounted && generation == channelOptionsGeneration &&
+          tenant == widget.tenantId) {
+        setState(() => channelOptionsLoading = false);
+      }
+    }
+  }
+
+  void chooseChannel(String? id) {
+    if (selectedChannelId == id) return;
+    setState(() {
+      selectedChannelId = id;
+      newInboundAlerts.clear();
+      changedConversations.clear();
+    });
+    load();
   }
 
   Future<void> loadTagCatalog() async {
@@ -473,6 +542,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (assignmentFilter != 'all') 'assignment': assignmentFilter,
       if (statusFilter != 'all') 'status': statusFilter,
       if (channelModeFilter != 'all') 'channelMode': channelModeFilter,
+      if (selectedChannelId != null) 'channelId': selectedChannelId!,
       if (more && conversationNext != null) 'after': conversationNext!};
     final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
     setState(() { loading = true; listError = false;
@@ -606,6 +676,17 @@ class _ConversationsPageState extends State<ConversationsPage> {
         ),
         if (selectedTagId != null)
           TextButton(onPressed: () => chooseTag(null), child: Text(l.inboxAllTags)),
+        TextButton.icon(
+          key: const Key('inbox-filter-channels'),
+          onPressed: () {
+            setState(() => channelOptionsOpen = !channelOptionsOpen);
+            if (channelOptionsOpen && channelOptions.isEmpty) loadChannelOptions();
+          },
+          icon: const Icon(Icons.hub_outlined),
+          label: Text(l.inboxChannelFilter),
+        ),
+        if (selectedChannelId != null)
+          TextButton(onPressed: () => chooseChannel(null), child: Text(l.inboxAllChannels)),
         SizedBox(width: 264, child: DropdownButton<String>(
           key: const Key('inbox-filter-assignment'),
           isExpanded: true,
@@ -670,6 +751,39 @@ class _ConversationsPageState extends State<ConversationsPage> {
           onSelected: loading ? null : chooseUnreadOnly,
         ),
       ]),
+      if (channelOptionsOpen) SizedBox(height: 134, child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Column(children: [
+          if (channelOptionsLoading) const LinearProgressIndicator(),
+          if (channelOptionsError) TextButton(
+            onPressed: channelOptionsLoading ? null :
+                () => loadChannelOptions(more: channelOptions.isNotEmpty),
+            child: Text(l.retry),
+          ),
+          Wrap(spacing: 6, runSpacing: 4, children: [
+            ChoiceChip(
+              key: const Key('inbox-channel-all'),
+              label: Text(l.inboxAllChannels),
+              selected: selectedChannelId == null,
+              onSelected: (_) => chooseChannel(null),
+            ),
+            for (final option in channelOptions)
+              ChoiceChip(
+                key: ValueKey('inbox-channel-${option['id']}'),
+                label: Text(option['displayName'] as String),
+                selected: selectedChannelId == option['id'],
+                onSelected: (_) => chooseChannel(option['id'] as String),
+              ),
+          ]),
+          if (channelOptionsNext != null && !channelOptionsError)
+            TextButton(
+              key: const Key('inbox-channel-more'),
+              onPressed: channelOptionsLoading ? null :
+                  () => loadChannelOptions(more: true),
+              child: Text(l.inboxMoreChannels),
+            ),
+        ]),
+      )),
       if (tagFilterOpen) SizedBox(height: 92, child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Column(children: [

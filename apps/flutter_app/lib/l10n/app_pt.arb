@@ -221,6 +221,9 @@
       }
     }
   },
+  "inboxChannelFilter": "Filtrar por ligação",
+  "inboxAllChannels": "Todas as ligações",
+  "inboxMoreChannels": "Carregar mais ligações",
   "inboxChannelModeAll": "Todos os modos de canal",
   "inboxChannelModeMock": "Simulados",
   "inboxChannelModeLive": "Ao vivo",
