@@ -1,5 +1,17 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Triagem pelo controlo atual da conversa (ADR-099)
+
+O inbox aceita agora `controlMode=all|human|ai|paused` em `GET /tenants/:tenantId/conversations`. Os valores correspondem estritamente ao estado persistido `HUMAN_ACTIVE`, `AI_ACTIVE` e `AI_PAUSED`; a omissão/`all` preserva todos os estados anteriores, incluindo `CLOSED`. Isto é distinto de `channelMode`, que classifica a **ligação** (`mock/live`). O filtro é apenas de leitura, exige `messages:read` e é aplicado na transação tenant/RLS, antes de `LIMIT 51`, tanto na consulta Prisma como na via SQL `unreadOnly=true`.
+
+A composição mantém filtros de estado open/closed, atribuição, canal específico, modo do canal, etiqueta, pesquisa e não lidas por operador. `after` tem de identificar uma conversa do tenant que ainda pertença ao estado de controlo selecionado; caso contrário dá 404. Alterações concorrentes entre páginas podem invalidar o cursor, sem permitir leitura fora do filtro. Nenhuma ação de takeover, reativação, fecho ou resposta é desencadeada pela escolha.
+
+No Flutter, o seletor de controlo encontra-se no cabeçalho do inbox, sem aumentar a altura dos filtros em ecrãs estreitos; rótulos pt/en/es/fr/it/de. O filtro acompanha as páginas, refresh REST/SSE e geração de listagem, e reinicia o cursor ao ser alterado. Testes HTTP abrangem estados após takeover/reativação/fecho, autorização de tenant, validação, combinação com não lidas e paginação de 52 conversas em pausa. Testes de widget verificam combinação, paginação e reset.
+
+**Validação:** a suite do CI está a ser executada para este incremento; confirmar resultado verde do HEAD final. [ADR-099](decisions/ADR-099-inbox-control-state-triage.md). **Schema 62**, sem migração nem alteração aos workers, envios, idempotência, fencing ou checkpoints.
+
+**Limites:** `HUMAN_ACTIVE` representa o controlo persistido, não a presença online de um operador; `AI_PAUSED` não equivale a um erro de provider. Nenhuma notificação externa, merge, deploy ou ativação real foi efetuada.
+
 ## Atualização Phase 8 — Triagem por ligação exata do canal (ADR-098)
 
 O inbox aceita agora `GET /tenants/:tenantId/conversations?channelId=<uuid>`, combinável com `channelMode`, `status`, `assignment`, `tagId`, `q` e `unreadOnly`. A ligação deve existir no tenant autorizado; parâmetro inválido devolve 400, ligação ausente/cross-tenant devolve 404. Tanto Prisma como a via SQL de não lidas filtram **antes da paginação** e exigem correspondência do cursor `after` com a ligação, evitando misturar páginas de canais diferentes.
