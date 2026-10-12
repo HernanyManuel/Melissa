@@ -2,7 +2,7 @@
 
 ## Estado
 
-Implementação na `feature/phase-8-inbox`, PR #7 draft. CI final a confirmar; sem merge, deploy ou integrações live.
+Implementação na `feature/phase-8-inbox`, PR #7 draft. [CI funcional #38222725283](https://github.com/HernanyManuel/Melissa/actions/runs/38222725283) integralmente verde no commit `db4b2a615101ccd056cfed08b21ad97920b35a28`. Sem merge, deploy ou integrações live.
 
 ## Contexto
 
@@ -16,6 +16,9 @@ As ADR-097 a ADR-100 acrescentaram filtros de canal, estado, controlo e ordenaç
 4. Preservar o modelo tenant/RLS/RBAC `messages:read`, índice existente para ordenação recente, ID UUID do cursor, contrato 50+1 e o schema 62. Sem efeitos em takeover, modo IA, despachos, idempotência, fencing ou SSE.
 
 ## Verificações e limites
+
+A validação passou em backend, Flutter e Compose. Durante a validação foi corrigida uma edição malformada do escape literal da pesquisa, e a fixture existente do runtime de calendário passou a aguardar o estado durável `processed` da outbox (em vez do contador em memória) para evitar falhas intermitentes por carga paralela. Os estados e o comportamento de produção não foram alterados por essa correção de teste.
+
 
 Integração HTTP verifica incompatibilidade de cursor `mine`, `unassigned` e `q`; alteração real de atribuição; cursor de não lidas válido antes e inválido depois de inserir o cursor de leitura do próprio ator; combinação com `sort=recent` e validação 404, enquanto `GET` inicial mantém resultados. Widgets simulam 404 em página seguinte, verificam refresh sem `after` e sem misturar linhas antigas, mantendo `unreadOnly` e `sort`; outro teste força 403 e confirma limpeza imediata sem retry automático.
 
