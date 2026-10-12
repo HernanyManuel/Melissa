@@ -77,7 +77,8 @@ export class ConversationQuery extends MessagePageDto {
 
   @ApiPropertyOptional({
     enum: ['all', 'human', 'ai', 'paused'],
-    description: 'Filter by current conversation control state (human, AI or paused), before pagination.',
+    description:
+      'Filter by current conversation control state (human, AI or paused), before pagination.',
   })
   @IsOptional()
   @Matches(/^(all|human|ai|paused)$/)
