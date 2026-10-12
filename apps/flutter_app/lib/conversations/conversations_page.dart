@@ -541,11 +541,15 @@ class _ConversationsPageState extends State<ConversationsPage> {
       final count = result['pendingConversations'];
       if (count is! int || count < 0) throw const FormatException('Invalid handoff count');
       if (!mounted || streamRevoked || stream != streamGeneration ||
-          generation != handoffSummaryGeneration || tenant != widget.tenantId) return;
+          generation != handoffSummaryGeneration || tenant != widget.tenantId) {
+        return;
+      }
       setState(() => pendingHandoffs = count);
     } catch (error) {
       if (!mounted || streamRevoked || stream != streamGeneration ||
-          generation != handoffSummaryGeneration || tenant != widget.tenantId) return;
+          generation != handoffSummaryGeneration || tenant != widget.tenantId) {
+        return;
+      }
       if (error is ApiFailure && [401, 403, 404].contains(error.status)) {
         _revokeInbox();
       } else {
