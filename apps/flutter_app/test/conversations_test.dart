@@ -20,6 +20,29 @@ IdentityApi client(Future<http.Response> Function(http.Request) route) => Identi
 }));
 
 void main() {
+  testWidgets('optional handoff summary 404 does not revoke an authorized inbox', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final api = client((request) async {
+      if (request.url.path.endsWith('/inbox/handoff-summary')) {
+        return http.Response('{}', 404);
+      }
+      if (request.url.path.endsWith('/conversations')) {
+        return page([conversation('authorized')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(find.text('Cliente authorized'), findsOneWidget);
+    expect(find.byKey(const Key('inbox-handoff-alert')), findsNothing);
+    expect(find.byKey(const Key('inbox-unread-loaded-summary')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('durable handoff attention filters waiting queue and survives reload', (tester) async {
     tester.view.physicalSize = const Size(1100, 1000);
     tester.view.devicePixelRatio = 1;
