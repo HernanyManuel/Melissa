@@ -173,9 +173,9 @@ export class MessagingService {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       const status = page.status ?? 'all';
       const sortRecent = page.sort === 'recent';
-      const ordering = sortRecent
-        ? ([{ lastMessageAt: 'desc' }, { id: 'desc' }] as const)
-        : ([{ id: 'asc' }] as const);
+      const ordering: Prisma.ConversationOrderByWithRelationInput[] = sortRecent
+        ? [{ lastMessageAt: 'desc' }, { id: 'desc' }]
+        : [{ id: 'asc' }];
       const channelMode = page.channelMode ?? 'all';
       // Distinct from connection mode: conversation control is never changed by this filter.
       const controlModeState = page.controlMode === 'human' ? 'HUMAN_ACTIVE'
