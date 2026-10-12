@@ -574,6 +574,28 @@ test('human takeover fences automatic outbound and supports reactivation and clo
         undefined, owner.access_token), 200,
     );
     assert.deepEqual(combinedLive.items.map((item) => item.id), [conversationId]);
+    assert.equal((await call('GET', statusPath + '?channelId=bad',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', statusPath + '?channelId=' + randomUUID(),
+      undefined, owner.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath + '?channelId=' + mockChannelId,
+      undefined, foreign.access_token)).status, 404);
+    assert.deepEqual((await data<{ items: { id: string }[] }>(
+      await call('GET', statusPath + '?channelId=' + mockChannelId,
+        undefined, owner.access_token), 200,
+    )).items.map((row) => row.id), [mockConversationId]);
+    assert.deepEqual((await data<{ items: unknown[] }>(
+      await call('GET', statusPath + '?channelId=' + mockChannelId + '&channelMode=live',
+        undefined, owner.access_token), 200,
+    )).items, []);
+    assert.equal((await call('GET', statusPath +
+      '?channelId=' + mockChannelId + '&after=' + conversationId,
+      undefined, owner.access_token)).status, 404);
+    assert.deepEqual((await data<{ items: { id: string }[] }>(
+      await call('GET', statusPath + '?channelId=' + mockChannelId +
+        '&channelMode=mock&status=open&unreadOnly=true',
+        undefined, owner.access_token), 200,
+    )).items.map((row) => row.id), [mockConversationId]);
     // Customer context is bounded and cross-channel, never cross-customer.
     // Add the related records only after conversation-list filter assertions.
     const otherCustomerId = randomUUID();
@@ -638,6 +660,70 @@ test('human takeover fences automatic outbound and supports reactivation and clo
       (await call('GET', customerPath, undefined, foreign.access_token)).status,
       404,
     );
+    // Catalog is messages:read-only: no provider IDs, credentials, or unrelated tenants.
+    const optionsPath = `/tenants/${tenant.id}/inbox/channel-options`;
+    assert.equal((await call('GET', optionsPath, undefined, foreign.access_token)).status, 404);
+    assert.equal((await call('GET', optionsPath + '?after=bad',
+      undefined, owner.access_token)).status, 400);
+    assert.equal((await call('GET', optionsPath + '?after=' + randomUUID(),
+      undefined, owner.access_token)).status, 404);
+    const viewer = await createActor('viewer');
+    await admin.membership.create({
+      data: { tenantId: tenant.id, userId: viewer.userId, role: 'viewer' },
+    });
+    assert.equal((await call('GET', optionsPath, undefined, viewer.access_token)).status, 403);
+    const initialOptions = await data<{ items: Array<{
+      id: string; displayName: string; mode: string;
+    }>; next: string | null }>(
+      await call('GET', optionsPath, undefined, owner.access_token), 200,
+    );
+    assert.equal(initialOptions.items.length, 9);
+    assert.equal(initialOptions.next, null);
+    assert(initialOptions.items.some((item) => item.id === mockChannelId && item.mode === 'mock'));
+    for (const item of initialOptions.items) {
+      assert.deepEqual(Object.keys(item).sort(), ['displayName', 'id', 'mode']);
+    }
+    const extra = Array.from({ length: 51 }, (_, index) => ({
+      channelId: randomUUID(), customerId: randomUUID(), conversationId: randomUUID(),
+      index,
+    }));
+    await admin.channelConnection.createMany({ data: extra.map((item) => ({
+      tenantId: tenant.id, id: item.channelId, channelType: 'webchat',
+      mode: 'mock', externalAccountId: `mock:${item.channelId}`,
+      externalPhoneId: `mock:${item.channelId}`,
+      displayName: `Channel option ${item.index}`,
+    })) });
+    await admin.customer.createMany({ data: extra.map((item) => ({
+      tenantId: tenant.id, id: item.customerId,
+      displayName: `Catalog person ${item.index}`,
+      phoneE164: `+351931${String(item.index).padStart(6, '0')}`,
+    })) });
+    await admin.conversation.createMany({ data: extra.map((item) => ({
+      tenantId: tenant.id, id: item.conversationId,
+      customerId: item.customerId, channelConnectionId: item.channelId,
+      lastMessageAt: new Date(),
+    })) });
+    const firstOptions = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', optionsPath, undefined, owner.access_token), 200,
+    );
+    assert.equal(firstOptions.items.length, 50);
+    assert.equal(firstOptions.next, firstOptions.items[49]?.id);
+    const moreOptions = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', optionsPath + '?after=' + firstOptions.next,
+        undefined, owner.access_token), 200,
+    );
+    assert.equal(moreOptions.items.length, 10);
+    assert.equal(moreOptions.next, null);
+    const allIds = [...firstOptions.items, ...moreOptions.items].map((item) => item.id);
+    assert.equal(new Set(allIds).size, 60);
+    assert.deepEqual(allIds, [...allIds].sort());
+    const lastChannel = extra[50]!;
+    const narrow = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', statusPath + '?channelId=' + lastChannel.channelId,
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(narrow.items.map((row) => row.id), [lastChannel.conversationId]);
+    assert.equal(narrow.next, null);
   } finally {
     await app.close();
     await admin.$disconnect();
