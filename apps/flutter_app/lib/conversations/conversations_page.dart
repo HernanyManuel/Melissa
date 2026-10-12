@@ -736,6 +736,37 @@ class _ConversationsPageState extends State<ConversationsPage> {
               load();
             },
           ),
+          SizedBox(width: 36, height: 40, child: PopupMenuButton<String>(
+          key: const Key('inbox-filter-activity'),
+          tooltip: activityWindow == 'day' ? l.inboxActivityDay :
+              activityWindow == 'week' ? l.inboxActivityWeek :
+              activityWindow == 'month' ? l.inboxActivityMonth : l.inboxActivityAll,
+          enabled: !loading,
+          initialValue: activityWindow,
+          child: Center(child: Icon(activityWindow == 'all' ? Icons.history_toggle_off : Icons.history, size: 20)),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'all', child: Text(l.inboxActivityAll)),
+            PopupMenuItem(value: 'day', child: Text(l.inboxActivityDay)),
+            PopupMenuItem(value: 'week', child: Text(l.inboxActivityWeek)),
+            PopupMenuItem(value: 'month', child: Text(l.inboxActivityMonth)),
+          ],
+          onSelected: (value) {
+            if (value == activityWindow) return;
+            // Capture the time once, never recompute during pagination or
+            // SSE reconciliation. This is an inclusive UTC threshold.
+            final days = value == 'day' ? 1 : value == 'week' ? 7 : 30;
+            final cutoff = DateTime.now().toUtc().subtract(Duration(days: days));
+            setState(() {
+              activityWindow = value;
+              activitySince = value == 'all' ? null :
+                  DateTime.fromMillisecondsSinceEpoch(cutoff.millisecondsSinceEpoch,
+                      isUtc: true).toIso8601String();
+              newInboundAlerts.clear();
+              changedConversations.clear();
+            });
+            load();
+          },
+        )),
           IconButton(tooltip: l.retry, onPressed: loading ? null : () => load(),
               icon: const Icon(Icons.refresh)),
         ],
@@ -819,37 +850,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
             if (value == channelModeFilter) return;
             setState(() {
               channelModeFilter = value;
-              newInboundAlerts.clear();
-              changedConversations.clear();
-            });
-            load();
-          },
-        ),
-        PopupMenuButton<String>(
-          key: const Key('inbox-filter-activity'),
-          tooltip: activityWindow == 'day' ? l.inboxActivityDay :
-              activityWindow == 'week' ? l.inboxActivityWeek :
-              activityWindow == 'month' ? l.inboxActivityMonth : l.inboxActivityAll,
-          enabled: !loading,
-          initialValue: activityWindow,
-          icon: Icon(activityWindow == 'all' ? Icons.history_toggle_off : Icons.history),
-          itemBuilder: (_) => [
-            PopupMenuItem(value: 'all', child: Text(l.inboxActivityAll)),
-            PopupMenuItem(value: 'day', child: Text(l.inboxActivityDay)),
-            PopupMenuItem(value: 'week', child: Text(l.inboxActivityWeek)),
-            PopupMenuItem(value: 'month', child: Text(l.inboxActivityMonth)),
-          ],
-          onSelected: (value) {
-            if (value == activityWindow) return;
-            // Capture the time once, never recompute during pagination or
-            // SSE reconciliation. This is an inclusive UTC threshold.
-            final days = value == 'day' ? 1 : value == 'week' ? 7 : 30;
-            final cutoff = DateTime.now().toUtc().subtract(Duration(days: days));
-            setState(() {
-              activityWindow = value;
-              activitySince = value == 'all' ? null :
-                  DateTime.fromMillisecondsSinceEpoch(cutoff.millisecondsSinceEpoch,
-                      isUtc: true).toIso8601String();
               newInboundAlerts.clear();
               changedConversations.clear();
             });
