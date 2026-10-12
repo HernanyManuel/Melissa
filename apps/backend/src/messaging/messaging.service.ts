@@ -356,7 +356,31 @@ export class MessagingService {
       if (!conversation || conversation.customer.deletedAt) throw new NotFoundException();
       const { deletedAt, ...customer } = conversation.customer;
       void deletedAt;
-      return { item: customer };
+      // Read-only, bounded cross-channel context for this exact customer.
+      // No message bodies, channel credentials, or internal conversation state.
+      const related = await tx.conversation.findMany({
+        where: { tenantId, customerId: customer.id, id: { not: conversationId } },
+        orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
+        take: 6,
+        select: {
+          id: true,
+          status: true,
+          lastMessageAt: true,
+          channelConnection: { select: { displayName: true } },
+        },
+      });
+      return {
+        item: customer,
+        relatedConversations: {
+          items: related.slice(0, 5).map((row) => ({
+            id: row.id,
+            status: row.status,
+            lastMessageAt: row.lastMessageAt,
+            channelName: row.channelConnection.displayName,
+          })),
+          hasMore: related.length > 5,
+        },
+      };
     });
   }
 
