@@ -48,9 +48,9 @@ Cada PR deve citar também os subitens da secção e anexar evidência concreta 
 | 39 | Usage Metering | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 40 | Custos internos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 41 | Cost Guard | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
-| 42 | Billing | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
-| 43 | Planos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
-| 44 | Subscriptions | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
+| 42 | Billing | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catalog e snapshot read-only; Stripe Checkout/webhooks e invoices pendentes (ADR-104) |
+| 43 | Planos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: planos configuráveis em PostgreSQL e API de catálogo sem preços hardcoded; criação administrativa e Stripe pendentes (ADR-104) |
+| 44 | Subscriptions | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: tabela tenant-scoped com RLS e consulta owner/admin; provider reconciliation e mutations pendentes (ADR-104) |
 | 45 | Webhooks Stripe | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 46 | Limites | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 47 | Overages | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
