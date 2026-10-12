@@ -687,14 +687,14 @@ class _ConversationsPageState extends State<ConversationsPage> {
         ),
         if (selectedTagId != null)
           TextButton(onPressed: () => chooseTag(null), child: Text(l.inboxAllTags)),
-        TextButton.icon(
+        IconButton(
           key: const Key('inbox-filter-channels'),
+          tooltip: l.inboxChannelFilter,
           onPressed: () {
             setState(() => channelOptionsOpen = !channelOptionsOpen);
             if (channelOptionsOpen && channelOptions.isEmpty) loadChannelOptions();
           },
           icon: const Icon(Icons.hub_outlined),
-          label: Text(l.inboxChannelFilter),
         ),
         if (selectedChannelId != null)
           TextButton(onPressed: () => chooseChannel(null), child: Text(l.inboxAllChannels)),
