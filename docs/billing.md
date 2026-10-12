@@ -1,10 +1,16 @@
 # Billing, entitlements e utilização
 
+## Segunda fatia implementada — ADR-105 (schema 64)
+
+A aplicação já dispõe de `POST /webhooks/stripe` (fora de `/api/v1`) com transporte **desativado por defeito**. Só se pode ativar num ambiente Stripe **test** controlado mediante `STRIPE_WEBHOOK_ENABLED=true` e `STRIPE_WEBHOOK_SECRET=whsec_...`. A configuração rejeita habilitação sem segredo; não configurar endpoint ativo em produção. O corpo JSON é lido como bytes originais (máximo 256 KiB; sem descompressão), verificado com `Stripe-Signature: t=...,v1=...` e janela ±300 segundos. Rejeita `livemode=true`, envelopes incorretos e colisões com o mesmo ID e corpo divergente. Assinaturas repetidas com conteúdo idêntico recebem ACK idempotente.
+
+A nova tabela global `stripe_webhook_events` conserva os **seis eventos relevantes** suportados (§45), o JSONB integral (sensível), ID, hash SHA-256, tipo e timestamp provider, sempre com `status=received`. Tipos assinados desconhecidos são ignorados com ACK. `melissa_runtime` consegue inserir mas **não pode ler o payload**, alterar ou apagar eventos; a RLS é forçada, com políticas específicas, e não existe leitura pública. Eventos não se tornam uma subscrição nem autorizam acesso a funcionalidades premium. O reconciliador de eventos, a ligação a tenants por IDs de provider confirmados, a ordenação, outbox/worker, auditoria, retenção, Stripe test CLI/E2E e Checkout continuam pendentes. Documentado em [ADR-105](decisions/ADR-105-signed-stripe-test-webhook-inbox.md).
+
 ## Primeira fatia implementada — ADR-104 (schema 63)
 
 As tabelas `plans` e `subscriptions` existem, mas sem seed de preços e **sem qualquer escrita HTTP ou Stripe**. A runtime role lê somente colunas públicas do catálogo e projeções da subscrição sob RLS; referências de cliente/subscrição/product/price do Stripe não são legíveis via API. Owner/admin podem consultar `GET /api/v1/tenants/:tenantId/billing/plans` e `GET /billing/subscription`. A ausência de subscrição devolve `subscription:null`. Mesmo uma snapshot de teste com `status=active` continua a devolver `automationEnabled:false` e `billingVerified:false`, enquanto não houver confirmação assinada, reconciliação e enforcement de quotas. O onboarding não foi desbloqueado.
 
-Esta fundação não implementa ainda checkout, webhooks assinados, invoices, cobrança, quotas, reconciliação ou ativação. Não confundir estados visíveis na DB com direito a serviço. Testes integrados [CI funcional #38244880710](https://github.com/HernanyManuel/Melissa/actions/runs/38244880710), verde no commit `9b1484bef1641741f4bd72a39151cb29c39ddc90`, e ADR [104](decisions/ADR-104-billing-catalog-subscription-read-only-foundation.md).
+Esta fundação não implementa ainda checkout, processamento/reconciliação de webhooks assinados, invoices, cobrança, quotas ou ativação. A **receção assinada e o event inbox sem processamento** foram acrescentados depois na ADR-105. Não confundir estados visíveis na DB com direito a serviço. Testes integrados [CI funcional #38244880710](https://github.com/HernanyManuel/Melissa/actions/runs/38244880710), verde no commit `9b1484bef1641741f4bd72a39151cb29c39ddc90`, e ADR [104](decisions/ADR-104-billing-catalog-subscription-read-only-foundation.md).
 
 Stripe gere pagamentos/subscrições; PostgreSQL conserva estado local reconciliado e ledger de uso. Preços/limites configurados em plans e mapeados para Stripe; exemplos de §43 são seeds editáveis, não constantes no código.
 
