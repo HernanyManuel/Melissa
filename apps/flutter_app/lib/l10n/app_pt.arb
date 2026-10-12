@@ -221,6 +221,9 @@
       }
     }
   },
+  "inboxChannelModeAll": "Todos os modos de canal",
+  "inboxChannelModeMock": "Simulados",
+  "inboxChannelModeLive": "Ao vivo",
   "inboxStatusAll": "Todos os estados",
   "inboxStatusOpen": "Abertas",
   "inboxStatusClosed": "Encerradas",

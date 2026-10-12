@@ -221,6 +221,9 @@
       }
     }
   },
+  "inboxChannelModeAll": "Alle Kanalmodi",
+  "inboxChannelModeMock": "Simulation",
+  "inboxChannelModeLive": "Live",
   "inboxStatusAll": "Alle Status",
   "inboxStatusOpen": "Offen",
   "inboxStatusClosed": "Geschlossen",

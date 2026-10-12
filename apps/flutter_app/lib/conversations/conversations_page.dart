@@ -33,6 +33,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   bool unreadOnly = false;
   String assignmentFilter = 'all';
   String statusFilter = 'all';
+  String channelModeFilter = 'all';
   List<Map<String, dynamic>> availableTags = [];
   bool tagFilterOpen = false;
   bool tagsLoading = false;
@@ -84,7 +85,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       streamRevoked = false;
       search.clear(); searchQuery = '';
       tagsGeneration++; availableTags = []; selectedTagId = null;
-      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all';
+      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       messageGeneration++;
       conversations = []; messages = []; selected = null;
@@ -135,7 +136,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     setState(() {
       conversations = [];
       availableTags = []; selectedTagId = null; tagsGeneration++;
-      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all';
+      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       newInboundAlerts.clear();
       selected = null;
@@ -260,6 +261,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final unreadAtStart = unreadOnly;
     final assignmentAtStart = assignmentFilter;
     final statusAtStart = statusFilter;
+    final channelModeAtStart = channelModeFilter;
     final listPages = ((conversations.length + 49) ~/ 50).clamp(1, 10);
     final messagePages = ((messages.length ~/ 50) + 1).clamp(1, 10);
     try {
@@ -272,6 +274,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           if (unreadAtStart) 'unreadOnly': 'true',
           if (assignmentAtStart != 'all') 'assignment': assignmentAtStart,
           if (statusAtStart != 'all') 'status': statusAtStart,
+          if (channelModeAtStart != 'all') 'channelMode': channelModeAtStart,
           if (after != null) 'after': after,
         };
         final suffix = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
@@ -308,6 +311,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           tagAtStart != selectedTagId || unreadAtStart != unreadOnly ||
           assignmentAtStart != assignmentFilter ||
           statusAtStart != statusFilter ||
+          channelModeAtStart != channelModeFilter ||
           tenant != widget.tenantId) {
         return;
       }
@@ -468,6 +472,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (unreadOnly) 'unreadOnly': 'true',
       if (assignmentFilter != 'all') 'assignment': assignmentFilter,
       if (statusFilter != 'all') 'status': statusFilter,
+      if (channelModeFilter != 'all') 'channelMode': channelModeFilter,
       if (more && conversationNext != null) 'after': conversationNext!};
     final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
     setState(() { loading = true; listError = false;
@@ -632,6 +637,29 @@ class _ConversationsPageState extends State<ConversationsPage> {
           onSelected: (value) {
             if (value == statusFilter) return;
             setState(() => statusFilter = value);
+            load();
+          },
+        ),
+        PopupMenuButton<String>(
+          key: const Key('inbox-filter-channel-mode'),
+          tooltip: channelModeFilter == 'mock' ? l.inboxChannelModeMock :
+              channelModeFilter == 'live' ? l.inboxChannelModeLive : l.inboxChannelModeAll,
+          enabled: !loading,
+          initialValue: channelModeFilter,
+          icon: Icon(channelModeFilter == 'all'
+              ? Icons.layers_outlined : Icons.layers),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'all', child: Text(l.inboxChannelModeAll)),
+            PopupMenuItem(value: 'mock', child: Text(l.inboxChannelModeMock)),
+            PopupMenuItem(value: 'live', child: Text(l.inboxChannelModeLive)),
+          ],
+          onSelected: (value) {
+            if (value == channelModeFilter) return;
+            setState(() {
+              channelModeFilter = value;
+              newInboundAlerts.clear();
+              changedConversations.clear();
+            });
             load();
           },
         ),
