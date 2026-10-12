@@ -28,6 +28,14 @@ void main() {
           'whatsappOptInStatus': 'unknown',
           'marketingConsentStatus': 'denied',
           'notes': 'Prefere manhãs',
+        }, 'relatedConversations': {
+          'items': [{
+            'id': 'c2',
+            'status': 'closed',
+            'channelName': 'Canal anterior',
+            'lastMessageAt': '2026-10-09T09:30:00Z',
+          }],
+          'hasMore': true,
         }}), 200);
       }
       return http.Response('{}', 404);
@@ -37,8 +45,10 @@ void main() {
       locale: const Locale('pt'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: ConversationCustomerContext(
-        tenantId: 'tenant-1', conversationId: 'c1', api: api,
+      home: Scaffold(body: SingleChildScrollView(child:
+        ConversationCustomerContext(
+          tenantId: 'tenant-1', conversationId: 'c1', api: api,
+        ),
       )),
     ));
     await tester.pumpAndSettle();
@@ -49,6 +59,9 @@ void main() {
     expect(find.text('Telefone: +351912345678'), findsOneWidget);
     expect(find.text('Notas do cliente: Prefere manhãs'), findsOneWidget);
     expect(find.text('Consentimento de marketing: denied'), findsOneWidget);
+    expect(find.text('Outras conversas deste cliente'), findsOneWidget);
+    expect(find.text('Canal anterior'), findsOneWidget);
+    expect(find.text('Existem mais conversas'), findsOneWidget);
     expect(requests.where((r) => r.endsWith('/conversations/c1/customer')).length, 1);
     expect(requests.where((r) => r.contains('/messages')).isEmpty, true);
     expect(tester.takeException(), isNull);
