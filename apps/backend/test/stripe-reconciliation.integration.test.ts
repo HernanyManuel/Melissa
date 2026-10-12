@@ -149,6 +149,7 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
     // A late subscription.deleted event must not reverse provider's current state.
     currentProvider = providerState({ status: 'past_due', items: {
       data: [{ price: { id: priceId }, current_period_start: end, current_period_end: next }],
+      has_more: false,
     } });
     const old = await store(payload('customer.subscription.deleted'));
     assert.deepEqual(await reconcileStoredStripeTestEvent(db, old, provider),
@@ -171,7 +172,7 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
       { outcome: 'rejected', reason: 'provider_mismatch' });
     currentProvider = providerState({ items: { data: [{
       price: { id: 'price_' + pid() }, current_period_start: start, current_period_end: end,
-    }] } });
+    }], has_more: false } });
     const changedPrice = await store(payload());
     assert.deepEqual(await reconcileStoredStripeTestEvent(db, changedPrice, provider),
       { outcome: 'rejected', reason: 'price_mismatch' });
@@ -181,6 +182,7 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
       { outcome: 'rejected', reason: 'invalid_provider_snapshot' });
     currentProvider = providerState({ items: {
       data: [{ price: { id: priceId }, current_period_start: start, current_period_end: start }],
+      has_more: false,
     } });
     const invalidPeriod = await store(payload());
     assert.deepEqual(await reconcileStoredStripeTestEvent(db, invalidPeriod, provider),
