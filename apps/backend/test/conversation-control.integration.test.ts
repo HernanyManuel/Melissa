@@ -539,7 +539,8 @@ test('human takeover fences automatic outbound and supports reactivation and clo
     const mockConversationId = randomUUID();
     await admin.channelConnection.create({ data: {
       tenantId: tenant.id, id: mockChannelId, channelType: 'webchat', mode: 'mock',
-      externalAccountId: randomUUID(), externalPhoneId: randomUUID(),
+      externalAccountId: `mock:${randomUUID()}`,
+      externalPhoneId: `mock:${randomUUID()}`,
       displayName: 'Sandbox triage channel',
     } });
     await admin.customer.create({ data: {
