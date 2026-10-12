@@ -181,7 +181,8 @@ export class MessagingService {
       // Distinct from connection mode: conversation control is never changed by this filter.
       const controlModeState = page.controlMode === 'human' ? 'HUMAN_ACTIVE'
         : page.controlMode === 'ai' ? 'AI_ACTIVE'
-        : page.controlMode === 'paused' ? 'AI_PAUSED' : null;
+        : page.controlMode === 'paused' ? 'AI_PAUSED'
+        : page.controlMode === 'waiting' ? 'WAITING_HUMAN' : null;
       if (
         page.channelId &&
         !(await tx.channelConnection.findUnique({
@@ -841,6 +842,17 @@ export class MessagingService {
         closedAt: true,
       },
     });
+  }
+
+  // A pending AI-to-human handoff is durable conversation state, not an SSE
+  // counter. Recompute it on refresh so reloads, reconnects and takeover
+  // reconcile naturally; never expose customer data in the summary.
+  inboxHandoffSummary(actor: Actor, tenantId: string) {
+    return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => ({
+      pendingConversations: await tx.conversation.count({
+        where: { tenantId, status: 'open', mode: 'WAITING_HUMAN' },
+      }),
+    }));
   }
 
   // Tenant-wide totals, independent of the list's filters and pagination.

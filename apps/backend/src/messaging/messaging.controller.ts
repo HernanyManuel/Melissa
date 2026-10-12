@@ -54,7 +54,7 @@ export class MessagingController {
   @ApiOperation({
     summary: 'List or search conversations',
     description:
-      'Optional literal name search q, tenant-owned tagId, actor-scoped unreadOnly=true, assignment, channelId, channelMode=mock|live, controlMode=human|ai|paused and lifecycle status=open|closed. Sort defaults to ID ascending; sort=recent orders by last activity descending, then ID descending. Fixed pages of 50. Retain all filters when following a cursor; reset the cursor when changing filters.',
+      'Optional literal name search q, tenant-owned tagId, actor-scoped unreadOnly=true, assignment, channelId, channelMode=mock|live, controlMode=human|ai|paused|waiting and lifecycle status=open|closed. Sort defaults to ID ascending; sort=recent orders by last activity descending, then ID descending. Fixed pages of 50. Retain all filters when following a cursor; reset the cursor when changing filters.',
   })
   conversations(
     @Req() req: AuthRequest,
@@ -227,6 +227,16 @@ export class MessagingController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.messaging.closeConversation(req.actor, tenant, id);
+  }
+
+  @Get('inbox/handoff-summary')
+  @ApiOperation({
+    summary: 'Count durable handoffs waiting for a human in this tenant',
+    description:
+      'Live pending WAITING_HUMAN conversations, not an actor acknowledgement or outbound notification. Read-only; independent of filters and pagination.',
+  })
+  inboxHandoffSummary(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenant: string) {
+    return this.messaging.inboxHandoffSummary(req.actor, tenant);
   }
 
   @Get('inbox/unread-summary')
