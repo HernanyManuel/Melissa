@@ -259,14 +259,14 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
       planInsert: false, subscriptionInsert: false, inboxUpdate: false,
       auditDelete: false, tenantSelect: false,
     });
-    const [rights] = await restricted.$queryRaw<Array<{
+    const [columnRights] = await restricted.$queryRaw<Array<{
       canChangeStatus: boolean; canChangeBinding: boolean;
     }>>`SELECT
       has_column_privilege(current_user,'subscriptions','status','UPDATE')
         AS "canChangeStatus",
       has_column_privilege(current_user,'subscriptions','provider_subscription_id','UPDATE')
         AS "canChangeBinding"`;
-    assert.deepEqual(rights, { canChangeStatus: true, canChangeBinding: false });
+    assert.deepEqual(columnRights, { canChangeStatus: true, canChangeBinding: false });
   } finally {
     await restricted.$disconnect();
     await db.$disconnect();
