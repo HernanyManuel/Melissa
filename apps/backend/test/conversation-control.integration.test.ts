@@ -959,6 +959,60 @@ test('human takeover fences automatic outbound and supports reactivation and clo
       await call('GET', activePath.replace(cutoff, '2031-01-01T00:00:00.000Z'),
         undefined, owner.access_token), 200,
     )).items, []);
+    // ADR-103: pending handoff attention is persisted state, not an SSE-only
+    // counter. Show all 51 before pagination even when other filters apply.
+    const handoffSummaryPath = `/tenants/${tenant.id}/inbox/handoff-summary`;
+    assert.deepEqual(await data<{ pendingConversations: number }>(
+      await call('GET', handoffSummaryPath, undefined, owner.access_token), 200,
+    ), { pendingConversations: 0 });
+    assert.equal((await call('GET', handoffSummaryPath,
+      undefined, foreign.access_token)).status, 404);
+    assert.equal((await call('GET', statusPath + '?controlMode=WAITING_HUMAN',
+      undefined, owner.access_token)).status, 400);
+    await admin.conversation.updateMany({
+      where: { tenantId: tenant.id, id: { in: extra.slice(0, 51).map((x) => x.conversationId) } },
+      data: { mode: 'WAITING_HUMAN' },
+    });
+    const awaitingIds = extra.slice(0, 51).map((x) => x.conversationId).sort();
+    assert.deepEqual(await data<{ pendingConversations: number }>(
+      await call('GET', handoffSummaryPath, undefined, owner.access_token), 200,
+    ), { pendingConversations: 51 });
+    const awaitingPath = statusPath + '?controlMode=waiting&status=open&channelMode=mock';
+    const awaitingFirst = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', awaitingPath, undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(awaitingFirst.items.map((row) => row.id), awaitingIds.slice(0, 50));
+    assert.equal(awaitingFirst.next, awaitingIds[49]);
+    const awaitingLast = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', awaitingPath + '&after=' + awaitingFirst.next,
+        undefined, owner.access_token), 200,
+    );
+    assert.deepEqual(awaitingLast.items.map((row) => row.id), awaitingIds.slice(50));
+    assert.equal(awaitingLast.next, null);
+    const waitingUnread = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', awaitingPath + '&unreadOnly=true&sort=recent',
+        undefined, owner.access_token), 200,
+    );
+    assert.equal(waitingUnread.items.length, 50);
+    assert(waitingUnread.next);
+    const waitingUnreadLast = await data<{ items: Array<{ id: string }>; next: string | null }>(
+      await call('GET', awaitingPath + '&unreadOnly=true&sort=recent&after=' + waitingUnread.next,
+        undefined, owner.access_token), 200,
+    );
+    assert.equal(waitingUnreadLast.items.length, 1);
+    assert.equal(waitingUnreadLast.next, null);
+    assert.deepEqual(
+      [...waitingUnread.items, ...waitingUnreadLast.items].map((row) => row.id).sort(), awaitingIds,
+    );
+    await admin.conversation.update({
+      where: { tenantId_id: { tenantId: tenant.id, id: awaitingIds[49]! } },
+      data: { mode: 'HUMAN_ACTIVE' },
+    });
+    assert.equal((await call('GET', awaitingPath + '&after=' + awaitingIds[49],
+      undefined, owner.access_token)).status, 404);
+    assert.deepEqual(await data<{ pendingConversations: number }>(
+      await call('GET', handoffSummaryPath, undefined, owner.access_token), 200,
+    ), { pendingConversations: 50 });
   } finally {
     await app.close();
     await admin.$disconnect();
