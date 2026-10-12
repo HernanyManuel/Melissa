@@ -230,5 +230,8 @@
       "conversations": {"type": "int"},
       "messages": {"type": "int"}
     }
-  }
+  },
+  "inboxCustomerOtherConversations": "Altre conversazioni con questo cliente",
+  "inboxCustomerMoreConversations": "Esistono altre conversazioni",
+  "inboxStatusArchived": "Archiviate"
 }
