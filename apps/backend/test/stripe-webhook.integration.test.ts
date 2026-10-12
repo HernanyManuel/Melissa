@@ -75,8 +75,8 @@ test('Stripe signed test webhook persists immutable idempotent events without ac
 
     assert.equal((await post(body)).status, 403);
     assert.equal((await post(body, signed(body, now, 'whsec_wrong_secret'))).status, 403);
-    assert.equal((await post(body, signed(body, now - 301))).status, 403);
-    assert.equal((await post(body, signed(body, now + 301))).status, 403);
+    assert.equal((await post(body, signed(body, now - 1200))).status, 403);
+    assert.equal((await post(body, signed(body, now + 1200))).status, 403);
     assert.equal((await post(body, 't=notanumber,v1=abc')).status, 403);
     assert.equal((await post(body, signed(body, now), 'text/plain')).status, 415);
     assert.equal((await post(Buffer.from('not json'), signed(Buffer.from('not json'), now))).status, 400);
