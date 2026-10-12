@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Janela fixa de atividade recente no inbox (ADR-102)
+
+O endpoint `GET /tenants/:tenantId/conversations` aceita agora `activitySince=<UTC>`: limite inclusivo de `lastMessageAt` em formato rigoroso `YYYY-MM-DDTHH:mm:ss.SSSZ`. Data inválida, fuso não-UTC, precisão ou formato incompatível devolvem 400. Omisso mantém a listagem anterior. O valor é **fixo e reutilizado** em toda a paginação, não uma janela móvel `now()-N` recalculada no servidor. O filtro exige `messages:read`, respeita tenant/RLS, combina com pesquisa, atribuição, estado, controlo da conversa, etiquetas, canal e `sort=id|recent`, incluindo a via SQL de `unreadOnly=true` antes de `LIMIT 51`. Cursores fora do intervalo passam a devolver 404 conforme a ADR-101.
+
+O Flutter inclui opções compactas de **toda a atividade**, **últimas 24 horas**, **7 dias** e **30 dias**, traduzidas em pt/en/es/fr/it/de. Ao selecionar uma janela, calcula e guarda uma única data UTC em milissegundos; `activitySince` é preservado nas páginas e no refresh REST/SSE e validado contra respostas atrasadas. Alterar o período reinicia a paginação e mantém os outros filtros; trocar de tenant ou perder autorização limpa a janela. O catálogo de etiquetas e ligações, as mensagens e a receção SSE não são alterados.
+
+Testes backend verificam validade de formato/data, tenant, cursor incompatível, inclusão da fronteira, paginação de 51 conversas com timestamp igual, combinação com estado e ordenação recente, e resultado na via SQL de não lidas. Widget test confirma valor UTC fixo entre mudanças de ordenação/filtro/páginas, mudança para uma janela mais longa e retorno a toda a atividade. **CI:** a confirmar no HEAD deste incremento. [ADR-102](decisions/ADR-102-inbox-fixed-activity-window-filter.md). **Schema 62**, sem migração nem alteração a worker, envio, idempotência, fencing ou checkpoint.
+
+**Limites:** `lastMessageAt` é a última atividade gravada, não a hora de última mensagem inbound exclusivamente. A janela não cria um snapshot de leitura entre pedidos; mensagens recebidas posteriormente podem deslocar conversas no `sort=recent`. Nenhum merge, deploy ou ativação live.
+
 ## Atualização Phase 8 — Cursores vinculados a todos os filtros e recuperação segura (ADR-101)
 
 A validação de `after` em `GET /tenants/:tenantId/conversations` cobre agora **todos** os critérios ativos, incluindo `assignment=mine|unassigned`, pesquisa literal `q` e o estado `unreadOnly=true` por ator, além de tenant, status, modo de controlo, ligação, modo da ligação e etiqueta. Um cursor cuja conversa deixou de pertencer à lista selecionada devolve 404, mesmo que o UUID exista no tenant. `sort=id|recent` mantém a mesma validação; tanto Prisma como SQL de não lidas selecionam e ordenam antes de `LIMIT 51`.

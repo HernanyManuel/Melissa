@@ -379,7 +379,7 @@ void main() {
     await tester.pumpAndSettle();
     final pinned = requests.last.queryParameters['activitySince'];
     expect(pinned, isNotNull);
-    expect(pinned, matches(RegExp(r'^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$')));
+    expect(pinned, matches(RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$')));
     expect(DateTime.parse(pinned!).isUtc, isTrue);
     expect(find.text('Cliente first'), findsOneWidget);
     await tester.tap(find.byKey(const Key('inbox-sort')));
