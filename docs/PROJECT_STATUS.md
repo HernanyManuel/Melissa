@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Contexto histórico multicanal no perfil do cliente
+
+O painel de cliente da conversa apresenta agora até **cinco outras conversas do mesmo cliente**, ordenadas por última atividade (`lastMessageAt DESC, id DESC`), com nome do canal, estado e data local. `GET /tenants/:tenantId/conversations/:id/customer` mantém o objeto original `item` e acrescenta `relatedConversations: {items, hasMore}`, consultando no máximo seis linhas para aferir se há mais registos. A seleção está vinculada ao **tenant e ao customerId da conversa autorizada**, com permissão `customers:read`; não expõe conteúdo de mensagens, notas internas, estado da IA ou credenciais do provider.
+
+O Flutter apresenta os resultados numa lista de altura limitada para ecrãs pequenos, sem abrir outras conversas, marcar mensagens como lidas ou enviar respostas. Traduções para pt/en/es/fr/it/de; sem migração, novo endpoint de escrita ou ativação de serviços externos.
+
+**CI funcional:** [38197394746](https://github.com/HernanyManuel/Melissa/actions/runs/38197394746) **integralmente verde** (backend PostgreSQL/RLS/worker, Flutter analyze/test/build web, Compose) no commit `87579d4f7f0cd017137ba4b149cdd28ba58c91c1`. Os testes verificam limite cinco, ordenação, exclusão da conversa atual e de outro cliente, restrição de tenant, projeção mínima e representação Flutter sem qualquer envio. [ADR-096](decisions/ADR-096-bounded-cross-channel-customer-history.md).
+
+**Limites:** é um resumo de conversas, não uma cronologia completa de mensagens, reservas ou compras; são necessárias fontes, permissões e políticas de retenção próprias antes de acrescentar outros dados sensíveis. Não existe merge, deploy ou E2E Meta live.
+
 ## Atualização Phase 8 — Totais globais de mensagens por ler por operador
 
 O novo `GET /tenants/:tenantId/inbox/unread-summary` calcula `unreadConversations` e `unreadMessages` em **todo o tenant autorizado**, independente dos filtros/páginas do inbox. Apenas eventos duráveis `message.received` depois do cursor pessoal `inbox_read_cursors` contam; eventos enviados, mudanças de modo ou checkpoints SSE não contam. A rota exige `messages:read`, associa o cursor ao ator autenticado e utiliza as mesmas restrições tenant/RLS do resto do inbox.
