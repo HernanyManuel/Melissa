@@ -13,6 +13,8 @@ import { BusinessController } from './business/business.controller';
 import { BusinessService } from './business/business.service';
 import { BillingController } from './billing/billing.controller';
 import { BillingService } from './billing/billing.service';
+import { StripeWebhookController } from './billing/stripe-webhook.controller';
+import { StripeWebhookInbox } from './billing/stripe-webhook.inbox';
 import { BookingAdminService } from './business/booking-admin.service';
 import { CustomerController } from './customers/customer.controller';
 import { CustomerService } from './customers/customer.service';
@@ -38,6 +40,7 @@ import {
     TenantController,
     BusinessController,
     BillingController,
+    StripeWebhookController,
     CustomerController,
     ChannelController,
     MessagingController,
@@ -54,6 +57,7 @@ import {
     TenantService,
     BusinessService,
     BillingService,
+    StripeWebhookInbox,
     BookingAdminService,
     CustomerService,
     ChannelService,

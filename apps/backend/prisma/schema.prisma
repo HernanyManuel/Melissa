@@ -843,3 +843,23 @@ model TenantSubscription {
   @@unique([provider, providerSubscriptionId])
   @@map("subscriptions")
 }
+
+
+// Global provider event inbox; never read from tenant-facing controllers.
+// Raw provider JSON can contain PII, so melissa_runtime can INSERT it but
+// SELECT only event metadata, never the payload. No updates or deletions.
+// A later dedicated reconciliation worker requires a separate privileged role.
+model StripeWebhookEvent {
+  eventId           String   @id @map("event_id") @db.VarChar(255)
+  eventType         String   @map("event_type") @db.VarChar(128)
+  apiVersion        String?  @map("api_version") @db.VarChar(64)
+  providerCreatedAt DateTime @map("provider_created_at") @db.Timestamptz(6)
+  payloadSha256     String   @map("payload_sha256") @db.VarChar(64)
+  payload           Json     @db.JsonB
+  livemode          Boolean  @default(false)
+  status            String   @default("received") @db.VarChar(24)
+  receivedAt        DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  @@index([status, receivedAt])
+  @@map("stripe_webhook_events")
+}

@@ -8,6 +8,9 @@ const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   WORKER_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   MESSAGE_DEBOUNCE_MS: z.coerce.number().int().min(100).max(2000).default(1500),
+  // Stripe ingestion is off by default and restricted to non-live events.
+  STRIPE_WEBHOOK_ENABLED: z.enum(['false', 'true']).default('false'),
+  STRIPE_WEBHOOK_SECRET: z.string().min(22).max(512).regex(/^whsec_[A-Za-z0-9_-]+$/).optional(),
   WHATSAPP_WEBHOOK_ENABLED: z.enum(['false', 'true']).default('false'),
   WHATSAPP_INTEGRATION_KEY: z
     .string()
@@ -156,6 +159,9 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
         result.error.issues.map((issue) => issue.path.join('.')).join(', '),
     );
   }
+  if (result.data.STRIPE_WEBHOOK_ENABLED === 'true' &&
+      !result.data.STRIPE_WEBHOOK_SECRET)
+    throw new Error('Stripe webhook requires a server-side signing secret');
   if (
     result.data.WHATSAPP_WEBHOOK_ENABLED === 'true' &&
     (!result.data.WHATSAPP_INTEGRATION_KEY ||
