@@ -550,7 +550,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
           generation != handoffSummaryGeneration || tenant != widget.tenantId) {
         return;
       }
-      if (error is ApiFailure && [401, 403, 404].contains(error.status)) {
+      // A 404 here may mean an older API without this optional summary.
+      // Never wipe an otherwise authorized inbox based solely on this addon.
+      if (error is ApiFailure && [401, 403].contains(error.status)) {
         _revokeInbox();
       } else {
         setState(() => pendingHandoffs = null);
