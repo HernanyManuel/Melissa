@@ -154,7 +154,8 @@ export class MessagingService {
           where: { ...visible, id: page.after },
           select: { id: true },
         }))
-      ) throw new NotFoundException();
+      )
+        throw new NotFoundException();
       const rows = await tx.channelConnection.findMany({
         where: visible,
         ...(page.after ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 } : {}),
@@ -172,10 +173,14 @@ export class MessagingService {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       const status = page.status ?? 'all';
       const channelMode = page.channelMode ?? 'all';
-      if (page.channelId && !(await tx.channelConnection.findUnique({
-        where: { tenantId_id: { tenantId, id: page.channelId } },
-        select: { id: true },
-      }))) throw new NotFoundException();
+      if (
+        page.channelId &&
+        !(await tx.channelConnection.findUnique({
+          where: { tenantId_id: { tenantId, id: page.channelId } },
+          select: { id: true },
+        }))
+      )
+        throw new NotFoundException();
       if (page.tagId) {
         const tag = await tx.conversationTag.findUnique({
           where: { tenantId_id: { tenantId, id: page.tagId } },
