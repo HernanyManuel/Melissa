@@ -40,8 +40,8 @@ Cada PR deve citar também os subitens da secção e anexar evidência concreta 
 | 31 | Agenda interna | P6 | Booking | Concorrência, invariantes, UTC/DST e UI | Planeado; não implementado |
 | 32 | Google Calendar | P7 | Calendar | OAuth, sync/reconciliation e teste real | Planeado; não implementado |
 | 33 | OAuth | P7 | Calendar | OAuth, sync/reconciliation e teste real | Planeado; não implementado |
-| 34 | Human Handoff | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Planeado; não implementado |
-| 35 | Inbox | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Planeado; não implementado |
+| 34 | Human Handoff | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Parcial: handoff durável, takeover com fencing e reativação da IA, SSE e testes HTTP; faltam alertas multicanal e E2E com Meta real (ADRs 076–103) |
+| 35 | Inbox | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Parcial avançado: UI Flutter, histórico, resposta humana, SSE, pesquisa, tags, notas, não lidas, filtros/ordenação, fila de handoff; faltam ações completas, notificações e E2E externo (ADRs 076–103) |
 | 36 | Leads | P10 | Analytics/Admin | Ledger vs agregados e suporte auditado | Planeado; não implementado |
 | 37 | Dashboard | P10 | Analytics/Admin | Ledger vs agregados e suporte auditado | Planeado; não implementado |
 | 38 | Métrica de automação | P10 | Analytics/Admin | Ledger vs agregados e suporte auditado | Planeado; não implementado |
@@ -71,7 +71,7 @@ Cada PR deve citar também os subitens da secção e anexar evidência concreta 
 | 62 | Storage | P4 | Messaging/Customers | Webhook assinado, dedup/outbox e recovery | Planeado; não implementado |
 | 63 | Knowledge Base — Fase posterior | Pós-MVP | Extensions | Backlog explícito e fronteiras preservadas | Diferido conforme especificação |
 | 64 | Webchat — futura extensão simples | Pós-MVP | Extensions | Backlog explícito e fronteiras preservadas | Diferido conforme especificação |
-| 65 | Notification Service | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Planeado; não implementado |
+| 65 | Notification Service | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Parcial: alertas in-app verificados de mensagens e indicador persistente de handoffs pendentes (ADR-086/103); faltam NotificationService geral, email, preferências, entrega/retry e demais eventos |
 | 66 | n8n | P0 | Architecture | Revisão documental/ADRs e rastreabilidade | Planeado; não implementado |
 | 67 | Event Architecture | P4 | Messaging/Customers | Webhook assinado, dedup/outbox e recovery | Planeado; não implementado |
 | 68 | Queues | P4 | Messaging/Customers | Webhook assinado, dedup/outbox e recovery | Planeado; não implementado |

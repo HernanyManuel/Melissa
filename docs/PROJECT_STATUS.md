@@ -1,5 +1,13 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Pedidos persistentes de atendimento humano (ADR-103)
+
+O endpoint tenant-scoped `GET /api/v1/tenants/:tenantId/inbox/handoff-summary` devolve `{pendingConversations}` com a contagem atual de conversas **abertas** em `WAITING_HUMAN`, através de `TenantService.scoped(messages:read)` e PostgreSQL/RLS. A contagem não depende de filtros/páginas do operador ou da entrega de eventos SSE; takeover e outras transições removem automaticamente a conversa da fila. O filtro existente `controlMode` ganhou `waiting`, aplicado ao predicado partilhado de cursor, à via Prisma normal e ao SQL parametrizado de `unreadOnly=true` **antes de LIMIT 51**. Cursores de outro estado devolvem 404.
+
+O Flutter apresenta uma entrada no **ListView rolável** do inbox quando existem pedidos pendentes, com contador tenant-wide e navegação direta à lista `waiting` sem aumentar a altura fixa do cabeçalho. Atualiza após REST inicial, paginação/refresh SSE->REST e controlo humano; ignora respostas assíncronas antigas após troca de tenant ou perda de acesso. Traduções pt/en/es/fr/it/de. Testes HTTP cobrem contagem 0→51→50, isolamento cross-tenant, 50+1, combinação com `unreadOnly` e `sort=recent`, rejeição de cursores incompatíveis; widget tests cobrem alerta, filtro, desaparecimento ao resolver e recuperação após reload.
+
+**Validação:** CI no HEAD final a confirmar. [ADR-103](decisions/ADR-103-durable-pending-handoff-attention.md). **Schema 62**, sem migração, envio, worker novo, efeitos de IA, fallback mock ou alteração de fencing/checkpoints. **Limites:** é uma fatia in-app de atenção **enquanto a conversa aguarda humano**, não o NotificationService completo: não há entrega por email/push, caixa de notificações independente, preferências, marcação como lida ou recibos por ator; continuam planeados na Phase 8. Sem merge, deploy nem ativação Meta/Google/Stripe.
+
 ## Atualização Phase 8 — Janela fixa de atividade recente no inbox (ADR-102)
 
 O endpoint `GET /tenants/:tenantId/conversations` aceita agora `activitySince=<UTC>`: limite inclusivo de `lastMessageAt` em formato rigoroso `YYYY-MM-DDTHH:mm:ss.SSSZ`. Data inválida, fuso não-UTC, precisão ou formato incompatível devolvem 400. Omisso mantém a listagem anterior. O valor é **fixo e reutilizado** em toda a paginação, não uma janela móvel `now()-N` recalculada no servidor. O filtro exige `messages:read`, respeita tenant/RLS, combina com pesquisa, atribuição, estado, controlo da conversa, etiquetas, canal e `sort=id|recent`, incluindo a via SQL de `unreadOnly=true` antes de `LIMIT 51`. Cursores fora do intervalo passam a devolver 404 conforme a ADR-101.
