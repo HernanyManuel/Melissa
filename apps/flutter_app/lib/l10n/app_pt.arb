@@ -224,6 +224,8 @@
   "inboxChannelFilter": "Filtrar por ligação",
   "inboxAllChannels": "Todas as ligações",
   "inboxMoreChannels": "Carregar mais ligações",
+  "inboxSortId": "Ordenar por ID",
+  "inboxSortRecent": "Atividade recente primeiro",
   "inboxControlAll": "Todos os controlos",
   "inboxControlHuman": "Atendimento humano",
   "inboxControlAi": "IA ativa",

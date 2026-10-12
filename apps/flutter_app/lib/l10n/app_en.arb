@@ -224,6 +224,8 @@
   "inboxChannelFilter": "Filter by channel",
   "inboxAllChannels": "All channels",
   "inboxMoreChannels": "Load more channels",
+  "inboxSortId": "Sort by ID",
+  "inboxSortRecent": "Recent activity first",
   "inboxControlAll": "All control states",
   "inboxControlHuman": "Human handling",
   "inboxControlAi": "AI active",

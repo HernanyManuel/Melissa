@@ -35,6 +35,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   String statusFilter = 'all';
   String channelModeFilter = 'all';
   String controlModeFilter = 'all';
+  String sortFilter = 'id';
   String? selectedChannelId;
   List<Map<String, dynamic>> channelOptions = [];
   String? channelOptionsNext;
@@ -96,7 +97,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       channelOptionsGeneration++; channelOptions = []; selectedChannelId = null;
       channelOptionsNext = null; channelOptionsOpen = false;
       channelOptionsLoading = false; channelOptionsError = false;
-      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all'; controlModeFilter = 'all';
+      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all'; controlModeFilter = 'all'; sortFilter = 'id';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       messageGeneration++;
       conversations = []; messages = []; selected = null;
@@ -151,7 +152,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       channelOptionsGeneration++; channelOptions = []; selectedChannelId = null;
       channelOptionsNext = null; channelOptionsOpen = false;
       channelOptionsLoading = false; channelOptionsError = false;
-      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all'; controlModeFilter = 'all';
+      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all'; controlModeFilter = 'all'; sortFilter = 'id';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       newInboundAlerts.clear();
       selected = null;
@@ -278,6 +279,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final statusAtStart = statusFilter;
     final channelModeAtStart = channelModeFilter;
     final controlModeAtStart = controlModeFilter;
+    final sortAtStart = sortFilter;
     final channelAtStart = selectedChannelId;
     final listPages = ((conversations.length + 49) ~/ 50).clamp(1, 10);
     final messagePages = ((messages.length ~/ 50) + 1).clamp(1, 10);
@@ -293,6 +295,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           if (statusAtStart != 'all') 'status': statusAtStart,
           if (channelModeAtStart != 'all') 'channelMode': channelModeAtStart,
           if (controlModeAtStart != 'all') 'controlMode': controlModeAtStart,
+          if (sortAtStart != 'id') 'sort': sortAtStart,
           if (channelAtStart != null) 'channelId': channelAtStart,
           if (after != null) 'after': after,
         };
@@ -332,6 +335,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           statusAtStart != statusFilter ||
           channelModeAtStart != channelModeFilter ||
           controlModeAtStart != controlModeFilter ||
+          sortAtStart != sortFilter ||
           channelAtStart != selectedChannelId ||
           tenant != widget.tenantId) {
         return;
@@ -558,6 +562,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (statusFilter != 'all') 'status': statusFilter,
       if (channelModeFilter != 'all') 'channelMode': channelModeFilter,
       if (controlModeFilter != 'all') 'controlMode': controlModeFilter,
+      if (sortFilter != 'id') 'sort': sortFilter,
       if (selectedChannelId != null) 'channelId': selectedChannelId!,
       if (more && conversationNext != null) 'after': conversationNext!};
     final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
@@ -693,6 +698,26 @@ class _ConversationsPageState extends State<ConversationsPage> {
               if (value == controlModeFilter) return;
               setState(() {
                 controlModeFilter = value;
+                newInboundAlerts.clear();
+                changedConversations.clear();
+              });
+              load();
+            },
+          ),
+          PopupMenuButton<String>(
+            key: const Key('inbox-sort'),
+            tooltip: sortFilter == 'recent' ? l.inboxSortRecent : l.inboxSortId,
+            enabled: !loading,
+            initialValue: sortFilter,
+            icon: Icon(sortFilter == 'recent' ? Icons.schedule : Icons.sort_by_alpha),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'id', child: Text(l.inboxSortId)),
+              PopupMenuItem(value: 'recent', child: Text(l.inboxSortRecent)),
+            ],
+            onSelected: (value) {
+              if (value == sortFilter) return;
+              setState(() {
+                sortFilter = value;
                 newInboundAlerts.clear();
                 changedConversations.clear();
               });
