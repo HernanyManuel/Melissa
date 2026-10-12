@@ -20,6 +20,53 @@ IdentityApi client(Future<http.Response> Function(http.Request) route) => Identi
 }));
 
 void main() {
+  testWidgets('durable handoff attention filters waiting queue and survives reload', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var pending = 2;
+    final requests = <Uri>[];
+    final api = client((request) async {
+      if (request.url.path.endsWith('/inbox/handoff-summary')) {
+        return http.Response(jsonEncode({'pendingConversations': pending}), 200);
+      }
+      if (request.url.path.endsWith('/conversations')) {
+        requests.add(request.url);
+        return request.url.queryParameters['controlMode'] == 'waiting'
+            ? page([conversation('handoff')])
+            : page([conversation('ordinary')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(find.text('2 conversas aguardam atendimento humano'), findsOneWidget);
+    expect(requests.last.queryParameters.containsKey('controlMode'), isFalse);
+    await tester.tap(find.byKey(const Key('inbox-handoff-alert')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['controlMode'], 'waiting');
+    expect(requests.last.queryParameters.containsKey('after'), isFalse);
+    expect(find.text('Cliente handoff'), findsOneWidget);
+    pending = 0;
+    await tester.tap(find.byKey(const Key('inbox-sort')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Atividade recente primeiro').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['controlMode'], 'waiting');
+    expect(requests.last.queryParameters['sort'], 'recent');
+    expect(find.byKey(const Key('inbox-handoff-alert')), findsNothing);
+    pending = 2;
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(find.text('2 conversas aguardam atendimento humano'), findsOneWidget);
+    expect(requests.last.queryParameters.containsKey('controlMode'), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('unread summary counts only loaded and filtered rows', (tester) async {
     tester.view.physicalSize = const Size(1100, 1000);
     tester.view.devicePixelRatio = 1;
