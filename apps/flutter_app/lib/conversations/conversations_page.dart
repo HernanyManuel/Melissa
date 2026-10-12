@@ -147,6 +147,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
     setState(() {
       conversations = [];
       availableTags = []; selectedTagId = null; tagsGeneration++;
+      channelOptionsGeneration++; channelOptions = []; selectedChannelId = null;
+      channelOptionsNext = null; channelOptionsOpen = false;
+      channelOptionsLoading = false; channelOptionsError = false;
       unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       newInboundAlerts.clear();
@@ -427,9 +430,13 @@ class _ConversationsPageState extends State<ConversationsPage> {
         channelOptions = more ? [...channelOptions, ...items] : items;
         channelOptionsNext = next as String?;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted || generation != channelOptionsGeneration ||
           tenant != widget.tenantId) return;
+      if (error is ApiFailure && [401, 403, 404].contains(error.status)) {
+        _revokeInbox();
+        return;
+      }
       setState(() {
         if (!more) {
           channelOptions = [];
