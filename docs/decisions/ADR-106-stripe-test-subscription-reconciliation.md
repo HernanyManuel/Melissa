@@ -1,0 +1,26 @@
+# ADR-106 — Reconciliar eventos Stripe test sem confiar no webhook para conceder acesso
+
+## Estado
+
+Phase 9, terceira fatia após ADR-104/105, schema **65**, branch `feature/phase-8-inbox` e PR #7 ainda em draft. CI final a confirmar. **Não** foi integrado um worker automático ou Checkout Stripe, nem foram ativadas cobranças reais.
+
+## Problema e restrições
+
+O inbox de ADR-105 guarda eventos assinados mas não autoriza subscrições. Assinatura autentica o emissor; não prova que `data.object.metadata.tenant_id` é o tenant correto, que o plano/preço mapeia ao nosso catálogo ou que o evento chegou em ordem. Uma subscrição no Stripe pode ter mudado depois de um evento `deleted` ou `invoice.payment_failed`. O API Stripe moderno mudou ainda os períodos de faturação para os itens ([changelog Basil](https://docs.stripe.com/changelog/basil/2025-03-31/deprecate-subscription-current-period-start-and-end)).
+
+## Decisão
+
+1. Só se processa evento já existente em `stripe_webhook_events`; o comando offline recebe o ID `evt_...`, não um JSON/tenant arbitrário. A associação é feita por `subscriptions(provider='stripe',provider_subscription_id)` **pré-registada**; esse campo é UNIQUE. `tenant_id`, `customer`, `plan_id` em metadata e conteúdo do webhook não atribuem ownership. Sem associação, resultado `unmapped`; não se consulta um provider ID arbitrário e não se cria tenant, customer ou subscrição.
+2. A reconciliação transacional bloqueia primeiro a **linha existente** com `FOR UPDATE`, busca o **snapshot Stripe atual** e só depois aplica alterações. GET fixo a `https://api.stripe.com/v1/subscriptions/:id`, header `Stripe-Version: 2025-09-30.clover`, chave exclusivamente `sk_test_`, timeout de 5 segundos, máximo de 128 KiB, sem redirect; o cliente rejeita chaves live. O comando exige `NODE_ENV=test`, `STRIPE_TEST_RECONCILE_ENABLED=true` e um acesso DB administrativo explícito. **Não há execução automática**.
+3. O snapshot tem de ser `object=subscription`, `livemode=false`, com ID, customer e status allowlisted. `items.data` tem de conter **exatamente um item**, preço `price_...` idêntico ao `plans.stripe_price_id` já associado e `current_period_start/end` Unix válidos no **item** (não ao nível de subscription). Triggers com item adicional, alteração de preço, cliente ou id, provider live, período inválido e ausência de plano/preço são recusados; isto evita upgrades inesperados ou período fictício. Trial end e cancel flag são validados.
+4. Para `customer.subscription.*`, usa-se `data.object.id` somente para localizar a associação. `checkout.session.completed` usa `data.object.subscription`; `invoice.paid` e `invoice.payment_failed` usam `data.object.parent.subscription_details.subscription`, de acordo com API atual. Eventos legados sem referência verificável ficam `rejected`, nunca se tenta binding por metadata.
+5. O UPDATE restringe `tenantId`, id local, provider, customer, subscription ID e plan. Só status, período, cancel flag, trial e updated_at são reconciliados, dentro da mesma transação que grava a auditoria em `stripe_reconciliation_attempts`. O log append-only contém ID do evento, resultado, motivo allowlisted e tenant apenas após correspondência completa; não replica payload/PII. Resultados `applied|unmapped|rejected|deferred|skipped` não são estados de pagamento. RLS ENABLE/FORCE no log, **nenhuma política nem grant de melissa_runtime**; o runtime API nem consulta o log nem obtém credenciais de operador.
+6. Toda a sincronização é **somente modo de teste e offline**. Usa `MIGRATION_DATABASE_URL` privilegiada, pelo que **não está pronta para produção**: para worker contínuo é imprescindível criar role próprio, política de credenciais/rotação e restrições de escrita mínimas. Não há automação de erro/retry, portal, novo onboarding Stripe verificado, migração de plano, cobrança, taxes, ledger de uso, limites, CostGuard ou observabilidade P9 completa. A resposta de billing continua `billingVerified=false, automationEnabled=false` e onboarding bloqueado mesmo para status `active`.
+
+## Provas
+
+Teste de integração usa PostgreSQL real e fixtures controladas com duas empresas. Valida reconciliação com `metadata.tenant_id` forjado, out-of-order/deleted consultando provider atual, invoice no formato Basil, item único e períodos, rejeição de customer/preço/provider livemode errados, período inválido/multi-item, assinatura já persistida, replay idempotente, provider falhado marcado `deferred` sem persistir stack trace, logs sem atribuição a outra empresa, unicidade do estado local e inbox original imutável. Não é um E2E com credenciais Stripe test reais; esse teste externo é um **gate pendente**. CI a verificar.
+
+## Seguimento
+
+Criar onboarding/test Checkout que confirme o ownership por cliente Stripe e grave o primeiro binding de forma auditada; depois construir worker/reconciler com **role dedicado** e TTL/retry, gestão de falhas e eventos fora de ordem; só então `EntitlementService` transacional, quotas, custos, overages e UI. Não autorizar pagamento usando apenas `status=active` sem confirmação comercial e política explícita.

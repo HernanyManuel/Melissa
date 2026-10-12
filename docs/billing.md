@@ -1,5 +1,13 @@
 # Billing, entitlements e utilização
 
+## Terceira fatia implementada — ADR-106 (schema 65)
+
+`stripe-reconciler.ts` disponibiliza uma operação **manual de teste** sobre eventos Stripe assinados e já armazenados. A associação a empresa só é feita por `subscriptions.provider_subscription_id` **previamente registado** (nunca por metadata do webhook). Para cada associação conhecida, bloqueia a subscrição no PostgreSQL, consulta o estado atual do Stripe por API test restrita, verifica cliente, ID de subscrição e preço configurado, e só então atualiza status, período, cancelamento e trial. As modificações são transacionais e gravam uma tentativa em `stripe_reconciliation_attempts` (schema 65; RLS sem grants de runtime); eventos desconhecidos, período inválido, múltiplos itens, contas divergentes, API indisponível ou live mode **nunca** criam subscrições ou desbloqueiam direitos.
+
+A API Stripe de 2025-03-31.basil transferiu `current_period_start` e `current_period_end` para os itens da subscrição. O reconciliador exige um único item no catálogo atual e não suporta billing de múltiplos preços. Confirmação: [Stripe changelog](https://docs.stripe.com/changelog/basil/2025-03-31/deprecate-subscription-current-period-start-and-end).
+
+Comando apenas em ambiente de teste: `NODE_ENV=test STRIPE_TEST_RECONCILE_ENABLED=true STRIPE_TEST_SECRET_KEY=sk_test_... MIGRATION_DATABASE_URL=... pnpm --filter @melissa/backend stripe:reconcile-test evt_...`. Nunca executar contra dados reais, nem inserir credenciais na linha de comandos partilhada ou em logs. É um comando de operador offline com credencial privilegiada, **não um worker produção**. O default continua desligado e não cria Checkout nem outorga `entitlements`. A API comercial existente permanece somente leitura e `billingVerified=false`. Antes de produção faltam role DB de mínimos privilégios, onboarding Stripe verificado, mapping seguro de novas contas, quotas e leitura de provider real em sandbox com CLI/Stripe test account. [ADR-106](decisions/ADR-106-stripe-test-subscription-reconciliation.md).
+
 ## Segunda fatia implementada — ADR-105 (schema 64)
 
 A aplicação já dispõe de `POST /webhooks/stripe` (fora de `/api/v1`) com transporte **desativado por defeito**. Só se pode ativar num ambiente Stripe **test** controlado mediante `STRIPE_WEBHOOK_ENABLED=true` e `STRIPE_WEBHOOK_SECRET=whsec_...`. A configuração rejeita habilitação sem segredo; não configurar endpoint ativo em produção. O corpo JSON é lido como bytes originais (máximo 256 KiB; sem descompressão), verificado com `Stripe-Signature: t=...,v1=...` e janela ±300 segundos. Rejeita `livemode=true`, envelopes incorretos e colisões com o mesmo ID e corpo divergente. Assinaturas repetidas com conteúdo idêntico recebem ACK idempotente.

@@ -218,6 +218,16 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
       SELECT relrowsecurity AS enabled, relforcerowsecurity AS forced
       FROM pg_class WHERE relname='stripe_reconciliation_attempts'`;
     assert(rights?.enabled && rights.forced);
+    const [access] = await db.$queryRaw<Array<{
+      canRead: boolean; canWrite: boolean; canUpdate: boolean;
+    }>>`SELECT
+      has_table_privilege('melissa_runtime','stripe_reconciliation_attempts','SELECT')
+        AS "canRead",
+      has_table_privilege('melissa_runtime','stripe_reconciliation_attempts','INSERT')
+        AS "canWrite",
+      has_table_privilege('melissa_runtime','stripe_reconciliation_attempts','UPDATE')
+        AS "canUpdate"`;
+    assert.deepEqual(access, { canRead: false, canWrite: false, canUpdate: false });
     const events = await db.stripeWebhookEvent.findMany({
       where: { eventId: { in: [firstEvent, old, invoice, mismatch] } },
       select: { status: true },

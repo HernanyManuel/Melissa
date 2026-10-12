@@ -48,10 +48,10 @@ Cada PR deve citar também os subitens da secção e anexar evidência concreta 
 | 39 | Usage Metering | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 40 | Custos internos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 41 | Cost Guard | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
-| 42 | Billing | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catalog e snapshot read-only; Stripe Checkout/webhooks e invoices pendentes (ADR-104) |
+| 42 | Billing | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catálogo e subscrição read-only, inbox Stripe e reconciliação opt-in test only para subscrições previamente vinculadas; Checkout/Portal e enforcement pendentes (ADRs 104–106) |
 | 43 | Planos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: planos configuráveis em PostgreSQL e API de catálogo sem preços hardcoded; criação administrativa e Stripe pendentes (ADR-104) |
-| 44 | Subscriptions | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: tabela tenant-scoped com RLS e consulta owner/admin; provider reconciliation e mutations pendentes (ADR-104) |
-| 45 | Webhooks Stripe | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: receção test-only HMAC raw, timestamp, idempotência e inbox imutável schema 64; faltam worker/reconciliação e teste com Stripe CLI (ADR-105) |
+| 44 | Subscriptions | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: snapshot com RLS; reconciliação manual Stripe test de subscrições existentes mediante binding customer/price/ID, sem onboarding comercial (ADRs 104/106) |
+| 45 | Webhooks Stripe | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: transporte HMAC test, inbox imutável e reconciliação manual sob operador; falta worker, credenciais/Stripe E2E real e gestão de eventos em produção (ADRs 105/106) |
 | 46 | Limites | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 47 | Overages | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 48 | Admin Platform | P10 | Analytics/Admin | Ledger vs agregados e suporte auditado | Planeado; não implementado |
