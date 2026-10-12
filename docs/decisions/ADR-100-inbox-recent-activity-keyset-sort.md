@@ -2,7 +2,7 @@
 
 ## Estado
 
-Implementado incrementalmente na `feature/phase-8-inbox`, PR #7 draft. Validação CI final ainda em curso. Sem merge, deploy ou ativação live.
+Implementado incrementalmente na `feature/phase-8-inbox`, PR #7 draft, validado integralmente no [CI #38220494598](https://github.com/HernanyManuel/Melissa/actions/runs/38220494598), commit `f8958a59c87967ebe79344f284c01dabac05be6b`. Sem merge, deploy ou ativação live.
 
 ## Contexto
 
@@ -17,6 +17,8 @@ Até à ADR-099, o inbox paginava por `conversations.id ASC`, adequado a cursore
 5. Nenhuma transição de estado, efeito de leitura, mensagem enviada, alteração a `mode_epoch`, redispatch, credencial externa ou nova migração. O índice existente `(tenant_id,last_message_at,id)` é reutilizado; schema 62.
 
 ## Verificação e limites
+
+O workflow validou os três jobs: backend (lint, formatação, tipos, unitários, PostgreSQL/RLS, integração com worker separado, recuperação após restart/Redis, OpenAPI e dependências), Flutter (localização, análise, widgets e build Web) e Docker Compose readiness.
 
 Testes HTTP criam 52 conversas mock/pausadas, 51 com o mesmo timestamp e uma anterior; cobrem duas páginas sem lacunas, empate por UUID, `sort=id`, erro 400, outro tenant 404, cursor incompatível 404 e a consulta `unreadOnly=true` com eventos inbound para as 51 conversas. Widget test verifica ordem recente, propagação nas páginas, combinação com `controlMode` e não lidas, reset do cursor ao regressar a ID e tradução.
 
