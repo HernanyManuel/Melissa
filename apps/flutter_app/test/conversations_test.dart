@@ -291,6 +291,115 @@ void main() {
     expect(find.text('Cliente live'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('specific channel filter pages its catalog and composes with inbox filters', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final requests = <Uri>[];
+    final catalog = <Uri>[];
+    final api = client((request) async {
+      if (request.url.path.endsWith('/inbox/channel-options')) {
+        catalog.add(request.url);
+        return request.url.queryParameters['after'] == 'channel-cursor'
+            ? http.Response(jsonEncode({'items': [
+                {'id': 'channel-b', 'displayName': 'Canal B', 'mode': 'live'},
+              ], 'next': null}), 200)
+            : http.Response(jsonEncode({'items': [
+                {'id': 'channel-a', 'displayName': 'Canal A', 'mode': 'mock'},
+              ], 'next': 'channel-cursor'}), 200);
+      }
+      if (request.url.path.endsWith('/conversations')) {
+        requests.add(request.url);
+        if (request.url.queryParameters['channelId'] == 'channel-a') {
+          return request.url.queryParameters['after'] == 'cursor'
+              ? page([conversation('second')])
+              : page([conversation('first')], 'cursor');
+        }
+        return page([conversation('unfiltered')]);
+      }
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-channels')));
+    await tester.pumpAndSettle();
+    expect(catalog.length, 1);
+    await tester.tap(find.byKey(const Key('inbox-channel-channel-a')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['channelId'], 'channel-a');
+    await tester.tap(find.byKey(const Key('inbox-filter-unread')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-status')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Encerradas').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['channelId'], 'channel-a');
+    expect(requests.last.queryParameters['status'], 'closed');
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    await tester.ensureVisible(find.text('Carregar mais').last);
+    await tester.tap(find.text('Carregar mais').last);
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['after'], 'cursor');
+    expect(requests.last.queryParameters['channelId'], 'channel-a');
+    await tester.ensureVisible(find.byKey(const Key('inbox-channel-more')));
+    await tester.tap(find.byKey(const Key('inbox-channel-more')));
+    await tester.pumpAndSettle();
+    expect(catalog.last.queryParameters['after'], 'channel-cursor');
+    await tester.ensureVisible(find.byKey(const Key('inbox-channel-channel-b')));
+    await tester.tap(find.byKey(const Key('inbox-channel-channel-b')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['channelId'], 'channel-b');
+    expect(requests.last.queryParameters['status'], 'closed');
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    expect(requests.last.queryParameters.containsKey('after'), false);
+    await tester.tap(find.byKey(const Key('inbox-channel-all')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters.containsKey('channelId'), false);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('late channel catalog from old tenant does not leak into new tenant', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final old = Completer<http.Response>();
+    final api = client((request) async {
+      if (request.url.path.endsWith('/inbox/channel-options')) {
+        if (request.url.path.contains('/tenant-old/')) return old.future;
+        return http.Response(jsonEncode({'items': [
+          {'id': 'new-channel', 'displayName': 'Canal novo', 'mode': 'mock'},
+        ], 'next': null}), 200);
+      }
+      if (request.url.path.endsWith('/conversations')) return page([]);
+      return page([]);
+    });
+    addTearDown(api.dispose);
+    Widget forTenant(String id) => MaterialApp(
+      locale: const Locale('pt'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: ConversationsPage(tenantId: id, api: api, realtimeEnabled: false),
+    );
+    await tester.pumpWidget(forTenant('tenant-old'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-channels')));
+    await tester.pump();
+    await tester.pumpWidget(forTenant('tenant-new'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-channels')));
+    await tester.pumpAndSettle();
+    old.complete(http.Response(jsonEncode({'items': [
+      {'id': 'old-channel', 'displayName': 'Canal privado antigo', 'mode': 'live'},
+    ], 'next': null}), 200));
+    await tester.pumpAndSettle();
+    expect(find.text('Canal novo'), findsOneWidget);
+    expect(find.text('Canal privado antigo'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('lifecycle filter combines with assignment and retains paged cursors', (tester) async {
     tester.view.physicalSize = const Size(1100, 1000);
     tester.view.devicePixelRatio = 1;
