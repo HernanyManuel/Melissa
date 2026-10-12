@@ -34,6 +34,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   String assignmentFilter = 'all';
   String statusFilter = 'all';
   String channelModeFilter = 'all';
+  String controlModeFilter = 'all';
   String? selectedChannelId;
   List<Map<String, dynamic>> channelOptions = [];
   String? channelOptionsNext;
@@ -95,7 +96,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       channelOptionsGeneration++; channelOptions = []; selectedChannelId = null;
       channelOptionsNext = null; channelOptionsOpen = false;
       channelOptionsLoading = false; channelOptionsError = false;
-      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all';
+      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all'; controlModeFilter = 'all';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       messageGeneration++;
       conversations = []; messages = []; selected = null;
@@ -150,7 +151,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       channelOptionsGeneration++; channelOptions = []; selectedChannelId = null;
       channelOptionsNext = null; channelOptionsOpen = false;
       channelOptionsLoading = false; channelOptionsError = false;
-      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all';
+      unreadOnly = false; assignmentFilter = 'all'; statusFilter = 'all'; channelModeFilter = 'all'; controlModeFilter = 'all';
       tagFilterOpen = false; tagsLoading = false; tagsError = false;
       newInboundAlerts.clear();
       selected = null;
@@ -276,6 +277,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final assignmentAtStart = assignmentFilter;
     final statusAtStart = statusFilter;
     final channelModeAtStart = channelModeFilter;
+    final controlModeAtStart = controlModeFilter;
     final channelAtStart = selectedChannelId;
     final listPages = ((conversations.length + 49) ~/ 50).clamp(1, 10);
     final messagePages = ((messages.length ~/ 50) + 1).clamp(1, 10);
@@ -290,6 +292,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           if (assignmentAtStart != 'all') 'assignment': assignmentAtStart,
           if (statusAtStart != 'all') 'status': statusAtStart,
           if (channelModeAtStart != 'all') 'channelMode': channelModeAtStart,
+          if (controlModeAtStart != 'all') 'controlMode': controlModeAtStart,
           if (channelAtStart != null) 'channelId': channelAtStart,
           if (after != null) 'after': after,
         };
@@ -328,6 +331,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
           assignmentAtStart != assignmentFilter ||
           statusAtStart != statusFilter ||
           channelModeAtStart != channelModeFilter ||
+          controlModeAtStart != controlModeFilter ||
           channelAtStart != selectedChannelId ||
           tenant != widget.tenantId) {
         return;
@@ -553,6 +557,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       if (assignmentFilter != 'all') 'assignment': assignmentFilter,
       if (statusFilter != 'all') 'status': statusFilter,
       if (channelModeFilter != 'all') 'channelMode': channelModeFilter,
+      if (controlModeFilter != 'all') 'controlMode': controlModeFilter,
       if (selectedChannelId != null) 'channelId': selectedChannelId!,
       if (more && conversationNext != null) 'after': conversationNext!};
     final path = '$base${params.isEmpty ? '' : '?${Uri(queryParameters: params).query}'}';
@@ -667,7 +672,37 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final unreadMessages = unreadRows.fold<int>(0,
         (sum, row) => sum + (row['unreadCount'] as int));
     return Column(children: [
-      ListTile(title: Text(l.conversations), trailing: IconButton(tooltip: l.retry, onPressed: loading ? null : () => load(), icon: const Icon(Icons.refresh))),
+      ListTile(title: Text(l.conversations), trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PopupMenuButton<String>(
+            key: const Key('inbox-filter-control-mode'),
+            tooltip: controlModeFilter == 'human' ? l.inboxControlHuman :
+                controlModeFilter == 'ai' ? l.inboxControlAi :
+                controlModeFilter == 'paused' ? l.inboxControlPaused : l.inboxControlAll,
+            enabled: !loading,
+            initialValue: controlModeFilter,
+            icon: Icon(controlModeFilter == 'all' ? Icons.support_agent_outlined : Icons.support_agent),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'all', child: Text(l.inboxControlAll)),
+              PopupMenuItem(value: 'human', child: Text(l.inboxControlHuman)),
+              PopupMenuItem(value: 'ai', child: Text(l.inboxControlAi)),
+              PopupMenuItem(value: 'paused', child: Text(l.inboxControlPaused)),
+            ],
+            onSelected: (value) {
+              if (value == controlModeFilter) return;
+              setState(() {
+                controlModeFilter = value;
+                newInboundAlerts.clear();
+                changedConversations.clear();
+              });
+              load();
+            },
+          ),
+          IconButton(tooltip: l.retry, onPressed: loading ? null : () => load(),
+              icon: const Icon(Icons.refresh)),
+        ],
+      )),
       Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: TextField(
         controller: search, maxLength: 80, textInputAction: TextInputAction.search,
         decoration: InputDecoration(labelText: l.conversationSearch, suffixIcon: IconButton(
