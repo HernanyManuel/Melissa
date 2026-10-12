@@ -61,6 +61,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
   bool messageError = false;
   bool markingRead = false;
   bool readReceiptError = false;
+  int? pendingHandoffs;
+  int handoffSummaryGeneration = 0;
   int? tenantUnreadConversations;
   int? tenantUnreadMessages;
   int summaryGeneration = 0;
@@ -124,6 +126,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
   void _stopInbox() {
     streamGeneration++;
     summaryGeneration++;
+    handoffSummaryGeneration++;
+    pendingHandoffs = null;
     tenantUnreadConversations = null;
     tenantUnreadMessages = null;
     refreshGeneration++;
@@ -374,6 +378,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
         }
       });
       unawaited(loadUnreadSummary());
+      unawaited(loadHandoffSummary());
       if (appliedThrough != null) {
         // Persist only after the REST view was applied. Failure to persist
         // causes safe replay after reload; it never confirms messages as read.
@@ -523,6 +528,32 @@ class _ConversationsPageState extends State<ConversationsPage> {
     load(); // Filter change resets the cursor and any selection.
   }
 
+  /// Handoff attention is derived from persisted WAITING_HUMAN state,
+  /// independently of loaded pages and ephemeral SSE delivery.
+  Future<void> loadHandoffSummary() async {
+    final generation = ++handoffSummaryGeneration;
+    final stream = streamGeneration;
+    final tenant = widget.tenantId;
+    try {
+      if (!api.authenticated) await api.refresh();
+      final result = await api.request('GET', '/tenants/$tenant/inbox/handoff-summary')
+          as Map<String, dynamic>;
+      final count = result['pendingConversations'];
+      if (count is! int || count < 0) throw const FormatException('Invalid handoff count');
+      if (!mounted || streamRevoked || stream != streamGeneration ||
+          generation != handoffSummaryGeneration || tenant != widget.tenantId) return;
+      setState(() => pendingHandoffs = count);
+    } catch (error) {
+      if (!mounted || streamRevoked || stream != streamGeneration ||
+          generation != handoffSummaryGeneration || tenant != widget.tenantId) return;
+      if (error is ApiFailure && [401, 403, 404].contains(error.status)) {
+        _revokeInbox();
+      } else {
+        setState(() => pendingHandoffs = null);
+      }
+    }
+  }
+
   Future<void> loadUnreadSummary() async {
     final generation = ++summaryGeneration;
     final stream = streamGeneration;
@@ -583,6 +614,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       final rows = (page['items'] as List).cast<Map<String, dynamic>>();
       setState(() { conversations = more ? [...conversations, ...rows] : rows; conversationNext = page['next'] as String?; });
       unawaited(loadUnreadSummary());
+      unawaited(loadHandoffSummary());
     } catch (error) {
       if (!mounted || generation != listGeneration) return;
       // A changed assignment/read state can expire a keyset cursor between
@@ -672,6 +704,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
       conversations = conversations.map((row) =>
           row['id'] == update['id'] ? {...row, ...update} : row).toList();
     });
+    unawaited(loadHandoffSummary());
   }
 
   Widget errorPanel(VoidCallback retry) {
@@ -694,7 +727,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
         children: [
           PopupMenuButton<String>(
             key: const Key('inbox-filter-control-mode'),
-            tooltip: controlModeFilter == 'human' ? l.inboxControlHuman :
+            tooltip: controlModeFilter == 'waiting' ? l.inboxControlWaiting :
+                controlModeFilter == 'human' ? l.inboxControlHuman :
                 controlModeFilter == 'ai' ? l.inboxControlAi :
                 controlModeFilter == 'paused' ? l.inboxControlPaused : l.inboxControlAll,
             enabled: !loading,
@@ -702,6 +736,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
             icon: Icon(controlModeFilter == 'all' ? Icons.support_agent_outlined : Icons.support_agent),
             itemBuilder: (_) => [
               PopupMenuItem(value: 'all', child: Text(l.inboxControlAll)),
+              PopupMenuItem(value: 'waiting', child: Text(l.inboxControlWaiting)),
               PopupMenuItem(value: 'human', child: Text(l.inboxControlHuman)),
               PopupMenuItem(value: 'ai', child: Text(l.inboxControlAi)),
               PopupMenuItem(value: 'paused', child: Text(l.inboxControlPaused)),
@@ -945,6 +980,22 @@ class _ConversationsPageState extends State<ConversationsPage> {
           child: const Icon(Icons.mark_chat_unread_outlined)),
       ),
       Expanded(child: ListView(children: [
+        if (pendingHandoffs != null && pendingHandoffs! > 0)
+          ListTile(
+            key: const Key('inbox-handoff-alert'),
+            leading: const Icon(Icons.notification_important_outlined),
+            title: Text(l.inboxPendingHandoffs(pendingHandoffs!)),
+            trailing: const Icon(Icons.chevron_right),
+            selected: controlModeFilter == 'waiting',
+            onTap: loading ? null : () {
+              setState(() {
+                controlModeFilter = 'waiting';
+                newInboundAlerts.clear();
+                changedConversations.clear();
+              });
+              load();
+            },
+          ),
         for (final c in conversations) ListTile(
           selected: selected?['id'] == c['id'],
           leading: const Icon(Icons.chat_bubble_outline),
