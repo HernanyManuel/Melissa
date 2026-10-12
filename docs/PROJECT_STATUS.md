@@ -1,5 +1,17 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Cursores vinculados a todos os filtros e recuperação segura (ADR-101)
+
+A validação de `after` em `GET /tenants/:tenantId/conversations` cobre agora **todos** os critérios ativos, incluindo `assignment=mine|unassigned`, pesquisa literal `q` e o estado `unreadOnly=true` por ator, além de tenant, status, modo de controlo, ligação, modo da ligação e etiqueta. Um cursor cuja conversa deixou de pertencer à lista selecionada devolve 404, mesmo que o UUID exista no tenant. `sort=id|recent` mantém a mesma validação; tanto Prisma como SQL de não lidas selecionam e ordenam antes de `LIMIT 51`.
+
+O backend usa um único predicado `visibleWhere` Prisma para validar o cursor e listar o conjunto de conversas sem `unreadOnly`, evitando que os filtros divirjam. Com `unreadOnly=true`, faz ainda uma verificação SQL parametrizada de evento inbound posterior ao cursor de leitura do **ator autenticado**, sempre dentro da transação tenant/RLS; a seleção paginada continua a usar a via SQL existente. Assim, atribuições alteradas, pesquisas modificadas e marcações como lida não deixam continuar a partir de um cursor estranho ao filtro.
+
+No Flutter, apenas um **404 de uma página seguinte** desencadeia um novo pedido à **primeira página com os filtros e a ordenação atuais**. A geração da lista invalida respostas atrasadas; não há ciclo infinito de retry. Erros 403/401 e falhas de rede conservam a política anterior de limpar o estado sensível e apresentar ação de recuperação. Testes HTTP verificam cursores incompatíveis, combinação com a ordem recente, transição de atribuição, pesquisa e leitura por ator; widgets verificam recuperação de 404 sem mesclar linhas antigas e segurança de 403.
+
+**Validação:** aguardada a execução CI deste incremento no HEAD final. [ADR-101](decisions/ADR-101-inbox-cursor-full-filter-validation-and-recovery.md). **Schema 62**, sem migração, efeitos colaterais, workers, alterações a outbox/fencing, reenvios ou checkpoints SSE.
+
+**Limites:** a paginação continua a refletir alterações concorrentes entre pedidos, não um snapshot temporal; uma resposta 404 para página seguinte pode também indicar revogação, pelo que o refresh inicial mantém o controlo de acesso e limpa a lista se falhar. Sem merge, deploy, notificações externas nem ativação live.
+
 ## Atualização Phase 8 — Ordenação opcional por atividade recente (ADR-100)
 
 O `GET /tenants/:tenantId/conversations` recebe `sort=id|recent`. O valor omisso ou `id` preserva a ordenação anterior (`id ASC`); `recent` ordena por `lastMessageAt DESC, id DESC`, colocando a atividade mais recente primeiro e resolvendo empates pela chave única da conversa. Valores desconhecidos ou em maiúsculas são rejeitados com HTTP 400. A consulta exige `messages:read` e conserva tenant/RLS/RBAC, todos os filtros anteriores (`q`, `tagId`, `channelId`, `channelMode`, `controlMode`, `status`, `assignment`, `unreadOnly`) e páginas de 50.
