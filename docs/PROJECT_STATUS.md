@@ -1,5 +1,15 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Triagem por modo do canal (ADR-097)
+
+O inbox permite filtrar conversas por modo da ligação ao canal: `channelMode=all|mock|live` no `GET /tenants/:tenantId/conversations`. A omissão e `all` preservam o resultado anterior; valores inválidos são rejeitados com HTTP 400. O filtro é aplicado no PostgreSQL **antes da paginação** nas duas vias existentes (Prisma normal e SQL de `unreadOnly=true`), com a mesma autorização `messages:read`, isolamento tenant/RLS e procura, etiquetas, atribuição e estado já implementados. Um cursor `after` de conversa cujo modo não corresponda devolve 404; nenhuma credencial, identificador de provider ou dado pessoal adicional é projetado.
+
+O Flutter apresenta um seletor compacto e localizado em pt/en/es/fr/it/de, mantém o modo na paginação e nos refreshes SSE por REST, descarta respostas tardias para filtros alterados e reinicia a paginação quando o operador muda o modo. O filtro não executa takeover, marcação de leitura nem qualquer envio; não cria novos endpoints de escrita, filas, workers ou migração (schema permanece 62). Testes HTTP cobrem isolamento, valores inválidos, combinação com não lidas/estado e cursor incompatível; testes Flutter cobrem filtro, composição e paginação.
+
+**Validação:** acrescentada à suite existente; verificar o CI do HEAD após esta atualização antes de marcar a fatia como validada. [ADR-097](decisions/ADR-097-inbox-channel-mode-filter.md).
+
+**Limites:** modo `mock/live` é uma característica da ligação atual, não um indicador garantido de entregabilidade do provider; ainda não existe triagem por ligação específica, notificações push ou E2E Meta live. Nenhum merge, deploy ou ativação de serviços externos.
+
 ## Atualização Phase 8 — Contexto histórico multicanal no perfil do cliente
 
 O painel de cliente da conversa apresenta agora até **cinco outras conversas do mesmo cliente**, ordenadas por última atividade (`lastMessageAt DESC, id DESC`), com nome do canal, estado e data local. `GET /tenants/:tenantId/conversations/:id/customer` mantém o objeto original `item` e acrescenta `relatedConversations: {items, hasMore}`, consultando no máximo seis linhas para aferir se há mais registos. A seleção está vinculada ao **tenant e ao customerId da conversa autorizada**, com permissão `customers:read`; não expõe conteúdo de mensagens, notas internas, estado da IA ou credenciais do provider.
