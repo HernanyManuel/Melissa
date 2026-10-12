@@ -54,7 +54,7 @@ export class MessagingController {
   @ApiOperation({
     summary: 'List or search conversations',
     description:
-      'Optional literal name search q, tenant-owned tagId, actor-scoped unreadOnly=true, assignment, channelId, channelMode=mock|live, controlMode=human|ai|paused and lifecycle status=open|closed. Fixed pages of 50 ordered by ID. Retain all filters when following a cursor; reset the cursor when changing filters.',
+      'Optional literal name search q, tenant-owned tagId, actor-scoped unreadOnly=true, assignment, channelId, channelMode=mock|live, controlMode=human|ai|paused and lifecycle status=open|closed. Sort defaults to ID ascending; sort=recent orders by last activity descending, then ID descending. Fixed pages of 50. Retain all filters when following a cursor; reset the cursor when changing filters.',
   })
   conversations(
     @Req() req: AuthRequest,

@@ -172,6 +172,10 @@ export class MessagingService {
   conversations(actor: Actor, tenantId: string, page: ConversationQuery) {
     return this.tenants.scoped(actor, tenantId, 'messages:read', async (tx) => {
       const status = page.status ?? 'all';
+      const sortRecent = page.sort === 'recent';
+      const ordering = sortRecent
+        ? ([{ lastMessageAt: 'desc' }, { id: 'desc' }] as const)
+        : ([{ id: 'asc' }] as const);
       const channelMode = page.channelMode ?? 'all';
       // Distinct from connection mode: conversation control is never changed by this filter.
       const controlModeState = page.controlMode === 'human' ? 'HUMAN_ACTIVE'
@@ -234,7 +238,15 @@ export class MessagingService {
                   AND ch.mode=${channelMode}
               )` : Prisma.empty}
               ${page.channelId ? Prisma.sql`AND c.channel_connection_id=${page.channelId}::uuid` : Prisma.empty}
-              ${page.after ? Prisma.sql`AND c.id > ${page.after}::uuid` : Prisma.empty}
+              ${page.after
+                ? sortRecent
+                  ? Prisma.sql`AND (c.last_message_at,c.id) < (
+                    SELECT anchor.last_message_at, anchor.id
+                    FROM conversations anchor
+                    WHERE anchor.tenant_id=${tenantId}::uuid AND anchor.id=${page.after}::uuid
+                  )`
+                  : Prisma.sql`AND c.id > ${page.after}::uuid`
+                : Prisma.empty}
               ${
                 assignment === 'unassigned'
                   ? Prisma.sql`AND c.assigned_staff_id IS NULL`
@@ -281,7 +293,7 @@ export class MessagingService {
                       AND r.actor_id=${actor.userId}::uuid
                   ), 0)
               )
-            ORDER BY c.id ASC
+            ${sortRecent ? Prisma.sql`ORDER BY c.last_message_at DESC, c.id DESC` : Prisma.sql`ORDER BY c.id ASC`}
             LIMIT 51
           `)
           : null;
@@ -289,7 +301,7 @@ export class MessagingService {
         ? unreadIds.length
           ? await tx.conversation.findMany({
               where: { tenantId, id: { in: unreadIds.map((row) => row.id) } },
-              orderBy: { id: 'asc' },
+              orderBy: ordering,
               include: {
                 customer: { select: { displayName: true } },
                 channelConnection: { select: { displayName: true, mode: true } },
@@ -325,7 +337,7 @@ export class MessagingService {
                   }
                 : {}),
             },
-            orderBy: { id: 'asc' },
+            orderBy: ordering,
             take: 51,
             ...(page.after
               ? { cursor: { tenantId_id: { tenantId, id: page.after } }, skip: 1 }

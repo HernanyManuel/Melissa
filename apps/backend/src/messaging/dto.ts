@@ -83,6 +83,15 @@ export class ConversationQuery extends MessagePageDto {
   @IsOptional()
   @Matches(/^(all|human|ai|paused)$/)
   controlMode?: string;
+
+  @ApiPropertyOptional({
+    enum: ['id', 'recent'],
+    description:
+      'Sort by ID ascending (default), or latest activity descending with ID as a stable tie-breaker.',
+  })
+  @IsOptional()
+  @Matches(/^(id|recent)$/)
+  sort?: string;
 }
 
 export class ConversationTakeoverDto {
