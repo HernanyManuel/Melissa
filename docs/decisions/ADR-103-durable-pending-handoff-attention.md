@@ -2,7 +2,7 @@
 
 ## Estado e escopo
 
-Implementado em `feature/phase-8-inbox`, PR #7 draft, como primeiro incremento da secção §65 e reforço da §35 de `SPECIFICATION.md`. CI final a validar. Não constitui o NotificationService completo nem uma integração de envio live.
+Implementado em `feature/phase-8-inbox`, PR #7 draft, como primeiro incremento da secção §65 e reforço da §35 de `SPECIFICATION.md`. [CI funcional #38240681100](https://github.com/HernanyManuel/Melissa/actions/runs/38240681100) integralmente verde no commit `9a740fec22259f6a7584e1787a4f1c23ec5d7903`. Não constitui o NotificationService completo nem uma integração de envio live.
 
 ## Contexto
 
@@ -12,13 +12,13 @@ O tool `human_handoff` da IA grava a transição `AI_ACTIVE -> WAITING_HUMAN` e 
 
 1. Fonte de verdade: `Conversation.mode = WAITING_HUMAN` **e** `Conversation.status = open`, lidos no PostgreSQL. `GET /tenants/:tenantId/inbox/handoff-summary` devolve apenas `{pendingConversations: number}`. O endpoint executa `TenantService.scoped(actor, tenantId, 'messages:read')`; o tenant é filtro explícito e RLS é exigido; não há IDs, dados pessoais ou texto no resumo. É uma contagem tenant-wide, não por ator, independente da paginação da lista e dos cursores de leitura.
 2. `GET /tenants/:tenantId/conversations?controlMode=waiting` restringe `mode=WAITING_HUMAN` antes de qualquer paginação. O mesmo mapeamento é aplicado à validação de `after` (ADR-101), à ordenação `id|recent`, à janela `activitySince` e à via SQL de `unreadOnly=true` antes de `LIMIT 51`. `human` continua a significar `HUMAN_ACTIVE`, sem alteração retrocompatível. `waiting` é somente leitura: não atribui colaborador nem muda `mode_epoch`.
-3. Flutter atualiza o contador por REST no primeiro carregamento e após refresh SSE autorizado, paginação e uma ação de controlo humano concluída. Uma resposta atrasada não pode substituir o contador do tenant atual: `streamGeneration`, geração própria e tenant ID são verificados antes de aplicar. Falhas temporárias escondem a contagem em vez de exibirem um valor antigo; perda de autorização revoga o estado do inbox.
+3. Flutter atualiza o contador por REST no primeiro carregamento e após refresh SSE autorizado, paginação e uma ação de controlo humano concluída. Uma resposta atrasada não pode substituir o contador do tenant atual: `streamGeneration`, geração própria e tenant ID são verificados antes de aplicar. Falhas temporárias escondem a contagem em vez de exibirem um valor antigo; 401/403 revogam o estado do inbox. Um 404 **apenas deste novo endpoint opcional** esconde a contagem mas não destrói o Inbox cuja listagem e SSE continuam autorizados, para compatibilidade com servidores sem a extensão.
 4. A entrada `inbox-handoff-alert`, apenas quando há pendentes, é renderizada dentro do `ListView`, não como nova linha fixa no cabeçalho responsivo. Um toque ativa o filtro `waiting`, preserva restantes filtros/ordenação e reinicia cursor. A mensagem é localizada em seis idiomas com pluralidade numérica simples. Takeover elimina o estado pendente na DB e a próxima consulta atualiza a atenção.
 5. Schema 62, nenhum novo worker, migração ou canal externo. A segurança de tomada de controlo e fencing continua nas ADR-076/078; checkpoints SSE e marcações por ler continuam independentes.
 
 ## Verificações
 
-Teste de integração: antes dos pedidos, 0 pendentes; 51 conversas existentes passam a `WAITING_HUMAN`; resumo 51; duas páginas 50+1 em ordem ID; SQL de não lidas combinado com `sort=recent` seleciona 50+1; modo inválido 400; RLS entre tenants 404; após remover uma pendência, resumo 50 e cursor obsoleto 404. Widget test: mostra atenção após REST, toque filtra `controlMode=waiting`, desaparecimento quando contador muda, nova leitura após reconstrução da página sem depender de SSE.
+Teste de integração: antes dos pedidos, 0 pendentes; 51 conversas existentes passam a `WAITING_HUMAN`; resumo 51; duas páginas 50+1 em ordem ID; SQL de não lidas combinado com `sort=recent` seleciona 50+1; modo inválido 400; RLS entre tenants 404; após remover uma pendência, resumo 50 e cursor obsoleto 404. Widget test: mostra atenção após REST, toque filtra `controlMode=waiting`, desaparecimento quando contador muda, nova leitura após reconstrução da página sem depender de SSE; outro teste assegura que 404 apenas no resumo opcional não revoga um Inbox autorizado. A primeira execução detetou duas regras de análise Dart e a segunda uma regressão SSE provocada por revogar o Inbox em 404; ambas corrigidas e a suite completa passou.
 
 ## Fora deste incremento
 
