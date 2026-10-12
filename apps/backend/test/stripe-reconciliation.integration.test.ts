@@ -17,6 +17,9 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
   const url = process.env.MIGRATION_DATABASE_URL;
   assert(url, 'requires privileged fixture connection');
   const db = new PrismaClient({ datasources: { db: { url } } });
+  const limitedUrl = process.env.STRIPE_TEST_RECONCILE_DATABASE_URL;
+  assert(limitedUrl, 'requires dedicated reconciliation role');
+  const restricted = new PrismaClient({ datasources: { db: { url: limitedUrl } } });
   const tenantA = randomUUID();
   const tenantB = randomUUID();
   const planId = randomUUID();
@@ -129,7 +132,7 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
       },
     });
     const firstEvent = await store(payload());
-    const first = await reconcileStoredStripeTestEvent(db, firstEvent, provider);
+    const first = await reconcileStoredStripeTestEvent(restricted, firstEvent, provider);
     assert.deepEqual(first, { outcome: 'applied', reason: 'provider_current' });
     let row = await db.tenantSubscription.findUniqueOrThrow({ where: { tenantId: tenantA } });
     assert.equal(row.status, 'active');
@@ -142,7 +145,7 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
     assert.equal(successful.tenantId, tenantA);
     assert.equal(successful.reason, 'provider_current');
     // Replays are idempotent and audit another attempt without creating rows.
-    assert.deepEqual(await reconcileStoredStripeTestEvent(db, firstEvent, provider), first);
+    assert.deepEqual(await reconcileStoredStripeTestEvent(restricted, firstEvent, provider), first);
     assert.equal(await db.tenantSubscription.count({ where: { tenantId: tenantA } }), 1);
     assert.equal(await db.stripeReconciliationAttempt.count({ where: { eventId: firstEvent } }), 2);
 
@@ -152,7 +155,7 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
       has_more: false,
     } });
     const old = await store(payload('customer.subscription.deleted'));
-    assert.deepEqual(await reconcileStoredStripeTestEvent(db, old, provider),
+    assert.deepEqual(await reconcileStoredStripeTestEvent(restricted, old, provider),
       { outcome: 'applied', reason: 'provider_current' });
     row = await db.tenantSubscription.findUniqueOrThrow({ where: { tenantId: tenantA } });
     assert.equal(row.status, 'past_due');
@@ -164,28 +167,28 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
       parent: { subscription_details: { subscription: providerId } },
       metadata: { tenant_id: tenantB },
     }));
-    assert.equal((await reconcileStoredStripeTestEvent(db, invoice, provider)).outcome, 'applied');
+    assert.equal((await reconcileStoredStripeTestEvent(restricted, invoice, provider)).outcome, 'applied');
 
     currentProvider = providerState({ customer: 'cus_' + pid() });
     const mismatch = await store(payload());
-    assert.deepEqual(await reconcileStoredStripeTestEvent(db, mismatch, provider),
+    assert.deepEqual(await reconcileStoredStripeTestEvent(restricted, mismatch, provider),
       { outcome: 'rejected', reason: 'provider_mismatch' });
     currentProvider = providerState({ items: { data: [{
       price: { id: 'price_' + pid() }, current_period_start: start, current_period_end: end,
     }], has_more: false } });
     const changedPrice = await store(payload());
-    assert.deepEqual(await reconcileStoredStripeTestEvent(db, changedPrice, provider),
+    assert.deepEqual(await reconcileStoredStripeTestEvent(restricted, changedPrice, provider),
       { outcome: 'rejected', reason: 'price_mismatch' });
     currentProvider = providerState({ livemode: true });
     const liveProvider = await store(payload());
-    assert.deepEqual(await reconcileStoredStripeTestEvent(db, liveProvider, provider),
+    assert.deepEqual(await reconcileStoredStripeTestEvent(restricted, liveProvider, provider),
       { outcome: 'rejected', reason: 'invalid_provider_snapshot' });
     currentProvider = providerState({ items: {
       data: [{ price: { id: priceId }, current_period_start: start, current_period_end: start }],
       has_more: false,
     } });
     const invalidPeriod = await store(payload());
-    assert.deepEqual(await reconcileStoredStripeTestEvent(db, invalidPeriod, provider),
+    assert.deepEqual(await reconcileStoredStripeTestEvent(restricted, invalidPeriod, provider),
       { outcome: 'rejected', reason: 'invalid_provider_snapshot' });
 
     const beforeUnknown = providerCalls;
@@ -193,7 +196,7 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
       id: 'sub_' + pid(), customer: customerId,
       metadata: { tenant_id: tenantA, plan_id: planId },
     }));
-    assert.deepEqual(await reconcileStoredStripeTestEvent(db, unknown, provider),
+    assert.deepEqual(await reconcileStoredStripeTestEvent(restricted, unknown, provider),
       { outcome: 'unmapped', reason: 'no_known_subscription' });
     assert.equal(providerCalls, beforeUnknown, 'unbound subscriptions never trigger provider requests');
 
@@ -201,11 +204,11 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
       id: 'in_' + pid(),
       subscription: providerId, // intentionally obsolete top-level field
     }));
-    assert.deepEqual(await reconcileStoredStripeTestEvent(db, missingReference, provider),
+    assert.deepEqual(await reconcileStoredStripeTestEvent(restricted, missingReference, provider),
       { outcome: 'rejected', reason: 'event_not_reconcilable' });
 
     const providerError = await store(payload());
-    assert.deepEqual(await reconcileStoredStripeTestEvent(db, providerError, {
+    assert.deepEqual(await reconcileStoredStripeTestEvent(restricted, providerError, {
       retrieve: async () => { throw new Error('secret provider stacktrace'); },
     }), { outcome: 'deferred', reason: 'provider_unavailable' });
 
@@ -235,7 +238,39 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
       select: { status: true },
     });
     assert(events.every((e) => e.status === 'received'), 'inbox evidence remains immutable');
+    // Verify that the actual role running reconciliation is neither a
+    // database owner nor a bypass-RLS role, and cannot mutate billing mappings.
+    const [identity] = await restricted.$queryRaw<Array<{
+      currentUser: string; bypass: boolean; superuser: boolean;
+    }>>`SELECT current_user AS "currentUser",
+      rolbypassrls AS bypass, rolsuper AS superuser
+      FROM pg_roles WHERE rolname=current_user`;
+    assert.deepEqual(identity, {
+      currentUser: 'melissa_stripe_reconciler', bypass: false, superuser: false,
+    });
+    const [privileges] = await restricted.$queryRaw<Array<{
+      planInsert: boolean; subscriptionInsert: boolean; inboxUpdate: boolean;
+      auditDelete: boolean; tenantSelect: boolean;
+    }>>`SELECT
+      has_table_privilege(current_user,'plans','INSERT') AS "planInsert",
+      has_table_privilege(current_user,'subscriptions','INSERT') AS "subscriptionInsert",
+      has_table_privilege(current_user,'stripe_webhook_events','UPDATE') AS "inboxUpdate",
+      has_table_privilege(current_user,'stripe_reconciliation_attempts','DELETE') AS "auditDelete",
+      has_table_privilege(current_user,'tenants','SELECT') AS "tenantSelect"`;
+    assert.deepEqual(privileges, {
+      planInsert: false, subscriptionInsert: false, inboxUpdate: false,
+      auditDelete: false, tenantSelect: false,
+    });
+    const [columnRights] = await restricted.$queryRaw<Array<{
+      canChangeStatus: boolean; canChangeBinding: boolean;
+    }>>`SELECT
+      has_column_privilege(current_user,'subscriptions','status','UPDATE')
+        AS "canChangeStatus",
+      has_column_privilege(current_user,'subscriptions','provider_subscription_id','UPDATE')
+        AS "canChangeBinding"`;
+    assert.deepEqual(columnRights, { canChangeStatus: true, canChangeBinding: false });
   } finally {
+    await restricted.$disconnect();
     await db.$disconnect();
   }
 });
