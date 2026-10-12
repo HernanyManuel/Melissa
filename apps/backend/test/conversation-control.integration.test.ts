@@ -528,10 +528,12 @@ test('human takeover fences automatic outbound and supports reactivation and clo
           tenantId: tenant.id,
           id: otherChannelId,
           channelType: 'webchat',
-          mode: 'mock',
+          mode: 'live',
           externalAccountId: randomUUID(),
           externalPhoneId: randomUUID(),
           displayName: `Related channel ${index}`,
+          credentialsReference: 'secret://test/related-channel',
+          webhookSecretReference: 'secret://test/related-webhook',
         },
       });
       await admin.conversation.create({
