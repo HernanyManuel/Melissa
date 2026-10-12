@@ -611,6 +611,78 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('stale filtered cursor reloads from page one once', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final requests = <Uri>[];
+    var filteredStarts = 0;
+    final api = client((request) async {
+      if (!request.url.path.endsWith('/conversations')) return page([]);
+      requests.add(request.url);
+      final q = request.url.queryParameters;
+      if (q['sort'] == 'recent' && q['unreadOnly'] == 'true') {
+        if (q['after'] == 'stale-cursor') return http.Response('{}', 404);
+        filteredStarts++;
+        return filteredStarts == 1
+            ? page([conversation('stale')], 'stale-cursor')
+            : page([conversation('fresh')]);
+      }
+      return page([conversation('default')]);
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-sort')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Atividade recente primeiro').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inbox-filter-unread')));
+    await tester.pumpAndSettle();
+    expect(find.text('Cliente stale'), findsOneWidget);
+    await tester.ensureVisible(find.text('Carregar mais').last);
+    await tester.tap(find.text('Carregar mais').last);
+    await tester.pumpAndSettle();
+    expect(requests.length, 5); // initial, sorted, unread, cursor, fresh first page
+    expect(requests[requests.length - 2].queryParameters['after'], 'stale-cursor');
+    expect(requests.last.queryParameters.containsKey('after'), false);
+    expect(requests.last.queryParameters['sort'], 'recent');
+    expect(requests.last.queryParameters['unreadOnly'], 'true');
+    expect(filteredStarts, 2);
+    expect(find.text('Cliente stale'), findsNothing);
+    expect(find.text('Cliente fresh'), findsOneWidget);
+    expect(find.text('Carregar mais'), findsNothing);
+    expect(find.text('Não foi possível concluir. Verifica a ligação e as permissões e tenta novamente.'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('403 while paging clears private inbox and never retries', (tester) async {
+    tester.view.physicalSize = const Size(1100, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var requests = 0;
+    final api = client((request) async {
+      if (!request.url.path.endsWith('/conversations')) return page([]);
+      requests++;
+      return request.url.queryParameters.containsKey('after')
+          ? http.Response('{}', 403)
+          : page([conversation('private')], 'cursor');
+    });
+    addTearDown(api.dispose);
+    await tester.pumpWidget(screen(api));
+    await tester.pumpAndSettle();
+    expect(find.text('Cliente private'), findsOneWidget);
+    await tester.ensureVisible(find.text('Carregar mais').last);
+    await tester.tap(find.text('Carregar mais').last);
+    await tester.pumpAndSettle();
+    expect(requests, 2);
+    expect(find.text('Cliente private'), findsNothing);
+    expect(find.text('Não foi possível concluir. Verifica a ligação e as permissões e tenta novamente.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('empty conversations and failed refresh offer recovery', (tester) async {
     var fail = true;
     final api = client((_) async => fail ? http.Response('{}', 403) : page([]));

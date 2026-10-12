@@ -577,16 +577,22 @@ class _ConversationsPageState extends State<ConversationsPage> {
       final rows = (page['items'] as List).cast<Map<String, dynamic>>();
       setState(() { conversations = more ? [...conversations, ...rows] : rows; conversationNext = page['next'] as String?; });
       unawaited(loadUnreadSummary());
-    } catch (_) {
-      if (mounted && generation == listGeneration) {
-        setState(() {
+    } catch (error) {
+      if (!mounted || generation != listGeneration) return;
+      // A changed assignment/read state can expire a keyset cursor between
+      // pages. Re-fetch the first page for the *same* filters and sort rather
+      // than erasing the inbox or retrying a stale cursor indefinitely.
+      if (more && error is ApiFailure && error.status == 404) {
+        await load();
+        return;
+      }
+      setState(() {
         listError = true;
         // A refresh may reveal revoked access. Do not keep sensitive cached data visible.
         conversations = []; newInboundAlerts.clear(); selected = null; messages = []; conversationNext = null;
         summaryGeneration++; tenantUnreadConversations = null; tenantUnreadMessages = null;
         messageGeneration++; reading = false; messageNext = null;
       });
-      }
     }
     if (mounted && generation == listGeneration) {
       setState(() => loading = false);
