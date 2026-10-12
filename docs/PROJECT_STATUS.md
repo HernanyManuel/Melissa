@@ -1,5 +1,17 @@
 # Estado do projeto
 
+## Atualização Phase 8 — Triagem por ligação exata do canal (ADR-098)
+
+O inbox aceita agora `GET /tenants/:tenantId/conversations?channelId=<uuid>`, combinável com `channelMode`, `status`, `assignment`, `tagId`, `q` e `unreadOnly`. A ligação deve existir no tenant autorizado; parâmetro inválido devolve 400, ligação ausente/cross-tenant devolve 404. Tanto Prisma como a via SQL de não lidas filtram **antes da paginação** e exigem correspondência do cursor `after` com a ligação, evitando misturar páginas de canais diferentes.
+
+Novo `GET /tenants/:tenantId/inbox/channel-options?after=<uuid>` com `messages:read`: devolve apenas **id, displayName e mode** das ligações que já têm conversas no mesmo tenant, ordenadas por ID e paginadas a 50. Exclui credenciais, identificadores externos, metadados do provider e ligações sem conversas. Cursores desconhecidos ou de outro tenant são rejeitados com 404. O endpoint de administração de canais continua separado e protegido por `channels:manage`.
+
+No Flutter há um painel compacto de seleção de ligação, com paginação «Carregar mais ligações», escolha «Todas as ligações», localizações pt/en/es/fr/it/de, recuperação de erro e invalidação de callbacks antigos após troca de tenant. A seleção persiste em páginas e refreshes SSE/REST e reinicia o cursor quando muda. Testes de integração abrangem autorização, projeção mínima, canais mock/live, composição com não lidas, cursores e catálogo com 60 ligações; widgets cobrem paginação do catálogo, filtros e isolamento após mudança de tenant.
+
+**Validação:** testes adicionados à suite CI; execução integral ainda por confirmar neste incremento. [ADR-098](decisions/ADR-098-inbox-exact-channel-connection-filter.md). O schema mantém-se em **62**. Sem endpoints de escrita, novos dispatches, alterações a worker, merge, deploy ou integração live.
+
+**Limites:** é filtragem operacional pelo identificador da ligação, não gestão de canais ou prova de disponibilidade do provider. O catálogo não inclui ligações sem conversas; as páginas não constituem snapshot atómico se houver criação de canais concorrente. Continuam pendentes notificações externas, operações avançadas de atendimento e E2E real com Meta.
+
 ## Atualização Phase 8 — Triagem por modo do canal (ADR-097)
 
 O inbox permite filtrar conversas por modo da ligação ao canal: `channelMode=all|mock|live` no `GET /tenants/:tenantId/conversations`. A omissão e `all` preservam o resultado anterior; valores inválidos são rejeitados com HTTP 400. O filtro é aplicado no PostgreSQL **antes da paginação** nas duas vias existentes (Prisma normal e SQL de `unreadOnly=true`), com a mesma autorização `messages:read`, isolamento tenant/RLS e procura, etiquetas, atribuição e estado já implementados. Um cursor `after` de conversa cujo modo não corresponda devolve 404; nenhuma credencial, identificador de provider ou dado pessoal adicional é projetado.
