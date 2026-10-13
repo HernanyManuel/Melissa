@@ -1,5 +1,11 @@
 # Billing, entitlements e utilização
 
+## Quarta fatia implementada — ADR-107 (schema 66)
+
+A reconciliação manual já não usa `MIGRATION_DATABASE_URL`. O papel `melissa_billing_reconciler` é separado, `NOLOGIN` por defeito, sem herança, superuser ou bypass RLS. O comando usa `BILLING_RECONCILER_DATABASE_URL` e recusa ser executado com a conta administrativa. A migration 66 dá acesso à leitura dos eventos Stripe assinados, leitura de associações existentes e do ID do preço Stripe, UPDATE limitado a estados e períodos de faturação e INSERT/SELECT de auditoria. Não pode escrever no catálogo, associar uma nova empresa, modificar cliente/plano/preço, ler contas nem eliminar eventos/auditoria.
+
+Para uma base PostgreSQL **de teste**, o operador provisiona a senha através de `infra/scripts/billing-reconciler-login.sql` com variável psql `reconciler_password`, sem a colocar no repositório. O papel mantém-se NOLOGIN no Compose normal. O CI ativa-o apenas com senha descartável, e usa-o para executar o reconciliador em PostgreSQL real; verifica permissões negadas. A ligação privilegiada permanece apenas para migrations e fixtures controladas de teste. Este papel ainda não autoriza deploy/worker automático, Checkout, cobranças ou direito a funcionalidades pagas. [ADR-107](decisions/ADR-107-stripe-dedicated-reconciler-role.md).
+
 ## Terceira fatia implementada — ADR-106 (schema 65)
 
 `stripe-reconciler.ts` disponibiliza uma operação **manual de teste** sobre eventos Stripe assinados e já armazenados. A associação a empresa só é feita por `subscriptions.provider_subscription_id` **previamente registado** (nunca por metadata do webhook). Para cada associação conhecida, bloqueia a subscrição no PostgreSQL, consulta o estado atual do Stripe por API test restrita, verifica cliente, ID de subscrição e preço configurado, e só então atualiza status, período, cancelamento e trial. As modificações são transacionais e gravam uma tentativa em `stripe_reconciliation_attempts` (schema 65; RLS sem grants de runtime); eventos desconhecidos, período inválido, múltiplos itens, contas divergentes, API indisponível ou live mode **nunca** criam subscrições ou desbloqueiam direitos.
