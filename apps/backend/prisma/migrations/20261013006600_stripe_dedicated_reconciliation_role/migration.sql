@@ -2,7 +2,18 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '60s';
 
--- The dedicated role is provisioned as NOLOGIN before migrations.
+-- New installations provision the role before migration. This guarded
+-- fallback supports a previously initialized database being upgraded from
+-- schema 65: the role is still NOLOGIN until the operator opts in.
+DO $role$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'melissa_billing_reconciler') THEN
+    CREATE ROLE melissa_billing_reconciler NOLOGIN NOSUPERUSER
+      NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+  END IF;
+END
+$role$;
+
 -- Login credentials are provisioned independently *only* for controlled
 -- test reconciliation. API/worker remains melissa_runtime, unchanged.
 GRANT USAGE ON SCHEMA public TO melissa_billing_reconciler;
