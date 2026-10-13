@@ -115,8 +115,8 @@ export function stripeTestSubscriptionSnapshot(value: unknown): ProviderSnapshot
   };
 }
 
-// This explicitly-invoked test-mode reconciliation runs through a privileged
-// administrative connection, NOT the public API or melissa_runtime. No new
+// This explicitly-invoked test-mode reconciliation requires the dedicated
+// non-owner, non-bypass-RLS billing reconciler, NOT admin or melissa_runtime. No new
 // subscription may be provisioned by metadata or a webhook. Only a known,
 // pre-linked subscription/Stripe customer and plan/price pair may be updated.
 // Never grant paid entitlements based on the resulting status alone.
@@ -128,6 +128,11 @@ export async function reconcileStoredStripeTestEvent(
 ): Promise<StripeReconciliationResult> {
   if (!/^evt_[A-Za-z0-9_]{1,251}$/.test(eventId))
     throw new Error('Invalid Stripe event identifier');
+  const [role] = await db.$queryRaw<Array<{ safe: boolean }>>`
+    SELECT current_user='melissa_billing_reconciler' AND NOT rolsuper AND
+      NOT rolbypassrls AND NOT rolcreaterole AND NOT rolcreatedb AS safe
+    FROM pg_roles WHERE rolname=current_user`;
+  if (role?.safe !== true) throw new Error('Dedicated Stripe reconciliation role required');
   const event = await db.stripeWebhookEvent.findUnique({ where: { eventId } });
   if (!event) throw new Error('Unknown stored Stripe event');
 
@@ -181,7 +186,10 @@ export async function reconcileStoredStripeTestEvent(
     if (!snapshot) return attempt('rejected', 'invalid_provider_snapshot', undefined, tx);
     if (snapshot.id !== subscriptionId || snapshot.customer !== current.providerCustomerId)
       return attempt('rejected', 'provider_mismatch', undefined, tx);
-    const plan = await tx.billingPlan.findUnique({ where: { id: current.planId } });
+    const plan = await tx.billingPlan.findUnique({
+      where: { id: current.planId },
+      select: { id: true, stripePriceId: true },
+    });
     if (!plan || !plan.stripePriceId || plan.stripePriceId !== snapshot.price)
       return attempt('rejected', 'price_mismatch', undefined, tx);
 

@@ -10,11 +10,11 @@ async function main(): Promise<void> {
   if (process.env.NODE_ENV !== 'test' ||
       process.env.STRIPE_TEST_RECONCILE_ENABLED !== 'true')
     throw new Error('Stripe reconciliation is disabled outside explicit test mode');
-  const url = process.env.MIGRATION_DATABASE_URL;
+  const url = process.env.BILLING_RECONCILER_DATABASE_URL;
   const key = process.env.STRIPE_TEST_SECRET_KEY;
   const id = process.argv[2];
   if (!url || !key || !id || process.argv.length !== 3)
-    throw new Error('Test database, Stripe test secret, and event ID are required');
+    throw new Error('Dedicated reconciliation database, Stripe test secret, and event ID are required');
   const provider = new StripeTestSubscriptionReader(key);
   const db = new PrismaClient({ datasources: { db: { url } } });
   try {
