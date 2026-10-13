@@ -270,8 +270,8 @@ test('Stripe test reconciliation: trusted mapping, latest provider snapshot, iso
         'plan_id','UPDATE') AS "canChangePlan",
       has_column_privilege('melissa_billing_reconciler','subscriptions',
         'provider_customer_id','UPDATE') AS "canChangeCustomer",
-      has_table_privilege('melissa_billing_reconciler','stripe_reconciliation_attempts',
-        'INSERT') AS "canInsertAudit",
+      has_column_privilege('melissa_billing_reconciler','stripe_reconciliation_attempts',
+        'event_id','INSERT') AS "canInsertAudit",
       has_table_privilege('melissa_billing_reconciler','stripe_reconciliation_attempts',
         'UPDATE') AS "canUpdateAudit"`;
     assert.deepEqual(billingAccess, {
