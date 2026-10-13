@@ -1,5 +1,7 @@
 # ADR-106 — Reconciliar eventos Stripe test sem confiar no webhook para conceder acesso
 
+> **Atualização:** a ADR-107 (schema 66) substituiu o uso da credencial administrativa por `BILLING_RECONCILER_DATABASE_URL` com o papel `melissa_billing_reconciler` de mínimos privilégios. As referências históricas a `MIGRATION_DATABASE_URL` nesta ADR-106 já não descrevem o comando atual. [CI verde #38352760844](https://github.com/HernanyManuel/Melissa/actions/runs/38352760844).
+
 ## Estado
 
 Phase 9, terceira fatia após ADR-104/105, schema **65**, branch `feature/phase-8-inbox` e PR #7 ainda em draft. [CI funcional #38274571857](https://github.com/HernanyManuel/Melissa/actions/runs/38274571857) integralmente verde no commit `091f0cb78eb0986cddbf76335a4865c6f46eecdc`. **Não** foi integrado um worker automático ou Checkout Stripe, nem foram ativadas cobranças reais.

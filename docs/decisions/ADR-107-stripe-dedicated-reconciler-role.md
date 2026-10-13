@@ -14,6 +14,9 @@ Phase 9, schema **66**, PR #7 draft na branch `feature/phase-8-inbox`. A ADR-106
 
 ## Verificação
 
+[CI #38352760844](https://github.com/HernanyManuel/Melissa/actions/runs/38352760844) **integralmente verde** no commit `124d143052cf7042d5cbabf8e0c4007818cf1d24`: backend (formatação, lint, TypeScript, unitários, PostgreSQL/RLS com worker/Redis real, OpenAPI e auditoria), Flutter (análise, testes e build Web) e Compose (readiness). O CI detetou que o ORM inseria explicitamente `created_at` na auditoria, exigindo um grant demasiado amplo; foi corrigido para `INSERT` SQL parametrizado que deixa o timestamp ao PostgreSQL, conservando estritamente os grants de cinco colunas.
+
+
 A suite integrada usa **duas ligações reais PostgreSQL separadas**: administrador apenas para preparar fixtures e verificar auditoria; papel restrito para cada chamada do reconciliador. Demonstra que uma chamada com admin é recusada, que a reconciliação de cliente/price pré-associados funciona com `FOR UPDATE` sem bypass RLS, que `metadata.tenant_id` forjado não altera outra empresa, e que SQL privilege checks impedem escrever em tenant, customer binding, plano, inbox e audit; valida também ausência de direitos `billing` no role normal da API. Backend tests, worker/restart, Flutter e Compose têm de passar no CI do commit final.
 
 ## Pendentes
