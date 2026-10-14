@@ -45,7 +45,7 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
     items:{data:[{price:{id:priceId},current_period_start:start,
       current_period_end:end}],has_more:false},...subscriptionOverride,
   });
-  let invoiceCalls=0,subscriptionCalls=0;
+  let invoiceCalls=0;
   const provider={
     retrieveInvoice:async(id:string)=>{
       invoiceCalls++;
@@ -54,7 +54,6 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
       return invoice();
     },
     retrieveSubscription:async(id:string)=>{
-      subscriptionCalls++;
       assert.equal(id,subscriptionId);
       return subscription();
     },
