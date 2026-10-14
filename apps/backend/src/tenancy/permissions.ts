@@ -14,7 +14,8 @@ export type Permission =
   | 'business:read'
   | 'business:write'
   | 'integration:write'
-  | 'billing:read';
+  | 'billing:read'
+  | 'billing:write';
 const permissions: Record<TenantRole, readonly Permission[]> = {
   owner: [
     'messages:read',
@@ -32,6 +33,7 @@ const permissions: Record<TenantRole, readonly Permission[]> = {
     'business:write',
     'integration:write',
     'billing:read',
+    'billing:write',
   ],
   admin: [
     'messages:read',
@@ -49,6 +51,7 @@ const permissions: Record<TenantRole, readonly Permission[]> = {
     'business:write',
     'integration:write',
     'billing:read',
+    'billing:write',
   ],
   manager: [
     'tenant:read',

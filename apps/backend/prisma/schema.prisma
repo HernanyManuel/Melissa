@@ -878,3 +878,23 @@ model StripeReconciliationAttempt {
   @@index([eventId, createdAt])
   @@map("stripe_reconciliation_attempts")
 }
+
+ 
+// ADR-109: an authorized tenant-bound checkout attempt, not a subscription.
+model StripeCheckoutIntent {
+  id                String   @id @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  planId            String   @map("plan_id") @db.Uuid
+  stripePriceId     String   @map("stripe_price_id") @db.VarChar(255)
+  requestId         String   @map("request_id") @db.Uuid
+  status            String   @default("pending") @db.VarChar(16)
+  checkoutSessionId String?  @unique @map("checkout_session_id") @db.VarChar(255)
+  checkoutUrl       String?  @map("checkout_url") @db.Text
+  expiresAt         DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, requestId])
+  @@index([status, expiresAt])
+  @@map("stripe_checkout_intents")
+}
