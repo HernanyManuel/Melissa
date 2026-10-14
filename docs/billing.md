@@ -1,3 +1,7 @@
+## Décima terceira fatia — ADR-117 (schema 75): risco observado de refund/dispute Stripe TEST
+
+`stripe:payment-risk-test in_...` é uma revisão manual de fatura em modo Stripe TEST, limitada ao verificador de invoice NOLOGIN-by-default. Valida invoice/customer/subscription/Checkout, encadeia Stripe InvoicePayment→PaymentIntent→Charge e observa listas completas de refunds e disputes vinculadas à charge. Snapshots imutáveis conservam estados e contagens, mas `financial_clearance=false`, `refunds_final=false`, `settlement_verified=false`, `billable=false` são irrevogáveis neste schema. Sem leitura pela API, sem criação/encerramento de refunds/disputes, e sem direitos pagos. [ADR-117](decisions/ADR-117-stripe-test-refund-dispute-risk-observations.md).
+
 ## Décima segunda fatia — ADR-116 (schema 74): revisão de invoice Stripe TEST
 
 O comando operador `stripe:review-invoice-test in_...` usa o mesmo papel isolado da ADR-115, em modo de teste opt-in. Faz GET ao Stripe para revalidar invoice, subscription e lista completa de credit notes; guarda uma observação append-only de período da **única linha de subscrição** e créditos emitidos. Mudanças geram um novo snapshot hash, replays são deduplicados, pagamentos e refund final permanecem `financial_clearance=false` e `refunds_verified=false` obrigatórios. Sem acesso da API ao ledger nem alteração dos entitlements. [ADR-116](decisions/ADR-116-stripe-test-invoice-period-credit-review.md).
