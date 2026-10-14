@@ -3,7 +3,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { stripeTestSubscriptionSnapshot } from './stripe-reconciler';
 import {
   parseStripeTestInvoiceReview,
-  StripeTestInvoiceReviewReader,
+  StripeInvoiceReviewProvider,
 } from './stripe-test-invoice-review';
 
 export type InvoiceReviewOutcome = 'recorded' | 'replayed' | 'rejected' | 'deferred';
@@ -24,7 +24,7 @@ export interface InvoiceReviewResult {
 export async function reviewStoredStripeTestInvoice(
   db: PrismaClient,
   invoiceId: string,
-  provider: StripeTestInvoiceReviewReader,
+  provider: StripeInvoiceReviewProvider,
 ): Promise<InvoiceReviewResult> {
   if (!/^in_[A-Za-z0-9_]{1,250}$/.test(invoiceId))
     throw new Error('Invalid invoice ID');

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { StripeTestInvoiceReader, stripeTestPaidInvoiceSnapshot } from './stripe-test-invoice-reader';
 
-export interface StripeTestInvoiceReviewReader {
+export interface StripeInvoiceReviewProvider {
   retrieveInvoice(id: string): Promise<unknown>;
   retrieveSubscription(id: string): Promise<unknown>;
   listCreditNotes(id: string): Promise<unknown>;
@@ -116,7 +116,7 @@ export function parseStripeTestInvoiceReview(
 
 // Reuse the ADR-115 bounded HTTP client and test credentials.
 export class StripeTestInvoiceReviewReader extends StripeTestInvoiceReader
-  implements StripeTestInvoiceReviewReader {
+  implements StripeInvoiceReviewProvider {
   async listCreditNotes(invoiceId: string): Promise<unknown> {
     if (!/^in_[A-Za-z0-9_]{1,250}$/.test(invoiceId))
       throw new Error('Invalid Stripe test invoice ID');
