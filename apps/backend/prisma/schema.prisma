@@ -945,3 +945,23 @@ model StripeDispatchAttempt {
   @@index([eventId, createdAt])
   @@map("stripe_dispatch_attempts")
 }
+
+
+// ADR-114: immutable, non-billable technical token observations.
+// Composite FKs and the transactional source INSERT trigger live in SQL.
+model BillingUsageObservation {
+  tenantId      String   @map("tenant_id") @db.Uuid
+  sourceEventId String   @map("source_event_id") @db.Uuid
+  turnId        String   @map("turn_id") @db.Uuid
+  sourceOutcome String   @map("source_outcome") @db.VarChar(24)
+  inputTokens   Int      @map("input_tokens")
+  outputTokens  Int      @map("output_tokens")
+  observedAt    DateTime @map("observed_at") @db.Timestamptz(6)
+  ingestedAt    DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  billable      Boolean  @default(false)
+
+  @@id([tenantId, sourceEventId])
+  @@unique([tenantId, turnId])
+  @@index([tenantId, observedAt, sourceEventId])
+  @@map("billing_usage_observations")
+}
