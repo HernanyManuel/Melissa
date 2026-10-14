@@ -4,7 +4,9 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { Prisma, PrismaClient } from '@prisma/client';
 import {
-  claimStripeTestEvent, dispatchOneStripeTestEvent, dispatchRetrySeconds,
+  claimStripeTestEvent,
+  dispatchOneStripeTestEvent,
+  dispatchRetrySeconds,
 } from '../src/billing/stripe-test-dispatcher';
 
 const pid = () => randomUUID().replace(/-/g, '');

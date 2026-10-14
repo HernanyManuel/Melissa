@@ -101,24 +101,35 @@ async function handleEvent(
 ): Promise<Decision> {
   if (job.eventType === 'checkout.session.completed') {
     const result = await linkStoredStripeTestCheckout(
-      connections.linker, job.eventId, providers.checkout,
+      connections.linker,
+      job.eventId,
+      providers.checkout,
     );
     if (result.outcome === 'linked' || result.outcome === 'replayed')
       return { action: 'complete', reason: result.outcome };
-    if (result.outcome === 'deferred' || result.reason === 'unknown_checkout' ||
-        result.reason === 'intent_not_ready')
-      return { action: 'retry', reason: result.outcome === 'deferred'
-        ? 'provider_unavailable' : 'unmapped' };
+    if (
+      result.outcome === 'deferred' ||
+      result.reason === 'unknown_checkout' ||
+      result.reason === 'intent_not_ready'
+    )
+      return {
+        action: 'retry',
+        reason: result.outcome === 'deferred' ? 'provider_unavailable' : 'unmapped',
+      };
     return { action: 'complete', reason: 'rejected' };
   }
   const result = await reconcileStoredStripeTestEvent(
-    connections.reconciler, job.eventId, providers.subscription,
+    connections.reconciler,
+    job.eventId,
+    providers.subscription,
   );
   if (result.outcome === 'applied' || result.outcome === 'skipped')
     return { action: 'complete', reason: result.outcome };
   if (result.outcome === 'unmapped' || result.outcome === 'deferred')
-    return { action: 'retry', reason: result.outcome === 'unmapped'
-      ? 'unmapped' : 'provider_unavailable' };
+    return {
+      action: 'retry',
+      reason: result.outcome === 'unmapped' ? 'unmapped' : 'provider_unavailable',
+    };
   return { action: 'complete', reason: 'rejected' };
 }
 
