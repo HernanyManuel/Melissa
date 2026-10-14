@@ -1,3 +1,9 @@
+## Phase 9 — ADR-113: policy deny-only e quotas observadas (schema 71)
+
+O endpoint `GET /api/v1/tenants/:tenantId/billing/entitlements` apresenta um diagnóstico read-only tenant-scoped de bloqueios de ativação e contagens de staff/canais ativos comparadas com limites do catálogo (sem enforcement). Conversas, mensagens e localizações são declaradas não mensuráveis para faturação até uma política aprovada. A migration 71 cria uma trava global `paid_automation` com `enabled=false` e CHECK que **proíbe** alterá-la para true, RLS forçada e sem grants de escrita. O avaliador responde sempre `allowed=false`, `billingVerified=false`, `automationEnabled=false`, mesmo em snapshots Stripe `active` e cenários adversos.
+
+Testes unitários e HTTP/RLS PostgreSQL foram adicionados; o CI do HEAD final confirma ou invalida a conclusão. Sem E2E Stripe sandbox, billing ledger, quotas transacionais, Customer Portal mutável, merge, deploy ou cobrança live. [ADR-113](decisions/ADR-113-deny-only-entitlements-quota-readiness.md).
+
 ## Phase 9 — ADR-112: Customer Portal Stripe TEST estritamente read-only (schema 70)
 
 Foi implementado `POST /api/v1/tenants/:tenantId/billing/portal`, desligado por omissão, limitado a owner/admin, a `NODE_ENV=test` e a uma configuração Stripe test `bpc_...` explicitamente segura. O backend verifica em duas transações independentes autorização/membership/RLS, subscrição e intenção `cs_test_` original, além de consultar o Stripe para conferir subscrição, preço, cliente e configuração sem mutações; só então retorna uma URL efémera no host `billing.stripe.com`. Auditoria `billing.portal.created` sem URL e throttle de 30 segundos por tenant. Migration 70 concede apenas SELECT dos IDs Stripe sob a RLS já forçada.
