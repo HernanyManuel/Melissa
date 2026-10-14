@@ -41,7 +41,7 @@ export function stripeTestPaidInvoiceSnapshot(value: unknown): PaidTestInvoiceSn
   if (!invoice || invoice.object !== 'invoice' || invoice.livemode !== false ||
     typeof invoice.id !== 'string' || !INVOICE_ID.test(invoice.id) ||
     invoice.status !== 'paid' || invoice.paid !== true ||
-    invoice.paid_out_of_band === true ||
+    invoice.paid_out_of_band !== false ||
     invoice.collection_method !== 'charge_automatically' ||
     typeof invoice.customer !== 'string' || !CUSTOMER_ID.test(invoice.customer) ||
     typeof details?.subscription !== 'string' || !SUBSCRIPTION_ID.test(details.subscription) ||

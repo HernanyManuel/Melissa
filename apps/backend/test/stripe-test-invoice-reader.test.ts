@@ -32,7 +32,7 @@ test('Stripe invoice parser rejects unverified, credit-only and cross-mode state
   assert.equal(parsed.subscription,'sub_fixture123');
   for (const mutation of [
     { livemode:true }, { status:'open' }, { paid:false },
-    { paid_out_of_band:true }, { collection_method:'send_invoice' },
+    { paid_out_of_band:true }, { paid_out_of_band:undefined }, { collection_method:'send_invoice' },
     { amount_paid:0,total:0 }, { amount_paid:-1 },
     { total:1998 }, { amount_remaining:1 },
     { parent:null }, { currency:'EUR' }, { customer:'not-customer' },
