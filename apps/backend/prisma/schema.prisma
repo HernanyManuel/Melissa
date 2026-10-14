@@ -1033,3 +1033,42 @@ model StripeInvoiceReviewAttempt {
   @@index([invoiceId, createdAt])
   @@map("stripe_invoice_review_attempts")
 }
+
+
+// ADR-117: append-only observational TEST refund/dispute risk snapshots.
+// Values deliberately cannot authorize money, refunds finality or entitlements.
+model StripeTestPaymentRiskReview {
+  id                     String   @id @db.Uuid
+  invoiceId              String   @map("invoice_id") @db.VarChar(255)
+  tenantId               String   @map("tenant_id") @db.Uuid
+  subscriptionId         String   @map("subscription_id") @db.Uuid
+  snapshotSha256         String   @map("snapshot_sha256") @db.Char(64)
+  paymentIntentId        String   @map("payment_intent_id") @db.VarChar(255)
+  chargeId               String   @map("charge_id") @db.VarChar(255)
+  refundCount            Int      @map("refund_count")
+  succeededRefundMinor   BigInt   @map("succeeded_refund_minor")
+  pendingRefundMinor     BigInt   @map("pending_refund_minor")
+  disputeCount           Int      @map("dispute_count")
+  unresolvedDisputeCount Int      @map("unresolved_dispute_count")
+  riskState              String   @default("observed") @map("risk_state") @db.VarChar(16)
+  settlementVerified     Boolean  @default(false) @map("settlement_verified")
+  refundsFinal           Boolean  @default(false) @map("refunds_final")
+  financialClearance     Boolean  @default(false) @map("financial_clearance")
+  billable               Boolean  @default(false)
+  observedAt             DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+
+  @@unique([invoiceId, snapshotSha256])
+  @@index([tenantId, observedAt, id])
+  @@map("stripe_test_payment_risk_reviews")
+}
+
+model StripePaymentRiskAttempt {
+  id        String   @id @db.Uuid
+  invoiceId String   @map("invoice_id") @db.VarChar(255)
+  outcome   String   @db.VarChar(16)
+  reason    String   @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([invoiceId, createdAt])
+  @@map("stripe_payment_risk_attempts")
+}
