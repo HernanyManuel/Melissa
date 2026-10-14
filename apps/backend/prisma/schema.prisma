@@ -831,6 +831,7 @@ model TenantSubscription {
   provider               String    @db.VarChar(16)
   providerCustomerId     String    @map("provider_customer_id") @db.VarChar(255)
   providerSubscriptionId String    @map("provider_subscription_id") @db.VarChar(255)
+  checkoutSessionId      String?   @unique @map("checkout_session_id") @db.VarChar(255)
   status                 String    @db.VarChar(32)
   currentPeriodStart     DateTime  @map("current_period_start") @db.Timestamptz(6)
   currentPeriodEnd       DateTime  @map("current_period_end") @db.Timestamptz(6)
@@ -897,4 +898,19 @@ model StripeCheckoutIntent {
   @@unique([tenantId, requestId])
   @@index([status, expiresAt])
   @@map("stripe_checkout_intents")
+}
+
+ 
+// Append-only, provider-verified checkout association decisions.
+model StripeCheckoutLinkAttempt {
+  id         String   @id @db.Uuid
+  eventId    String   @map("event_id") @db.VarChar(255)
+  intentId   String?  @map("intent_id") @db.Uuid
+  tenantId   String?  @map("tenant_id") @db.Uuid
+  outcome    String   @db.VarChar(16)
+  reason     String   @db.VarChar(40)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([eventId, createdAt])
+  @@map("stripe_checkout_link_attempts")
 }

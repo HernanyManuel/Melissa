@@ -33,6 +33,7 @@ jobs:
       NODE_ENV: test
       MIGRATION_DATABASE_URL: postgresql://melissa:ci-disposable-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
       DATABASE_URL: postgresql://melissa_runtime:ci-runtime-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
+      BILLING_LINKER_DATABASE_URL: postgresql://melissa_billing_linker:ci-linker-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
       BILLING_RECONCILER_DATABASE_URL: postgresql://melissa_billing_reconciler:ci-billing-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
       REDIS_URL: redis://localhost:6379
       LOG_LEVEL: silent
@@ -54,6 +55,8 @@ jobs:
           RUNTIME_PASSWORD=ci-runtime-only psql "${MIGRATION_DATABASE_URL%%\?*}" -v ON_ERROR_STOP=1 -v runtime_password=ci-runtime-only -f infra/scripts/runtime-role.sql
           DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm db:migrate
           psql "${MIGRATION_DATABASE_URL%%\?*}" -v ON_ERROR_STOP=1 -v reconciler_password=ci-billing-only -f infra/scripts/billing-reconciler-login.sql
+      - name: Provision test-only restricted billing linker
+        run: psql "${MIGRATION_DATABASE_URL%%\\?*}" -v ON_ERROR_STOP=1 -v linker_password=ci-linker-only -f infra/scripts/billing-linker-login.sql
       - name: Verify idempotent development seed
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
