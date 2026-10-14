@@ -64,10 +64,6 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
-      - name: Capture ADR-112 unit format (temporary)
-        run: |
-          f=apps/backend/test/stripe-test-portal-provider.test.ts
-          pnpm exec prettier "$f" | base64 -w0 | fold -w 1600 | awk -v file="$f" '{print "MELISSA_FORMATTED:" file ":" NR ":" $0}'
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
