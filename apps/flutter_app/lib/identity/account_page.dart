@@ -122,6 +122,11 @@ class _AccountPageState extends State<AccountPage> {
               const Divider(height: 32),
               Text('${l.selectedBusiness}: ${selected!['name']}'),
               if (selected!['role'] == 'owner' || selected!['role'] == 'admin') OutlinedButton.icon(
+                key: const Key('account-billing-link'),
+                onPressed: busy ? null : () => context.go('/billing/${selected!['id']}'),
+                icon: const Icon(Icons.receipt_long_outlined), label: Text(l.billingTitle),
+              ),
+              if (selected!['role'] == 'owner' || selected!['role'] == 'admin') OutlinedButton.icon(
                 onPressed: busy ? null : () => context.go('/message-processing/${selected!['id']}'),
                 icon: const Icon(Icons.pending_actions_outlined), label: Text(l.processingTitle),
               ),
