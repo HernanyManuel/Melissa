@@ -201,7 +201,7 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
     assert.deepEqual(rls,{relrowsecurity:true,relforcerowsecurity:true});
     const [outside]=await deps.db.$queryRaw<Array<{n:bigint}>>`
       SELECT COUNT(source_event_id)::bigint AS n FROM billing_usage_observations`;
-    assert.equal(outside.n,0n,'RLS denies unscoped event enumeration');
+    assert.equal(outside?.n,0n,'RLS denies unscoped event enumeration');
     assert.equal(await admin.billingUsageObservation.count({where:{tenantId:b.id}}),1);
   } finally {
     await app.close();
