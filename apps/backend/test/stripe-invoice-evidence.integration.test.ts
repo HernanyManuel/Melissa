@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { recordStoredStripeTestInvoice } from '../src/billing/stripe-invoice-evidence-verifier';
+import { reviewStoredStripeTestInvoice } from '../src/billing/stripe-invoice-review-verifier';
 
 const uuidPart = () => randomUUID().replace(/-/g, '');
 const eventId = () => 'evt_' + uuidPart();
@@ -121,6 +122,111 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
     assert.equal(await admin.stripeTestInvoiceEvidence.count(),1);
     assert.equal(await admin.stripeInvoiceEvidenceAttempt.count({where:{eventId:original}}),2);
     assert.equal(await admin.stripeTestInvoiceEvidence.count({where:{tenantId:tenantB}}),0);
+
+    // ADR-116: periods come from an authenticated invoice LINE, never the
+    // invoice's lookback period. Credit notes can change later; each new
+    // observation is a different immutable digest, NEVER clearance.
+    const notes:Array<Record<string,unknown>>=[];
+    let hasMore=false;
+    const reviewProvider={
+      retrieveInvoice:async(id:string)=>{
+        assert.equal(id,evidence.invoiceId);
+        return {...invoice(),period_start:start-86400,period_end:start,
+          lines:{object:'list',has_more:false,data:[{
+            object:'line_item',livemode:false,
+            parent:{type:'subscription_item_details',
+              subscription_item_details:{subscription:subscriptionId}},
+            pricing:{type:'price_details',price_details:{price:priceId}},
+            period:{start,end},
+          }]}};
+      },
+      retrieveSubscription:provider.retrieveSubscription,
+      listCreditNotes:async(id:string)=>{
+        assert.equal(id,evidence.invoiceId);
+        return {object:'list',has_more:hasMore,data:notes};
+      },
+    };
+    await assert.rejects(reviewStoredStripeTestInvoice(admin,evidence.invoiceId,reviewProvider),
+      /Dedicated invoice verifier role required/);
+    assert.deepEqual(
+      await reviewStoredStripeTestInvoice(verifier,evidence.invoiceId,reviewProvider),
+      {outcome:'recorded',reason:'snapshot_observed'});
+    let review=await admin.stripeTestInvoiceReview.findFirstOrThrow({
+      where:{invoiceId:evidence.invoiceId},
+    });
+    assert.equal(review.tenantId,tenantA);
+    assert.equal(review.subscriptionId,subscriptionRowId);
+    assert.equal(review.servicePeriodStart.getTime(),start*1000);
+    assert.equal(review.servicePeriodEnd.getTime(),end*1000);
+    assert.equal(review.issuedCreditMinor,0n);
+    assert.equal(review.refundsVerified,false);
+    assert.equal(review.financialClearance,false);
+    assert.equal(review.billable,false);
+    assert.deepEqual(
+      await reviewStoredStripeTestInvoice(verifier,evidence.invoiceId,reviewProvider),
+      {outcome:'replayed',reason:'already_observed'});
+    assert.equal(await admin.stripeTestInvoiceReview.count(),1);
+    const note={
+      id:'cn_'+uuidPart(),object:'credit_note',status:'issued',
+      livemode:false,invoice:evidence.invoiceId,customer:customerId,
+      currency:'eur',amount:400,
+    };
+    notes.push(note);
+    assert.deepEqual(await reviewStoredStripeTestInvoice(
+      verifier,evidence.invoiceId,reviewProvider),
+      {outcome:'recorded',reason:'snapshot_observed'});
+    review=await admin.stripeTestInvoiceReview.findFirstOrThrow({
+      where:{invoiceId:evidence.invoiceId,creditNoteCount:1},
+    });
+    assert.equal(review.issuedCreditMinor,400n);
+    assert.equal(await admin.stripeTestInvoiceReview.count(),2);
+    hasMore=true;
+    assert.deepEqual(await reviewStoredStripeTestInvoice(
+      verifier,evidence.invoiceId,reviewProvider),
+      {outcome:'deferred',reason:'incomplete_credits'});
+    hasMore=false;
+    notes[0]={...note,customer:'cus_foreign'};
+    assert.deepEqual(await reviewStoredStripeTestInvoice(
+      verifier,evidence.invoiceId,reviewProvider),
+      {outcome:'rejected',reason:'invalid_credit_notes'});
+    notes[0]=note;
+    assert.equal(await admin.stripeTestInvoiceReview.count(),2);
+    assert.equal(await admin.stripeInvoiceReviewAttempt.count({
+      where:{invoiceId:evidence.invoiceId},
+    }),5);
+    await assert.rejects(admin.stripeTestInvoiceReview.update({
+      where:{id:review.id},data:{issuedCreditMinor:1n},
+    }));
+    await assert.rejects(admin.stripeTestInvoiceReview.delete({
+      where:{id:review.id},
+    }));
+    await assert.rejects(verifier.stripeTestInvoiceReview.delete({
+      where:{id:review.id},
+    }));
+    const [reviewGrants]=await admin.$queryRaw<Array<{
+      runtimeRead:boolean;runtimeWrite:boolean;verifierUpdate:boolean;
+      verifierDelete:boolean;otherVerifierWrite:boolean;
+    }>>`SELECT
+      has_table_privilege('melissa_runtime','stripe_test_invoice_reviews','SELECT')
+        AS "runtimeRead",
+      has_table_privilege('melissa_runtime','stripe_test_invoice_reviews','INSERT')
+        AS "runtimeWrite",
+      has_table_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_invoice_reviews','UPDATE') AS "verifierUpdate",
+      has_table_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_invoice_reviews','DELETE') AS "verifierDelete",
+      has_table_privilege('melissa_billing_reconciler',
+        'stripe_test_invoice_reviews','INSERT') AS "otherVerifierWrite"`;
+    assert.deepEqual(reviewGrants,{
+      runtimeRead:false,runtimeWrite:false,
+      verifierUpdate:false,verifierDelete:false,otherVerifierWrite:false,
+    });
+    const [reviewRls]=await admin.$queryRaw<Array<{
+      relrowsecurity:boolean;relforcerowsecurity:boolean;
+    }>>`SELECT relrowsecurity,relforcerowsecurity FROM pg_class
+      WHERE relname='stripe_test_invoice_reviews'`;
+    assert.deepEqual(reviewRls,{relrowsecurity:true,relforcerowsecurity:true});
+    await assert.rejects(runtime.stripeTestInvoiceReview.count());
 
     // Signed metadata claims tenant B; fresh provider IDs still bind only A.
     activeInvoiceId=invoiceId();

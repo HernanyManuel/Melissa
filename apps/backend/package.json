@@ -21,7 +21,8 @@
     "stripe:reconcile-test": "tsx scripts/reconcile-stripe-test.ts",
     "stripe:link-test": "tsx scripts/link-stripe-checkout-test.ts",
     "stripe:dispatch-test": "tsx scripts/dispatch-stripe-test.ts",
-    "stripe:invoice-evidence-test": "tsx scripts/verify-stripe-test-invoice.ts"
+    "stripe:invoice-evidence-test": "tsx scripts/verify-stripe-test-invoice.ts",
+    "stripe:review-invoice-test": "tsx scripts/review-stripe-test-invoice.ts"
   },
   "dependencies": {
     "@nestjs/common": "11.2.3",

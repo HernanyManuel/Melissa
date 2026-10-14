@@ -75,7 +75,7 @@ export class StripeTestInvoiceReader implements StripeInvoiceEvidenceProvider {
       throw new Error('Stripe invoice evidence requires test credentials');
   }
 
-  private async read(url: string): Promise<unknown> {
+  protected async readTestResource(url: string): Promise<unknown> {
     const response = await this.http('https://api.stripe.com' + url, {
       method: 'GET',
       headers: {
@@ -111,12 +111,12 @@ export class StripeTestInvoiceReader implements StripeInvoiceEvidenceProvider {
 
   async retrieveInvoice(id: string): Promise<unknown> {
     if (!INVOICE_ID.test(id)) throw new Error('Invalid Stripe test invoice ID');
-    return this.read('/v1/invoices/' + id);
+    return this.readTestResource('/v1/invoices/' + id);
   }
 
   async retrieveSubscription(id: string): Promise<unknown> {
     if (!SUBSCRIPTION_ID.test(id)) throw new Error('Invalid Stripe test subscription ID');
-    return this.read('/v1/subscriptions/' + id);
+    return this.readTestResource('/v1/subscriptions/' + id);
   }
 }
 
