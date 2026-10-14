@@ -1,3 +1,7 @@
+## Décima segunda fatia — ADR-116 (schema 74): revisão de invoice Stripe TEST
+
+O comando operador `stripe:review-invoice-test in_...` usa o mesmo papel isolado da ADR-115, em modo de teste opt-in. Faz GET ao Stripe para revalidar invoice, subscription e lista completa de credit notes; guarda uma observação append-only de período da **única linha de subscrição** e créditos emitidos. Mudanças geram um novo snapshot hash, replays são deduplicados, pagamentos e refund final permanecem `financial_clearance=false` e `refunds_verified=false` obrigatórios. Sem acesso da API ao ledger nem alteração dos entitlements. [ADR-116](decisions/ADR-116-stripe-test-invoice-period-credit-review.md).
+
 ## Décima primeira fatia — ADR-115 (schema 73): definição candidata e invoice test
 
 `GET /api/v1/tenants/:tenantId/billing/usage` apresenta `conversationCandidate`, uma contagem informativa de conversas distintas que tiveram IA concluída nos 30 dias corridos, sem preços nem quotas faturáveis. O comando manual `stripe:invoice-evidence-test evt_...` guarda uma evidência imutável de fatura Stripe TEST obtida por GET atual ao provider, desde que customer, subscription, moeda e preço coincidam com Checkout/plan já vinculados no tenant; usa role DB NOLOGIN e não é acionado automaticamente. Os montantes observados não são disponibilizados pela API. Não prova liquidação, não emite cobranças, não ativa quota comercial ou automação. Ver [ADR-115](decisions/ADR-115-candidate-conversations-and-test-invoice-evidence.md).
