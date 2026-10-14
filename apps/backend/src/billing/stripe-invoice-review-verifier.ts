@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { stripeTestSubscriptionSnapshot } from './stripe-reconciler';
 import {
   parseStripeTestInvoiceReview,
