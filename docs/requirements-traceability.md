@@ -48,9 +48,9 @@ Cada PR deve citar também os subitens da secção e anexar evidência concreta 
 | 39 | Usage Metering | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 40 | Custos internos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 41 | Cost Guard | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
-| 42 | Billing | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catálogo e subscrição read-only, inbox Stripe e reconciliação opt-in test only para subscrições previamente vinculadas; Checkout/Portal e enforcement pendentes (ADRs 104–107) |
-| 43 | Planos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: planos configuráveis em PostgreSQL e API de catálogo sem preços hardcoded; criação administrativa e Stripe pendentes (ADR-104) |
-| 44 | Subscriptions | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: snapshot com RLS; reconciliação manual Stripe test de subscrições existentes mediante binding customer/price/ID, sem onboarding comercial (ADRs 104–107) |
+| 42 | Billing | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catálogo e subscription snapshot, ecrã Flutter read-only, ingest/reconcile test Stripe; Checkout/Portal e enforcement pendentes (ADRs 104–108) |
+| 43 | Planos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catálogo API e visualização Flutter com preços configuráveis; criação administrativa e Checkout pendentes (ADRs 104/108) |
+| 44 | Subscriptions | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: snapshot com RLS, reconciliação Stripe test, consulta Flutter segura; onboarding e alterações contratuais pendentes (ADRs 104–108) |
 | 45 | Webhooks Stripe | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: transporte HMAC test, inbox imutável e reconciliação manual sob papel DB mínimo (ADR-107); falta worker, credenciais/Stripe E2E real e gestão de eventos em produção (ADRs 105–107) |
 | 46 | Limites | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 47 | Overages | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
