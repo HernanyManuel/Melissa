@@ -61,7 +61,7 @@ function eventSubscriptionId(eventType: string, payload: unknown): string | null
   return typeof id === 'string' && SUBSCRIPTION_ID.test(id) ? id : null;
 }
 
-interface ProviderSnapshot {
+export interface ProviderSnapshot {
   id: string;
   customer: string;
   price: string;
