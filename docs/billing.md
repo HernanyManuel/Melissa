@@ -1,3 +1,9 @@
+## Quinta fatia implementada — ADR-109 (Checkout test opt-in, schema 67)
+
+Existe agora um endpoint backend de início de Checkout **exclusivamente test-mode**, `POST /api/v1/tenants/:tenantId/billing/checkout`, protegido por `billing:write` de owner/admin. Aceita um plano publicado e um request UUID idempotente; valida identificadores e preço real `livemode=false` diretamente no Stripe antes de gerar um Checkout Session hospedado com URLs controlados no servidor. A tabela `stripe_checkout_intents` impede múltiplas intenções abertas por tenant, persiste o pedido e suporta retry depois de falhas temporárias. Está desativado por omissão, com retorno sempre a `checkout.stripe.com`, sem expor token, plano interno Stripe ou customer ID.
+
+Configuração de **ambiente de teste**, nunca de produção: `STRIPE_TEST_CHECKOUT_ENABLED=true`, `STRIPE_TEST_SECRET_KEY` segura `sk_test_...`, `STRIPE_TEST_CHECKOUT_RETURN_ORIGIN` HTTPS (ou HTTP loopback). EUR e USD com preços mensais/anuais exatos em minor units; preços que não correspondem a produto, periodicidade ou moeda falham de forma segura. Sem credenciais de conta Stripe test acessíveis nesta entrega, os testes do adaptador usam respostas simuladas. Não existe ainda confirmação real de Checkout no provider, Customer Portal ou nova associação Stripe à subscrição. O Flutter é apenas consulta; o funcionamento comercial ainda não está pronto. `automationEnabled=false` e `billingVerified=false` continuam fixos. Ver [ADR-109](decisions/ADR-109-stripe-test-checkout-intent.md).
+
 # Billing, entitlements e utilização
 
 ## Quarta fatia implementada — ADR-107 (schema 66)

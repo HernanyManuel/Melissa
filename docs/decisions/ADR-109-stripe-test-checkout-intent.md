@@ -1,0 +1,27 @@
+# ADR-109 — Stripe Checkout test: intenção durável e checkout opt-in (schema 67)
+
+## Estado
+
+Implementado em `feature/phase-8-inbox` (PR #7 draft); schema 67. Aguardam-se verificações do CI **no SHA final** e um teste real com uma conta Stripe em modo de teste. Não representa autorização de produção nem integração comercial completa.
+
+## Contexto
+
+ADR-104 fornece catálogo e snapshot read-only; ADRs 105–107 recebem eventos assinados e reconciliam **apenas subscrições previamente associadas**; ADR-108 apresenta informação sem contratar. Ainda não existe contrato de atribuição inicial da subscrição, quota/ledger ou entitlement. É perigoso interpretar um redirect de sucesso, um evento Stripe com metadata de empresa, ou uma resposta `status=active` como prova de que a empresa está paga.
+
+## Decisão
+
+1. `POST /api/v1/tenants/:tenantId/billing/checkout` recebe `{planId, requestId}` (UUID v4). `requestId` é chave gerada no cliente e **reutilizada em retries**; nunca um ID Stripe ou metadata de cliente. A operação tem `AuthGuard`, `TenantService.scoped(...,'billing:write')` e role owner/admin; tenant desconhecido recebe 404, role inadequado 403. Está **desligada por omissão** (`STRIPE_TEST_CHECKOUT_ENABLED=false`).
+2. A ativação exige `STRIPE_TEST_SECRET_KEY=sk_test_...` e `STRIPE_TEST_CHECKOUT_RETURN_ORIGIN` explícita, HTTPS ou HTTP loopback em desenvolvimento. A configuração existente recusa `NODE_ENV=production`. Não permite `sk_live`, URLs de retorno arbitrárias do cliente, nem enviar segredos ao browser.
+3. Cada plano tem de estar publicado, ter `stripe_product_id` e `stripe_price_id` configurados por operador, corresponder exatamente ao preço Stripe **test** (object, product, livemode=false, active=true, currency, interval, licensed, per_unit, unit amount), e ser um preço recorrente de intervalo mensal/anual. Este incremento suporta apenas EUR/USD com duas casas decimais; preços incompatíveis falham de forma segura. Não define impostos, trials ou upgrades.
+4. A migration 67 acrescenta `stripe_checkout_intents` com chave `(tenant_id, request_id)`, sessão Stripe globalmente única, referências a tenant/plano, ID do preço, data de validade e estado `pending|ready|expired`. Índice parcial só permite **uma intenção aberta por empresa**. RLS forçada e grants precisos permitem a `melissa_runtime` apenas SELECT/INSERT e UPDATE de estados/sessão/URL, nunca DELETE de intenção nem mutações de `subscriptions`. A configuração `app.tenant_id` vem exclusivamente de `TenantService.scoped`. Não são concedidos novos privilégios ao reconciliador.
+5. A primeira transação verifica sessão, membership, plano, inexistência de uma subscrição associada e replay; expira intenções antigas sob lock de tenant; insere `pending` e auditoria. A API Stripe é chamada **fora da transação**, com host `api.stripe.com` fixo, versão `2025-09-30.clover`, timeout 5 s, corpo limitado, sem redirects e idempotency key `melissa-test-checkout-<intent.id>`. Checkout `mode=subscription`, uma linha com price publicado, `client_reference_id=intent.id`, `expires_at` explícito e success/cancel URLs do servidor. A resposta deve ser `cs_test_...`, `livemode=false`, `status=open`, referência exata e URL HTTPS no domínio `checkout.stripe.com`.
+6. A segunda transação repete RBAC/RLS e verifica que não surgiu subscrição nem expirou/mudou a intenção. Só então marca `ready` e disponibiliza `checkoutUrl` e `expiresAt` ao autor do pedido. Um retry com o mesmo `requestId` obtém a sessão guardada; se o fornecedor falhar, a intenção continua `pending` para um retry com **o mesmo ID**. Um request ID diferente enquanto há uma tentativa aberta recebe 409. O valor `checkoutUrl` não é um entitlement.
+7. **Não há criação ou associação de `subscriptions`**, customer Stripe, Customer Portal, pagamento live, nem `EntitlementService`. `automationEnabled=false` e `billingVerified=false` e os bloqueios de onboarding permanecem. O reconciliador ADR-106 continuará a devolver `unmapped` se for chamado para uma nova subscrição Stripe não associada; este comportamento é intencional até existir um **linker server-side** que valide a sessão e subscrição diretamente no Stripe. Nunca confiar apenas em `metadata.tenant_id`, `client_reference_id` recebido de webhooks, ou no redirect.
+
+## Verificação e limitações
+
+Os testes unitários isolam o adaptador Stripe e rejeitam chaves live, preço divergente, sessão sem coerência, URL alheio e frações não suportadas. O teste de integração executa HTTP/Prisma/PostgreSQL/RLS reais com gateway de pagamento simulado: desativado por omissão, 401/403/404, plano não publicado, isolamento entre empresas, retry/idempotência, colisão de intenção, ausência de subscrição e entitlements, auditoria e falhas temporárias. O **CI** e a operação com conta Stripe test real devem ser verificados antes de afirmar interoperabilidade real. O Flutter da ADR-108 mantém-se apenas leitura; a API foi adicionada para permitir a evolução contratual seguinte, não é um fluxo comercial concluído.
+
+## Próximo incremento
+
+ADR-110: associação inicial de subscrição comprovada no Stripe test através de Checkout Session e Subscription consultadas server-side, confirmação dos IDs de sessão/cliente/preço, correspondência exata com intenção `ready` não expirada e evento assinado, proteção contra eventos fora de ordem e duplicados, papel dedicado de DB que **não** autoriza alteração arbitrária de empresas. Seguem-se Portal, processing worker, entitlements, limites e UI; nenhuma autorização paga até aos gates comerciais completos.

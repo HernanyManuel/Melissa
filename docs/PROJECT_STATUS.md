@@ -1,3 +1,9 @@
+## Atualização Phase 9 — Stripe Checkout test opt-in e intenção durável (ADR-109, schema 67)
+
+Adicionado `POST /api/v1/tenants/:tenantId/billing/checkout` com `billing:write` apenas para owner/admin, sessão de autenticação revalidada e RLS. A migration 67 introduz `stripe_checkout_intents` com `(tenant_id,request_id)` único, uma intenção aberta por empresa, expiração, estado e sessão Stripe única. O backend verifica plano publicado, produto/preço recorrente e preço exato do catálogo contra API Stripe test, usa chamada idempotente a Checkout hospedado e só devolve URL Stripe validado após segunda validação RBAC/RLS. O endpoint permanece desligado por omissão, usa exclusivamente `sk_test` e URL de retorno definida no servidor. Tem tests do provider e fluxo HTTP/PostgreSQL/RLS com Stripe simulado; **o CI e um teste real em Stripe test mode ainda requerem confirmação**.
+
+Esta entrega **não vincula cliente/subscrição inicial Stripe** nem concede direito comercial, não inclui UI de contratação, Portal ou worker. `automationEnabled=false`, `billingVerified=false` e onboarding bloqueado mantêm-se, incluindo em redirect de sucesso ou `checkout.session.completed` recebido. A ligação comprovada, com novo papel mínimo de DB, será o próximo incremento. Ver [ADR-109](decisions/ADR-109-stripe-test-checkout-intent.md).
+
 # Estado do projeto
 
 ## Atualização Phase 9 — Ecrã Flutter de faturação apenas consulta (ADR-108, schema 66)
