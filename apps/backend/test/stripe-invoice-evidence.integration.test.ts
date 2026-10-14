@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { recordStoredStripeTestInvoice } from '../src/billing/stripe-invoice-evidence-verifier';
 import { reviewStoredStripeTestInvoice } from '../src/billing/stripe-invoice-review-verifier';
+import { reviewStripeTestPaymentRisk } from '../src/billing/stripe-payment-risk-verifier';
 
 const uuidPart = () => randomUUID().replace(/-/g, '');
 const eventId = () => 'evt_' + uuidPart();
@@ -227,6 +228,142 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
       WHERE relname='stripe_test_invoice_reviews'`;
     assert.deepEqual(reviewRls,{relrowsecurity:true,relforcerowsecurity:true});
     await assert.rejects(runtime.stripeTestInvoiceReview.count());
+
+    // ADR-117: a charge is discovered through fresh TEST invoice payments,
+    // not metadata or any operator-supplied cross-tenant charge ID.
+    const piId='pi_'+uuidPart(),chargeId='ch_'+uuidPart();
+    const refundId='re_'+uuidPart(),disputeId='du_'+uuidPart();
+    const refunds:Array<Record<string,unknown>>=[];
+    const disputes:Array<Record<string,unknown>>=[];
+    let riskHasMore=false;
+    let forgedCustomer=false;
+    const riskProvider={
+      retrieveInvoice:reviewProvider.retrieveInvoice,
+      retrieveSubscription:provider.retrieveSubscription,
+      listInvoicePayments:async(id:string)=>{
+        assert.equal(id,evidence.invoiceId);
+        return {object:'list',has_more:false,data:[{
+          object:'invoice_payment',invoice:evidence.invoiceId,
+          livemode:false,status:'paid',currency:'eur',
+          amount_paid:1999,
+          payment:{type:'payment_intent',payment_intent:piId},
+        }]};
+      },
+      retrievePaymentIntent:async(id:string)=>{
+        assert.equal(id,piId);
+        return {id:piId,object:'payment_intent',livemode:false,
+          status:'succeeded',customer:customerId,currency:'eur',
+          amount_received:1999,latest_charge:chargeId};
+      },
+      retrieveCharge:async(id:string)=>{
+        assert.equal(id,chargeId);
+        return {object:'charge',id:chargeId,livemode:false,
+          status:'succeeded',paid:true,captured:true,
+          customer:forgedCustomer?'cus_foreign':customerId,
+          currency:'eur',payment_intent:piId,amount:1999};
+      },
+      listRefunds:async(id:string)=>{
+        assert.equal(id,chargeId);
+        return {object:'list',has_more:riskHasMore,data:refunds};
+      },
+      listDisputes:async(id:string)=>{
+        assert.equal(id,chargeId);
+        return {object:'list',has_more:false,data:disputes};
+      },
+    };
+    await assert.rejects(
+      reviewStripeTestPaymentRisk(admin,evidence.invoiceId,riskProvider),
+      /Dedicated invoice verifier role required/,
+    );
+    assert.deepEqual(await reviewStripeTestPaymentRisk(
+      verifier,evidence.invoiceId,riskProvider),
+      {outcome:'recorded',reason:'snapshot_observed'});
+    let risk=await admin.stripeTestPaymentRiskReview.findFirstOrThrow({
+      where:{invoiceId:evidence.invoiceId},
+    });
+    assert.equal(risk.tenantId,tenantA);
+    assert.equal(risk.subscriptionId,subscriptionRowId);
+    assert.equal(risk.refundCount,0);
+    assert.equal(risk.disputeCount,0);
+    assert.equal(risk.settlementVerified,false);
+    assert.equal(risk.refundsFinal,false);
+    assert.equal(risk.financialClearance,false);
+    assert.equal(risk.billable,false);
+    assert.deepEqual(await reviewStripeTestPaymentRisk(
+      verifier,evidence.invoiceId,riskProvider),
+      {outcome:'replayed',reason:'already_observed'});
+    refunds.push({object:'refund',id:refundId,livemode:false,
+      charge:chargeId,payment_intent:piId,amount:300,
+      currency:'eur',status:'pending'});
+    assert.equal((await reviewStripeTestPaymentRisk(
+      verifier,evidence.invoiceId,riskProvider)).outcome,'recorded');
+    refunds[0]={...refunds[0],status:'succeeded'};
+    disputes.push({object:'dispute',id:disputeId,livemode:false,
+      charge:chargeId,payment_intent:piId,amount:500,
+      currency:'eur',status:'needs_response'});
+    assert.equal((await reviewStripeTestPaymentRisk(
+      verifier,evidence.invoiceId,riskProvider)).outcome,'recorded');
+    risk=await admin.stripeTestPaymentRiskReview.findFirstOrThrow({
+      where:{invoiceId:evidence.invoiceId,disputeCount:1},
+    });
+    assert.equal(risk.succeededRefundMinor,300n);
+    assert.equal(risk.unresolvedDisputeCount,1);
+    assert.equal(await admin.stripeTestPaymentRiskReview.count({
+      where:{invoiceId:evidence.invoiceId},
+    }),3);
+    riskHasMore=true;
+    assert.deepEqual(await reviewStripeTestPaymentRisk(
+      verifier,evidence.invoiceId,riskProvider),
+      {outcome:'deferred',reason:'incomplete_risk_data'});
+    riskHasMore=false;
+    forgedCustomer=true;
+    assert.deepEqual(await reviewStripeTestPaymentRisk(
+      verifier,evidence.invoiceId,riskProvider),
+      {outcome:'rejected',reason:'charge_mismatch'});
+    forgedCustomer=false;
+    assert.equal(await admin.stripePaymentRiskAttempt.count({
+      where:{invoiceId:evidence.invoiceId},
+    }),6);
+    await assert.rejects(admin.stripeTestPaymentRiskReview.update({
+      where:{id:risk.id},data:{succeededRefundMinor:1n},
+    }));
+    await assert.rejects(admin.stripeTestPaymentRiskReview.delete({
+      where:{id:risk.id},
+    }));
+    await assert.rejects(verifier.stripeTestPaymentRiskReview.delete({
+      where:{id:risk.id},
+    }));
+    const [riskGrants]=await admin.$queryRaw<Array<{
+      runtimeRead:boolean;runtimeWrite:boolean;verifierRead:boolean;
+      verifierWrite:boolean;verifierUpdate:boolean;dispatcherWrite:boolean;
+    }>>`SELECT
+      has_table_privilege('melissa_runtime','stripe_test_payment_risk_reviews',
+        'SELECT') AS "runtimeRead",
+      has_table_privilege('melissa_runtime','stripe_test_payment_risk_reviews',
+        'INSERT') AS "runtimeWrite",
+      has_column_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_payment_risk_reviews','snapshot_sha256','SELECT')
+        AS "verifierRead",
+      has_column_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_payment_risk_reviews','snapshot_sha256','INSERT')
+        AS "verifierWrite",
+      has_table_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_payment_risk_reviews','UPDATE') AS "verifierUpdate",
+      has_table_privilege('melissa_billing_dispatcher',
+        'stripe_test_payment_risk_reviews','INSERT') AS "dispatcherWrite"`;
+    assert.deepEqual(riskGrants,{
+      runtimeRead:false,runtimeWrite:false,verifierRead:true,
+      verifierWrite:true,verifierUpdate:false,dispatcherWrite:false,
+    });
+    const [riskRls]=await admin.$queryRaw<Array<{
+      relrowsecurity:boolean;relforcerowsecurity:boolean;
+    }>>`SELECT relrowsecurity,relforcerowsecurity FROM pg_class
+      WHERE relname='stripe_test_payment_risk_reviews'`;
+    assert.deepEqual(riskRls,{relrowsecurity:true,relforcerowsecurity:true});
+    await assert.rejects(runtime.stripeTestPaymentRiskReview.count());
+    assert.equal(await admin.stripeTestPaymentRiskReview.count({
+      where:{tenantId:tenantB},
+    }),0);
 
     // Signed metadata claims tenant B; fresh provider IDs still bind only A.
     activeInvoiceId=invoiceId();

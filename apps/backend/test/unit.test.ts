@@ -6,6 +6,7 @@ import './stripe-test-checkout-session-reader.test';
 import './stripe-test-dispatcher.test';
 import './stripe-test-invoice-reader.test';
 import './stripe-test-invoice-review.test';
+import './stripe-test-payment-risk.test';
 import './entitlement-policy.test';
 import './quarantine-policy.test';
 import './receipt-state.test';
