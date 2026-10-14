@@ -13,6 +13,7 @@ import { BusinessController } from './business/business.controller';
 import { BusinessService } from './business/business.service';
 import { BillingController } from './billing/billing.controller';
 import { BillingService } from './billing/billing.service';
+import { BillingEntitlementService } from './billing/billing-entitlement.service';
 import { StripeCheckoutService } from './billing/stripe-checkout.service';
 import { StripeCheckoutGateway } from './billing/stripe-test-checkout-provider';
 import { StripePortalGateway } from './billing/stripe-test-portal-provider';
@@ -61,6 +62,7 @@ import {
     TenantService,
     BusinessService,
     BillingService,
+    BillingEntitlementService,
     StripeCheckoutService,
     StripeCheckoutGateway,
     StripePortalGateway,

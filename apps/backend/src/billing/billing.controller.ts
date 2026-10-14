@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } fro
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { BillingService } from './billing.service';
+import { BillingEntitlementService } from './billing-entitlement.service';
 import { StripeCheckoutService } from './stripe-checkout.service';
 import { CheckoutDto } from './checkout.dto';
 import { StripePortalService } from './stripe-portal.service';
@@ -13,6 +14,7 @@ import { StripePortalService } from './stripe-portal.service';
 export class BillingController {
   constructor(
     private readonly billing: BillingService,
+    private readonly entitlements: BillingEntitlementService,
     private readonly checkout: StripeCheckoutService,
     private readonly portal: StripePortalService,
   ) {}
@@ -49,6 +51,19 @@ export class BillingController {
   })
   launchPortal(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenantId: string) {
     return this.portal.launch(req.actor, tenantId);
+  }
+
+  @Get('entitlements')
+  @ApiOperation({
+    summary: 'Preview tenant quota counts and deny-only commercial entitlement policy',
+    description:
+      'Owner/admin read-only diagnostic. Counts active staff/channels, marks undefined billable metrics, and NEVER authorizes paid automation, regardless of Stripe status.',
+  })
+  entitlementAssessment(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+  ) {
+    return this.entitlements.assess(req.actor, tenantId);
   }
 
   @Get('subscription')
