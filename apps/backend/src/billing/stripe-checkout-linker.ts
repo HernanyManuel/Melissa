@@ -59,8 +59,9 @@ export async function linkStoredStripeTestCheckout(
       typeof signed.id !== 'string' || !/^cs_test_[A-Za-z0-9_]{1,240}$/.test(signed.id))
     return audit(db, 'rejected', 'event_not_eligible');
 
+  const sessionId = signed.id as string;
   const intent = await db.stripeCheckoutIntent.findUnique({
-    where: { checkoutSessionId: signed.id },
+    where: { checkoutSessionId: sessionId },
     select: {
       id: true, tenantId: true, planId: true, stripePriceId: true,
       checkoutSessionId: true, status: true, expiresAt: true, createdAt: true,
@@ -82,7 +83,7 @@ export async function linkStoredStripeTestCheckout(
       },
     });
     if (!current || current.status !== 'ready' ||
-        current.checkoutSessionId !== signed.id || current.tenantId !== intent.tenantId ||
+        current.checkoutSessionId !== sessionId || current.tenantId !== intent.tenantId ||
         current.planId !== intent.planId)
       return audit(tx, 'rejected', 'intent_not_ready', intent.id);
     const plan = await tx.billingPlan.findUnique({
@@ -95,10 +96,10 @@ export async function linkStoredStripeTestCheckout(
     let session;
     let subscription;
     try {
-      session = stripeTestCheckoutSessionSnapshot(await provider.retrieveSession(signed.id));
+      session = stripeTestCheckoutSessionSnapshot(await provider.retrieveSession(sessionId));
       if (!session)
         return audit(tx, 'rejected', 'invalid_provider_snapshot', current.id);
-      if (session.id !== signed.id || session.reference !== current.id ||
+      if (session.id !== sessionId || session.reference !== current.id ||
           session.expiresAt.getTime() !==
             Math.floor(current.expiresAt.getTime() / 1000) * 1000 ||
           session.created.getTime() < current.createdAt.getTime() - 300000 ||
@@ -140,12 +141,13 @@ export async function linkStoredStripeTestCheckout(
       take: 5,
     });
     if (collisions.length) {
-      const replay = collisions.length === 1 && collisions[0].tenantId === current.tenantId &&
-        collisions[0].planId === current.planId &&
-        collisions[0].provider === 'stripe' &&
-        collisions[0].providerCustomerId === session.customer &&
-        collisions[0].providerSubscriptionId === session.subscription &&
-        collisions[0].checkoutSessionId === session.id;
+      const linked = collisions[0]!;
+      const replay = collisions.length === 1 && linked.tenantId === current.tenantId &&
+        linked.planId === current.planId &&
+        linked.provider === 'stripe' &&
+        linked.providerCustomerId === session.customer &&
+        linked.providerSubscriptionId === session.subscription &&
+        linked.checkoutSessionId === session.id;
       return audit(tx, replay ? 'replayed' : 'rejected',
         replay ? 'already_linked' : 'binding_conflict',
         current.id, replay ? current.tenantId : undefined);

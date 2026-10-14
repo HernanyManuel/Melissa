@@ -87,7 +87,7 @@ test('test Checkout linker authenticates ownership by stored intent, matches pro
     });
     await admin.billingPlan.create({ data: sourcePlan });
     const { intent, eventId } = await setup(tenantA);
-    const session = (overrides: Record<string,unknown> = {}): unknown => ({
+    const session = (overrides: Record<string,unknown> = {}): Record<string,unknown> => ({
       id: intent.checkoutSessionId, object: 'checkout.session',
       mode: 'subscription', livemode: false, status: 'complete',
       payment_status: 'paid', client_reference_id: intent.id,

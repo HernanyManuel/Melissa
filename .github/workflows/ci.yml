@@ -56,7 +56,7 @@ jobs:
           DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm db:migrate
           psql "${MIGRATION_DATABASE_URL%%\?*}" -v ON_ERROR_STOP=1 -v reconciler_password=ci-billing-only -f infra/scripts/billing-reconciler-login.sql
       - name: Provision test-only restricted billing linker
-        run: psql "${MIGRATION_DATABASE_URL%%\\?*}" -v ON_ERROR_STOP=1 -v linker_password=ci-linker-only -f infra/scripts/billing-linker-login.sql
+        run: psql "${MIGRATION_DATABASE_URL%%\?*}" -v ON_ERROR_STOP=1 -v linker_password=ci-linker-only -f infra/scripts/billing-linker-login.sql
       - name: Verify idempotent development seed
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
