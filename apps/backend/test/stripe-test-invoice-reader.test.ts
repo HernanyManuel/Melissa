@@ -7,12 +7,19 @@ import {
 
 const paidAt = 1780000000;
 const invoice = {
-  object: 'invoice', id: 'in_fixture123', livemode: false,
+  object: 'invoice',
+  id: 'in_fixture123',
+  livemode: false,
   customer: 'cus_fixture123',
   parent: { subscription_details: { subscription: 'sub_fixture123' } },
-  collection_method: 'charge_automatically', paid: true,
-  paid_out_of_band: false, status: 'paid', currency: 'eur',
-  amount_paid: 1999, total: 1999, amount_remaining: 0,
+  collection_method: 'charge_automatically',
+  paid: true,
+  paid_out_of_band: false,
+  status: 'paid',
+  currency: 'eur',
+  amount_paid: 1999,
+  total: 1999,
+  amount_remaining: 0,
   status_transitions: { paid_at: paidAt },
 };
 

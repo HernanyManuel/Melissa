@@ -8,9 +8,15 @@ import {
 
 export type InvoiceEvidenceOutcome = 'recorded' | 'replayed' | 'rejected' | 'deferred';
 export type InvoiceEvidenceReason =
-  | 'provider_verified' | 'already_recorded' | 'unsupported_event'
-  | 'unknown_subscription' | 'invalid_provider_snapshot' | 'provider_unavailable'
-  | 'invoice_mismatch' | 'subscription_mismatch' | 'untrusted_checkout'
+  | 'provider_verified'
+  | 'already_recorded'
+  | 'unsupported_event'
+  | 'unknown_subscription'
+  | 'invalid_provider_snapshot'
+  | 'provider_unavailable'
+  | 'invoice_mismatch'
+  | 'subscription_mismatch'
+  | 'untrusted_checkout'
   | 'binding_conflict';
 export interface InvoiceEvidenceResult {
   outcome: InvoiceEvidenceOutcome;
@@ -19,7 +25,8 @@ export interface InvoiceEvidenceResult {
 
 function obj(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown> : null;
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 // The signed inbox supplies ONLY an invoice ID, never a tenant or an

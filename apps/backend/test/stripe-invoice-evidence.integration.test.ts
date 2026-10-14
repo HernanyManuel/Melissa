@@ -5,9 +5,9 @@ import { test } from 'node:test';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { recordStoredStripeTestInvoice } from '../src/billing/stripe-invoice-evidence-verifier';
 
-const uuidPart=()=>randomUUID().replace(/-/g,'');
-const eventId=()=> 'evt_'+uuidPart();
-const invoiceId=()=> 'in_'+uuidPart();
+const uuidPart = () => randomUUID().replace(/-/g, '');
+const eventId = () => 'evt_' + uuidPart();
+const invoiceId = () => 'in_' + uuidPart();
 
 // PostgreSQL real: RLS, verifier grants, signed inbox references,
 // provider mocked (NOT a Stripe sandbox E2E or payment settlement test).

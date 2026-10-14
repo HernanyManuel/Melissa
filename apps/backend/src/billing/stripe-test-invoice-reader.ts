@@ -13,8 +13,12 @@ function obj(value: unknown): Record<string, unknown> | null {
 }
 
 function timestamp(value: unknown): number | null {
-  return typeof value === 'number' && Number.isSafeInteger(value) &&
-    value >= 1000000000 && value < 253402300800 ? value : null;
+  return typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value >= 1000000000 &&
+    value < 253402300800
+    ? value
+    : null;
 }
 
 export interface PaidTestInvoiceSnapshot {
@@ -82,9 +86,12 @@ export class StripeTestInvoiceReader implements StripeInvoiceEvidenceProvider {
       redirect: 'error',
       signal: AbortSignal.timeout(5000),
     });
-    if (response.status !== 200 ||
-        !response.headers.get('content-type')?.includes('application/json') ||
-        !response.body) throw new Error('Stripe test evidence provider unavailable');
+    if (
+      response.status !== 200 ||
+      !response.headers.get('content-type')?.includes('application/json') ||
+      !response.body
+    )
+      throw new Error('Stripe test evidence provider unavailable');
     const chunks: Uint8Array[] = [];
     let bytes = 0;
     const reader = response.body.getReader();
