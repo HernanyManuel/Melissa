@@ -20,6 +20,12 @@ export interface TechnicalUsageReport {
   events: string;
   inputTokens: string;
   outputTokens: string;
+  conversationCandidate: {
+    definition: 'distinct_completed_ai_turn_conversations_30d';
+    count: string;
+    commercialPolicy: 'draft_only';
+    billable: false;
+  };
   outcomes: Array<{
     outcome: string;
     events: string;
@@ -45,6 +51,16 @@ export class BillingUsageService {
         WHERE tenant_id=${tenantId}::uuid
           AND observed_at >= ${from} AND observed_at < ${to}
         GROUP BY source_outcome ORDER BY source_outcome`;
+      // A draft candidate counts distinct conversations with at least one
+      // completed AI turn inside the SAME rolling 30-day window. This is
+      // NOT a billable conversation or an approved pricing period.
+      const [candidate] = await tx.$queryRaw<Array<{ count: string }>>`
+        SELECT COUNT(DISTINCT t.conversation_id)::text AS count
+        FROM billing_usage_observations AS o
+        JOIN ai_turns AS t ON t.tenant_id=o.tenant_id AND t.id=o.turn_id
+        WHERE o.tenant_id=${tenantId}::uuid
+          AND o.observed_at >= ${from} AND o.observed_at < ${to}
+          AND o.source_outcome='completed'`;
       let events = 0n;
       let inputTokens = 0n;
       let outputTokens = 0n;
@@ -62,6 +78,12 @@ export class BillingUsageService {
         events: events.toString(),
         inputTokens: inputTokens.toString(),
         outputTokens: outputTokens.toString(),
+        conversationCandidate: {
+          definition: 'distinct_completed_ai_turn_conversations_30d',
+          count: candidate?.count ?? '0',
+          commercialPolicy: 'draft_only',
+          billable: false,
+        },
         outcomes: rows.map(({ sourceOutcome, ...totals }) => ({
           outcome: sourceOutcome,
           ...totals,
