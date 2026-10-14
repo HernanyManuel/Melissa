@@ -4,6 +4,7 @@ import './stripe-checkout-provider.test';
 import './stripe-test-portal-provider.test';
 import './stripe-test-checkout-session-reader.test';
 import './stripe-test-dispatcher.test';
+import './stripe-test-invoice-reader.test';
 import './entitlement-policy.test';
 import './quarantine-policy.test';
 import './receipt-state.test';
