@@ -64,6 +64,22 @@ test('Phase 9 billing foundation isolates tenant subscriptions and fails closed'
       { name: 'Billing B', countryCode: 'PT', timezone: 'Europe/Lisbon' }, foreign.token), 201);
     const plansA = `/tenants/${tenantA.id}/billing/plans`;
     const subscriptionA = `/tenants/${tenantA.id}/billing/subscription`;
+    const assessmentA = `/tenants/${tenantA.id}/billing/entitlements`;
+    assert.equal((await call('GET', assessmentA)).status, 401);
+    assert.equal((await call('GET', assessmentA, undefined, foreign.token)).status, 404);
+    const emptyAssessment = await data<{
+      decision: { allowed: boolean; blockers: string[]; billingVerified: boolean };
+      quotaPreview: { staff: { used: number; limit: number | null };
+        conversations: { measured: boolean }; locations: { measured: boolean } };
+    }>(await call('GET', assessmentA, undefined, owner.token), 200);
+    assert.equal(emptyAssessment.decision.allowed, false);
+    assert.equal(emptyAssessment.decision.billingVerified, false);
+    assert(emptyAssessment.decision.blockers.includes('missing_subscription'));
+    assert.equal(emptyAssessment.quotaPreview.staff.limit, null);
+    assert.equal(emptyAssessment.quotaPreview.staff.used, 0);
+    assert.equal(emptyAssessment.quotaPreview.conversations.measured, false);
+    assert.equal(emptyAssessment.quotaPreview.locations.measured, false);
+
     assert.equal((await call('GET', plansA)).status, 401);
     assert.equal((await call('GET', plansA, undefined, foreign.token)).status, 404);
     assert.equal((await call('GET', subscriptionA, undefined, foreign.token)).status, 404);
@@ -109,6 +125,8 @@ test('Phase 9 billing foundation isolates tenant subscriptions and fails closed'
       data: { tenantId: tenantA.id, userId: foreign.id, role: 'viewer' },
     });
     assert.equal((await call('GET', plansA, undefined, foreign.token)).status, 403);
+    assert.equal((await call('GET', assessmentA, undefined, foreign.token)).status, 403);
+    assert.equal((await call('POST', assessmentA, { allowed: true }, owner.token)).status, 404);
     assert.equal((await call('GET', subscriptionA, undefined, foreign.token)).status, 403);
     assert.equal((await call('POST', plansA, { active: true }, owner.token)).status, 404);
     assert.equal((await call('POST', subscriptionA, { status: 'active' }, owner.token)).status, 404);
@@ -138,6 +156,86 @@ test('Phase 9 billing foundation isolates tenant subscriptions and fails closed'
     assert(!JSON.stringify(detail).includes('cus_private_test'));
     assert(!JSON.stringify(detail).includes('sub_private_test'));
     assert(!JSON.stringify(detail).includes('price_private_test'));
+    const usagePrefix = randomUUID();
+    await admin.staff.createMany({ data: [
+      { tenantId: tenantA.id, id: randomUUID(), name: 'Quota A',
+        timezone: 'Europe/Lisbon', active: true },
+      { tenantId: tenantA.id, id: randomUUID(), name: 'Quota B',
+        timezone: 'Europe/Lisbon', active: true },
+    ] });
+    await admin.staff.create({
+      data: { tenantId: tenantB.id, id: randomUUID(), name: 'Foreign',
+        timezone: 'Europe/Lisbon', active: true },
+    });
+    await admin.channelConnection.create({
+      data: { tenantId: tenantA.id, id: randomUUID(),
+        channelType: 'whatsapp', mode: 'mock',
+        externalAccountId: 'mock:' + usagePrefix,
+        externalPhoneId: 'mock:' + usagePrefix,
+        displayName: 'Quota channel', status: 'active' },
+    });
+    const observed = await data<{
+      decision: { allowed: boolean; automationEnabled: boolean;
+        billingVerified: boolean; blockers: string[] };
+      quotaPreview: {
+        staff: { used: number; limit: number; exceeded: boolean; enforceable: boolean };
+        channels: { used: number; limit: number; exceeded: boolean };
+        conversations: { measured: boolean; used: null };
+        messages: { measured: boolean; used: null };
+        locations: { measured: boolean; used: null };
+      };
+    }>(await call('GET', assessmentA, undefined, owner.token), 200);
+    assert.equal(observed.decision.allowed, false);
+    assert.equal(observed.decision.automationEnabled, false);
+    assert.equal(observed.decision.billingVerified, false);
+    assert(observed.decision.blockers.includes('activation_gate_closed'));
+    assert(observed.decision.blockers.includes('untrusted_checkout'));
+    assert.equal(observed.quotaPreview.staff.used, 2);
+    assert.equal(observed.quotaPreview.staff.limit, 1);
+    assert.equal(observed.quotaPreview.staff.exceeded, true);
+    assert.equal(observed.quotaPreview.staff.enforceable, false);
+    assert.equal(observed.quotaPreview.channels.used, 1);
+    assert.equal(observed.quotaPreview.channels.exceeded, false);
+    assert.equal(observed.quotaPreview.conversations.measured, false);
+    assert.equal(observed.quotaPreview.messages.used, null);
+    assert.equal(observed.quotaPreview.locations.used, null);
+    assert(!JSON.stringify(observed).includes('cus_private_test'));
+    assert(!JSON.stringify(observed).includes('stripePriceId'));
+    const foreignAssessment = await data<{
+      decision: { allowed: boolean }; quotaPreview: { staff: { used: number; limit: null } };
+    }>(await call('GET', `/tenants/${tenantB.id}/billing/entitlements`,
+      undefined, foreign.token), 200);
+    assert.equal(foreignAssessment.decision.allowed, false);
+    assert.equal(foreignAssessment.quotaPreview.staff.used, 1);
+    assert.equal(foreignAssessment.quotaPreview.staff.limit, null);
+
+    const [gate] = await admin.$queryRaw<Array<{ enabled: boolean; policy_version: number }>>`
+      SELECT enabled,policy_version FROM billing_entitlement_activation_gate
+      WHERE key='paid_automation'`;
+    assert.deepEqual(gate, { enabled: false, policy_version: 1 });
+    await assert.rejects(admin.$executeRaw`
+      UPDATE billing_entitlement_activation_gate SET enabled=TRUE
+      WHERE key='paid_automation'`);
+    const [gateRls] = await deps.db.$queryRaw<Array<{
+      relrowsecurity: boolean; relforcerowsecurity: boolean;
+    }>>`SELECT relrowsecurity,relforcerowsecurity FROM pg_class
+      WHERE relname='billing_entitlement_activation_gate'`;
+    assert.deepEqual(gateRls, { relrowsecurity: true, relforcerowsecurity: true });
+    const [gateGrants] = await admin.$queryRaw<Array<{
+      canSelect: boolean; canInsert: boolean; canUpdate: boolean; canDelete: boolean;
+    }>>`SELECT
+      has_table_privilege('melissa_runtime','billing_entitlement_activation_gate','SELECT')
+        AS "canSelect",
+      has_table_privilege('melissa_runtime','billing_entitlement_activation_gate','INSERT')
+        AS "canInsert",
+      has_table_privilege('melissa_runtime','billing_entitlement_activation_gate','UPDATE')
+        AS "canUpdate",
+      has_table_privilege('melissa_runtime','billing_entitlement_activation_gate','DELETE')
+        AS "canDelete"`;
+    assert.deepEqual(gateGrants, {
+      canSelect: true, canInsert: false, canUpdate: false, canDelete: false,
+    });
+
     assert.equal((await call('GET', subscriptionA, undefined, foreign.token)).status, 403);
     const other = await data<{ subscription: null }>(
       await call('GET', `/tenants/${tenantB.id}/billing/subscription`,
