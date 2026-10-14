@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } fro
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { BillingService } from './billing.service';
+import { BillingUsageService } from './billing-usage.service';
 import { BillingEntitlementService } from './billing-entitlement.service';
 import { StripeCheckoutService } from './stripe-checkout.service';
 import { CheckoutDto } from './checkout.dto';
@@ -14,6 +15,7 @@ import { StripePortalService } from './stripe-portal.service';
 export class BillingController {
   constructor(
     private readonly billing: BillingService,
+    private readonly usage: BillingUsageService,
     private readonly entitlements: BillingEntitlementService,
     private readonly checkout: StripeCheckoutService,
     private readonly portal: StripePortalService,
@@ -51,6 +53,16 @@ export class BillingController {
   })
   launchPortal(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenantId: string) {
     return this.portal.launch(req.actor, tenantId);
+  }
+
+  @Get('usage')
+  @ApiOperation({
+    summary: 'Read 30-day technical AI token observations without calculating charges',
+    description:
+      'Owner/admin only. Source is the immutable AI usage journal. Counts are not billable conversations, monetary amounts, or entitlements.',
+  })
+  usageReport(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenantId: string) {
+    return this.usage.report(req.actor, tenantId);
   }
 
   @Get('entitlements')
