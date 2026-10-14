@@ -26,7 +26,7 @@ function object(value: unknown): Record<string, unknown> | null {
 // Exact two-decimal catalog amounts only in this limited test-mode increment.
 // Other currencies and arbitrary decimal fractions fail closed until pricing is specified.
 export function minorUnits(amount: string): number | null {
-  if (!/^\\d{1,10}(?:\\.\\d{1,6})?$/.test(amount)) return null;
+  if (!/^\d{1,10}(?:\.\d{1,6})?$/.test(amount)) return null;
   const [whole, fraction = ''] = amount.split('.');
   if (fraction.slice(2).replace(/0/g, '') !== '') return null;
   const result = Number(whole) * 100 + Number(fraction.padEnd(2, '0').slice(0, 2));
