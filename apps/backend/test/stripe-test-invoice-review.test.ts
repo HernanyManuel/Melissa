@@ -2,32 +2,60 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { parseStripeTestInvoiceReview } from '../src/billing/stripe-test-invoice-review';
 
-const start=1790899200, end=1793577600, paidAt=1790900000;
-const expected={
-  invoiceId:'in_review',customerId:'cus_review',subscriptionId:'sub_review',
-  priceId:'price_review',currency:'EUR',amountPaidMinor:1999n,
-  paidAt:new Date(paidAt*1000),
+const start = 1790899200,
+  end = 1793577600,
+  paidAt = 1790900000;
+const expected = {
+  invoiceId: 'in_review',
+  customerId: 'cus_review',
+  subscriptionId: 'sub_review',
+  priceId: 'price_review',
+  currency: 'EUR',
+  amountPaidMinor: 1999n,
+  paidAt: new Date(paidAt * 1000),
 };
-const invoice={
-  object:'invoice',id:expected.invoiceId,livemode:false,status:'paid',
-  paid:true,paid_out_of_band:false,collection_method:'charge_automatically',
-  customer:expected.customerId,currency:'eur',amount_paid:1999,
-  total:1999,amount_remaining:0,
-  parent:{subscription_details:{subscription:expected.subscriptionId}},
-  status_transitions:{paid_at:paidAt},
-  lines:{object:'list',has_more:false,data:[{
-    object:'line_item',livemode:false,
-    parent:{type:'subscription_item_details',
-      subscription_item_details:{subscription:expected.subscriptionId}},
-    pricing:{type:'price_details',
-      price_details:{price:expected.priceId}},
-    period:{start,end},
-  }]},
+const invoice = {
+  object: 'invoice',
+  id: expected.invoiceId,
+  livemode: false,
+  status: 'paid',
+  paid: true,
+  paid_out_of_band: false,
+  collection_method: 'charge_automatically',
+  customer: expected.customerId,
+  currency: 'eur',
+  amount_paid: 1999,
+  total: 1999,
+  amount_remaining: 0,
+  parent: { subscription_details: { subscription: expected.subscriptionId } },
+  status_transitions: { paid_at: paidAt },
+  lines: {
+    object: 'list',
+    has_more: false,
+    data: [
+      {
+        object: 'line_item',
+        livemode: false,
+        parent: {
+          type: 'subscription_item_details',
+          subscription_item_details: { subscription: expected.subscriptionId },
+        },
+        pricing: { type: 'price_details', price_details: { price: expected.priceId } },
+        period: { start, end },
+      },
+    ],
+  },
 };
-const emptyNotes={object:'list',has_more:false,data:[]};
-const note=(status:'issued'|'void',amount:number)=>({
-  id:'cn_'+status,object:'credit_note',livemode:false,status,amount,
-  invoice:expected.invoiceId,customer:expected.customerId,currency:'eur',
+const emptyNotes = { object: 'list', has_more: false, data: [] };
+const note = (status: 'issued' | 'void', amount: number) => ({
+  id: 'cn_' + status,
+  object: 'credit_note',
+  livemode: false,
+  status,
+  amount,
+  invoice: expected.invoiceId,
+  customer: expected.customerId,
+  currency: 'eur',
 });
 
 // prettier-ignore

@@ -8,9 +8,15 @@ import {
 
 export type InvoiceReviewOutcome = 'recorded' | 'replayed' | 'rejected' | 'deferred';
 export type InvoiceReviewReason =
-  | 'snapshot_observed' | 'already_observed' | 'provider_unavailable'
-  | 'invalid_period' | 'invalid_credit_notes' | 'incomplete_credits'
-  | 'invoice_mismatch' | 'subscription_mismatch' | 'untrusted_checkout';
+  | 'snapshot_observed'
+  | 'already_observed'
+  | 'provider_unavailable'
+  | 'invalid_period'
+  | 'invalid_credit_notes'
+  | 'incomplete_credits'
+  | 'invoice_mismatch'
+  | 'subscription_mismatch'
+  | 'untrusted_checkout';
 
 export interface InvoiceReviewResult {
   outcome: InvoiceReviewOutcome;

@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
-import { StripeTestInvoiceReader, stripeTestPaidInvoiceSnapshot } from './stripe-test-invoice-reader';
+import {
+  StripeTestInvoiceReader,
+  stripeTestPaidInvoiceSnapshot,
+} from './stripe-test-invoice-reader';
 
 export interface StripeInvoiceReviewProvider {
   retrieveInvoice(id: string): Promise<unknown>;
@@ -17,14 +20,19 @@ export interface StripeInvoiceReviewSnapshot {
 
 function obj(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown> : null;
+    ? (value as Record<string, unknown>)
+    : null;
 }
 function seconds(value: unknown): number | null {
-  return typeof value === 'number' && Number.isSafeInteger(value)
-    && value >= 1000000000 && value < 253402300800 ? value : null;
+  return typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value >= 1000000000 &&
+    value < 253402300800
+    ? value
+    : null;
 }
-const ID=/^price_[A-Za-z0-9_-]{1,249}$/;
-const NOTE=/^cn_[A-Za-z0-9_]{1,250}$/;
+const ID = /^price_[A-Za-z0-9_-]{1,249}$/;
+const NOTE = /^cn_[A-Za-z0-9_]{1,250}$/;
 
 export type ReviewParseResult =
   | { outcome: 'valid'; snapshot: StripeInvoiceReviewSnapshot }
@@ -115,11 +123,13 @@ export function parseStripeTestInvoiceReview(
 }
 
 // Reuse the ADR-115 bounded HTTP client and test credentials.
-export class StripeTestInvoiceReviewReader extends StripeTestInvoiceReader
-  implements StripeInvoiceReviewProvider {
+export class StripeTestInvoiceReviewReader
+  extends StripeTestInvoiceReader
+  implements StripeInvoiceReviewProvider
+{
   async listCreditNotes(invoiceId: string): Promise<unknown> {
     if (!/^in_[A-Za-z0-9_]{1,250}$/.test(invoiceId))
       throw new Error('Invalid Stripe test invoice ID');
-    return this.readTestResource('/v1/credit_notes?invoice='+invoiceId+'&limit=100');
+    return this.readTestResource('/v1/credit_notes?invoice=' + invoiceId + '&limit=100');
   }
 }
