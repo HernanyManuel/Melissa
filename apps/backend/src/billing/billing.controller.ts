@@ -1,14 +1,19 @@
-import { Controller, Get, Param, ParseUUIDPipe, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { BillingService } from './billing.service';
+import { StripeCheckoutService } from './stripe-checkout.service';
+import { CheckoutDto } from './checkout.dto';
 
 @ApiTags('Billing (read-only foundation)')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('api/v1/tenants/:tenantId/billing')
 export class BillingController {
-  constructor(private readonly billing: BillingService) {}
+  constructor(
+    private readonly billing: BillingService,
+    private readonly checkout: StripeCheckoutService,
+  ) {}
 
   @Get('plans')
   @ApiOperation({
@@ -18,6 +23,20 @@ export class BillingController {
   })
   plans(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenantId: string) {
     return this.billing.plans(req.actor, tenantId);
+  }
+
+  @Post('checkout')
+  @ApiOperation({
+    summary: 'Create an idempotent Stripe TEST hosted Checkout session',
+    description:
+      'Owner/admin only; opt-in test mode. A checkout URL is not payment verification, subscription association or an entitlement.',
+  })
+  createCheckout(
+    @Req() req: AuthRequest,
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Body() body: CheckoutDto,
+  ) {
+    return this.checkout.create(req.actor, tenantId, body);
   }
 
   @Get('subscription')

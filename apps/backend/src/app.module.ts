@@ -13,6 +13,8 @@ import { BusinessController } from './business/business.controller';
 import { BusinessService } from './business/business.service';
 import { BillingController } from './billing/billing.controller';
 import { BillingService } from './billing/billing.service';
+import { StripeCheckoutService } from './billing/stripe-checkout.service';
+import { StripeCheckoutGateway } from './billing/stripe-test-checkout-provider';
 import { StripeWebhookController } from './billing/stripe-webhook.controller';
 import { StripeWebhookInbox } from './billing/stripe-webhook.inbox';
 import { BookingAdminService } from './business/booking-admin.service';
@@ -57,6 +59,8 @@ import {
     TenantService,
     BusinessService,
     BillingService,
+    StripeCheckoutService,
+    StripeCheckoutGateway,
     StripeWebhookInbox,
     BookingAdminService,
     CustomerService,

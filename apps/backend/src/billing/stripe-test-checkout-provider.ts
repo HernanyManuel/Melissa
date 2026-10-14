@@ -33,6 +33,21 @@ export function minorUnits(amount: string): number | null {
   return Number.isSafeInteger(result) && result > 0 && result <= 99999999 ? result : null;
 }
 
+import { Injectable, Inject } from '@nestjs/common';
+import { CONFIG, Configuration } from '../config';
+
+@Injectable()
+export class StripeCheckoutGateway {
+  constructor(@Inject(CONFIG) private readonly config: Configuration) {}
+  private get provider(): StripeTestCheckoutProvider {
+    return new StripeTestCheckoutProvider(this.config.STRIPE_TEST_SECRET_KEY ?? '');
+  }
+  validatePrice(plan: CheckoutPlanPrice) { return this.provider.validatePrice(plan); }
+  createSession(args: {
+    intentId: string; priceId: string; tenantId: string; origin: string; expiresAt: Date; expiresAt: Date;
+  }) { return this.provider.createSession(args); }
+}
+
 export class StripeTestCheckoutProvider {
   constructor(private readonly secretKey: string, private readonly http: HttpFetch = fetch) {
     if (!/^sk_test_[A-Za-z0-9_-]{16,256}$/.test(secretKey))
@@ -102,6 +117,7 @@ export class StripeTestCheckoutProvider {
       'line_items[0][price]': args.priceId,
       'line_items[0][quantity]': '1',
       client_reference_id: args.intentId,
+      expires_at: Math.floor(args.expiresAt.getTime() / 1000).toString(),
       success_url: args.origin + '/billing/' + args.tenantId + '?checkout=return',
       cancel_url: args.origin + '/billing/' + args.tenantId + '?checkout=cancel',
     });
