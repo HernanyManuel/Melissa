@@ -5,7 +5,7 @@ import { BillingService } from './billing.service';
 import { StripeCheckoutService } from './stripe-checkout.service';
 import { CheckoutDto } from './checkout.dto';
 
-@ApiTags('Billing (read-only foundation)')
+@ApiTags('Billing (test Checkout foundation)')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('api/v1/tenants/:tenantId/billing')

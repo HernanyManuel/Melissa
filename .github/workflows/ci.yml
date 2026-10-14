@@ -58,13 +58,6 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
-      # Temporary tooling: emit the deterministic Prettier output for this incremental change.
-      # The step will be removed before the final CI; code contents only, no secrets.
-      - name: Emit ADR-109 formatting for review
-        run: |
-          for f in apps/backend/src/billing/stripe-checkout.service.ts apps/backend/src/billing/stripe-test-checkout-provider.ts apps/backend/src/config.ts apps/backend/test/stripe-checkout-provider.test.ts; do
-            pnpm exec prettier "$f" | base64 -w0 | fold -w 1600 | awk -v file="$f" '{print "MELISSA_FORMATTED:" file ":" NR ":" $0}'
-          done
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck

@@ -10,7 +10,10 @@ const schema = z.object({
   MESSAGE_DEBOUNCE_MS: z.coerce.number().int().min(100).max(2000).default(1500),
   // Stripe ingestion is off by default and restricted to non-live events.
   STRIPE_TEST_CHECKOUT_ENABLED: z.enum(['false', 'true']).default('false'),
-  STRIPE_TEST_SECRET_KEY: z.string().regex(/^sk_test_[A-Za-z0-9_-]{16,256}$/).optional(),
+  STRIPE_TEST_SECRET_KEY: z
+    .string()
+    .regex(/^sk_test_[A-Za-z0-9_-]{16,256}$/)
+    .optional(),
   STRIPE_TEST_CHECKOUT_RETURN_ORIGIN: z.string().url().optional(),
   STRIPE_WEBHOOK_ENABLED: z.enum(['false', 'true']).default('false'),
   STRIPE_WEBHOOK_SECRET: z
@@ -172,9 +175,15 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
       throw new Error('Stripe test Checkout requires server-side key and return origin');
     const url = new URL(result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN);
     const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-    if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) ||
-        url.username || url.password || url.pathname !== '/' || url.search || url.hash ||
-        url.origin !== result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN)
+    if (
+      (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) ||
+      url.username ||
+      url.password ||
+      url.pathname !== '/' ||
+      url.search ||
+      url.hash ||
+      url.origin !== result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN
+    )
       throw new Error('Stripe test Checkout requires a safe exact return origin');
   }
   if (result.data.STRIPE_WEBHOOK_ENABLED === 'true' && !result.data.STRIPE_WEBHOOK_SECRET)

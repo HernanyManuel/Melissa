@@ -20,7 +20,8 @@ const STRIPE_VERSION = '2025-09-30.clover';
 
 function object(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? value as Record<string, unknown> : null;
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 // Exact two-decimal catalog amounts only in this limited test-mode increment.
@@ -42,14 +43,25 @@ export class StripeCheckoutGateway {
   private get provider(): StripeTestCheckoutProvider {
     return new StripeTestCheckoutProvider(this.config.STRIPE_TEST_SECRET_KEY ?? '');
   }
-  validatePrice(plan: CheckoutPlanPrice) { return this.provider.validatePrice(plan); }
+  validatePrice(plan: CheckoutPlanPrice) {
+    return this.provider.validatePrice(plan);
+  }
   createSession(args: {
-    intentId: string; priceId: string; tenantId: string; origin: string; expiresAt: Date;
-  }) { return this.provider.createSession(args); }
+    intentId: string;
+    priceId: string;
+    tenantId: string;
+    origin: string;
+    expiresAt: Date;
+  }) {
+    return this.provider.createSession(args);
+  }
 }
 
 export class StripeTestCheckoutProvider {
-  constructor(private readonly secretKey: string, private readonly http: HttpFetch = fetch) {
+  constructor(
+    private readonly secretKey: string,
+    private readonly http: HttpFetch = fetch,
+  ) {
     if (!/^sk_test_[A-Za-z0-9_-]{16,256}$/.test(secretKey))
       throw new Error('Stripe Checkout requires a test-mode key');
   }
@@ -66,8 +78,12 @@ export class StripeTestCheckoutProvider {
       redirect: 'error',
       signal: AbortSignal.timeout(5000),
     });
-    if (res.status !== 200 || !res.headers.get('content-type')?.includes('application/json') ||
-        !res.body) throw new Error('Stripe test provider unavailable');
+    if (
+      res.status !== 200 ||
+      !res.headers.get('content-type')?.includes('application/json') ||
+      !res.body
+    )
+      throw new Error('Stripe test provider unavailable');
     const reader = res.body.getReader();
     const parts: Uint8Array[] = [];
     let length = 0;
@@ -88,29 +104,40 @@ export class StripeTestCheckoutProvider {
   }
 
   async validatePrice(plan: CheckoutPlanPrice): Promise<void> {
-    if (!/^price_[a-zA-Z0-9_-]{1,249}$/.test(plan.priceId) ||
-        !/^prod_[a-zA-Z0-9_-]{1,249}$/.test(plan.productId) ||
-        !['EUR', 'USD'].includes(plan.currency) ||
-        !['month', 'year'].includes(plan.interval))
+    if (
+      !/^price_[a-zA-Z0-9_-]{1,249}$/.test(plan.priceId) ||
+      !/^prod_[a-zA-Z0-9_-]{1,249}$/.test(plan.productId) ||
+      !['EUR', 'USD'].includes(plan.currency) ||
+      !['month', 'year'].includes(plan.interval)
+    )
       throw new Error('Checkout plan mapping is incomplete');
     const amount = minorUnits(plan.amount);
     if (amount === null) throw new Error('Unsupported catalog price');
     const price = await this.request('/v1/prices/' + plan.priceId, { method: 'GET' });
     const recurring = object(price.recurring);
-    if (price.object !== 'price' || price.id !== plan.priceId ||
-        price.livemode !== false || price.active !== true ||
-        price.type !== 'recurring' || price.product !== plan.productId ||
-        price.currency !== plan.currency.toLowerCase() ||
-        price.unit_amount !== amount ||
-        price.billing_scheme !== 'per_unit' ||
-        recurring?.interval !== plan.interval ||
-        recurring?.usage_type !== 'licensed' ||
-        recurring?.interval_count !== 1)
+    if (
+      price.object !== 'price' ||
+      price.id !== plan.priceId ||
+      price.livemode !== false ||
+      price.active !== true ||
+      price.type !== 'recurring' ||
+      price.product !== plan.productId ||
+      price.currency !== plan.currency.toLowerCase() ||
+      price.unit_amount !== amount ||
+      price.billing_scheme !== 'per_unit' ||
+      recurring?.interval !== plan.interval ||
+      recurring?.usage_type !== 'licensed' ||
+      recurring?.interval_count !== 1
+    )
       throw new Error('Stripe test price does not match catalog');
   }
 
   async createSession(args: {
-    intentId: string; priceId: string; tenantId: string; origin: string; expiresAt: Date;
+    intentId: string;
+    priceId: string;
+    tenantId: string;
+    origin: string;
+    expiresAt: Date;
   }): Promise<CheckoutSession> {
     const params = new URLSearchParams({
       mode: 'subscription',
@@ -130,17 +157,30 @@ export class StripeTestCheckoutProvider {
       body: params,
     });
     const expires = session.expires_at;
-    if (session.object !== 'checkout.session' || session.livemode !== false ||
-        session.mode !== 'subscription' || session.status !== 'open' ||
-        session.client_reference_id !== args.intentId ||
-        typeof session.id !== 'string' || !/^cs_test_[a-zA-Z0-9_]{1,240}$/.test(session.id) ||
-        typeof session.url !== 'string' ||
-        typeof expires !== 'number' || !Number.isSafeInteger(expires) ||
-        expires * 1000 <= Date.now() || expires * 1000 > Date.now() + 86400000)
+    if (
+      session.object !== 'checkout.session' ||
+      session.livemode !== false ||
+      session.mode !== 'subscription' ||
+      session.status !== 'open' ||
+      session.client_reference_id !== args.intentId ||
+      typeof session.id !== 'string' ||
+      !/^cs_test_[a-zA-Z0-9_]{1,240}$/.test(session.id) ||
+      typeof session.url !== 'string' ||
+      typeof expires !== 'number' ||
+      !Number.isSafeInteger(expires) ||
+      expires * 1000 <= Date.now() ||
+      expires * 1000 > Date.now() + 86400000
+    )
       throw new Error('Invalid Stripe test Checkout session');
     const url = new URL(session.url);
-    if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com' ||
-        url.port || url.username || url.password || url.hash)
+    if (
+      url.protocol !== 'https:' ||
+      url.hostname !== 'checkout.stripe.com' ||
+      url.port ||
+      url.username ||
+      url.password ||
+      url.hash
+    )
       throw new Error('Unexpected Stripe checkout redirect');
     return { id: session.id, url: session.url, expiresAt: new Date(expires * 1000) };
   }
