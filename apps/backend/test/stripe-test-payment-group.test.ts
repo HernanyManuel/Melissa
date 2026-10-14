@@ -37,7 +37,7 @@ const payments=(data:unknown[],has_more=false)=>({
   object:'list',data,has_more,
 });
 const validPayments=payments([row(1,1000),row(2,999)]);
-const links=[link(1,1000),link(2,999)];
+const links:[PaymentGroupLink,PaymentGroupLink]=[link(1,1000),link(2,999)];
 
 // prettier-ignore
 test('multiple linked Stripe TEST InvoicePayments are only observations',()=>{
