@@ -67,6 +67,11 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
+      - name: ADR-115 exact Prettier output (temporary)
+        run: |
+          for f in apps/backend/src/billing/stripe-invoice-evidence-verifier.ts apps/backend/src/billing/stripe-test-invoice-reader.ts apps/backend/test/stripe-invoice-evidence.integration.test.ts apps/backend/test/stripe-test-invoice-reader.test.ts apps/backend/scripts/verify-stripe-test-invoice.ts; do
+            pnpm exec prettier "$f" | base64 -w0 | fold -w 1600 | awk -v file="$f" '{print "MELISSA_FORMATTED:" file ":" NR ":" $0}'
+          done
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
