@@ -72,7 +72,7 @@ export async function claimStripeTestEvent(
       UPDATE stripe_event_dispatch AS q
       SET state='leased', attempts=q.attempts+1,
           lease_token=${token}::uuid,
-          lease_until=CURRENT_TIMESTAMP + INTERVAL '90 seconds',
+          lease_until=CURRENT_TIMESTAMP + ${LEASE_SECONDS} * INTERVAL '1 second',
           updated_at=CURRENT_TIMESTAMP,
           last_reason=CASE WHEN q.state='leased' THEN 'lease_expired' ELSE q.last_reason END
       FROM due WHERE q.event_id=due.event_id
