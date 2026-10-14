@@ -33,6 +33,7 @@ jobs:
       NODE_ENV: test
       MIGRATION_DATABASE_URL: postgresql://melissa:ci-disposable-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
       DATABASE_URL: postgresql://melissa_runtime:ci-runtime-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
+      BILLING_INVOICE_VERIFIER_DATABASE_URL: postgresql://melissa_billing_invoice_verifier:ci-invoice-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
       BILLING_DISPATCHER_DATABASE_URL: postgresql://melissa_billing_dispatcher:ci-dispatch-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
       BILLING_LINKER_DATABASE_URL: postgresql://melissa_billing_linker:ci-linker-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
       BILLING_RECONCILER_DATABASE_URL: postgresql://melissa_billing_reconciler:ci-billing-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
@@ -60,6 +61,8 @@ jobs:
         run: psql "${MIGRATION_DATABASE_URL%%\?*}" -v ON_ERROR_STOP=1 -v linker_password=ci-linker-only -f infra/scripts/billing-linker-login.sql
       - name: Provision test-only restricted billing dispatcher
         run: psql "${MIGRATION_DATABASE_URL%%\?*}" -v ON_ERROR_STOP=1 -v dispatcher_password=ci-dispatch-only -f infra/scripts/billing-dispatcher-login.sql
+      - name: Provision test-only restricted invoice verifier
+        run: psql "${MIGRATION_DATABASE_URL%%\?*}" -v ON_ERROR_STOP=1 -v invoice_verifier_password=ci-invoice-only -f infra/scripts/billing-invoice-verifier-login.sql
       - name: Verify idempotent development seed
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
