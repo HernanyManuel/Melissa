@@ -1,3 +1,7 @@
+## Décima quarta fatia — ADR-118 (schema 76): paginação de segurança e grupos de pagamento
+
+`readBoundedStripeList` percorre até 3 páginas/100 itens de InvoicePayments, refunds, disputes e credit notes, sempre com cursor Stripe e sinalização incompleta (`deferred`) quando excede teto. O comando operador `stripe:payment-group-test in_...`, com papel independente no modo TEST, verifica 2–8 alocações exatas à invoice e PIs/Charges individuais vinculados ao tenant e regista um digest imutável. **Não** reconcilia refunds/disputes de todas as Charges nem prova settlement, pelo que o novo ledger mantém todas as flags de clearing, pagamento final, direitos e faturação em `false`. [ADR-118](decisions/ADR-118-bounded-stripe-test-pagination-and-payment-groups.md).
+
 ## Décima terceira fatia — ADR-117 (schema 75): risco observado de refund/dispute Stripe TEST
 
 `stripe:payment-risk-test in_...` é uma revisão manual de fatura em modo Stripe TEST, limitada ao verificador de invoice NOLOGIN-by-default. Valida invoice/customer/subscription/Checkout, encadeia Stripe InvoicePayment→PaymentIntent→Charge e observa listas completas de refunds e disputes vinculadas à charge. Snapshots imutáveis conservam estados e contagens, mas `financial_clearance=false`, `refunds_final=false`, `settlement_verified=false`, `billable=false` são irrevogáveis neste schema. Sem leitura pela API, sem criação/encerramento de refunds/disputes, e sem direitos pagos. [ADR-117](decisions/ADR-117-stripe-test-refund-dispute-risk-observations.md).
