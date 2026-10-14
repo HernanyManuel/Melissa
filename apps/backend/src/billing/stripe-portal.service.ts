@@ -52,8 +52,17 @@ export class StripePortalService {
         row.status !== 'active'
       )
         throw new ConflictException('Verified test subscription required');
+      const intent = await tx.stripeCheckoutIntent.findUnique({
+        where: { checkoutSessionId: row.checkoutSessionId },
+        select: { tenantId: true, planId: true, status: true },
+      });
+      if (!intent || intent.tenantId !== tenantId ||
+          intent.planId !== row.planId || intent.status !== 'ready')
+        throw new ConflictException('Trusted test Checkout association required');
       return {
         localId: row.id,
+        planId: row.planId,
+        checkoutSessionId: row.checkoutSessionId,
         customerId: row.providerCustomerId,
         subscriptionId: row.providerSubscriptionId,
         priceId: row.plan.stripePriceId,
@@ -93,6 +102,15 @@ export class StripePortalService {
         row.plan.stripePriceId !== prepared.priceId
       )
         throw new ConflictException('Subscription changed during Portal launch');
+      const intent = await tx.stripeCheckoutIntent.findUnique({
+        where: { checkoutSessionId: prepared.checkoutSessionId },
+        select: { tenantId: true, planId: true, status: true },
+      });
+      if (!intent || intent.tenantId !== tenantId ||
+          intent.status !== 'ready' ||
+          intent.planId !== prepared.planId ||
+          row.checkoutSessionId !== prepared.checkoutSessionId)
+        throw new ConflictException('Checkout association changed');
       const recent = await tx.auditEvent.findFirst({
         where: {
           tenantId, action: 'billing.portal.created',
