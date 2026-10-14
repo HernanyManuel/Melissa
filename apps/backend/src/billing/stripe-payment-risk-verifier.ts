@@ -1,26 +1,31 @@
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { stripeTestSubscriptionSnapshot } from './stripe-reconciler';
-import {
-  parseStripeTestPaymentRisk,
-  StripePaymentRiskProvider,
-} from './stripe-test-payment-risk';
+import { parseStripeTestPaymentRisk, StripePaymentRiskProvider } from './stripe-test-payment-risk';
 
 export interface VerifiedRiskProvider extends StripePaymentRiskProvider {
-  retrieveSubscription(id:string):Promise<unknown>;
+  retrieveSubscription(id: string): Promise<unknown>;
 }
-export type RiskDecision={
-  outcome:'recorded'|'replayed'|'rejected'|'deferred';
+export type RiskDecision = {
+  outcome: 'recorded' | 'replayed' | 'rejected' | 'deferred';
   reason:
-    'snapshot_observed'|'already_observed'|'provider_unavailable'|
-    'invoice_mismatch'|'subscription_mismatch'|'untrusted_checkout'|
-    'payment_mapping_invalid'|'payment_mapping_incomplete'|
-    'charge_mismatch'|'invalid_refund_list'|'invalid_dispute_list'|
-    'incomplete_risk_data';
+    | 'snapshot_observed'
+    | 'already_observed'
+    | 'provider_unavailable'
+    | 'invoice_mismatch'
+    | 'subscription_mismatch'
+    | 'untrusted_checkout'
+    | 'payment_mapping_invalid'
+    | 'payment_mapping_incomplete'
+    | 'charge_mismatch'
+    | 'invalid_refund_list'
+    | 'invalid_dispute_list'
+    | 'incomplete_risk_data';
 };
-function obj(x:unknown):Record<string,unknown>|null{
-  return x!==null&&typeof x==='object'&&!Array.isArray(x)
-    ? x as Record<string,unknown>:null;
+function obj(x: unknown): Record<string, unknown> | null {
+  return x !== null && typeof x === 'object' && !Array.isArray(x)
+    ? (x as Record<string, unknown>)
+    : null;
 }
 
 // Only explicit offline test invocations. Payment IDs must come from the

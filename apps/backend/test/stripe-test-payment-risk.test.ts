@@ -1,60 +1,111 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  parseStripeTestPaymentRisk, StripeTestPaymentRiskReader,
+  parseStripeTestPaymentRisk,
+  StripeTestPaymentRiskReader,
 } from '../src/billing/stripe-test-payment-risk';
 
-const now=1780000000;
-const expected={
-  invoiceId:'in_test123',customerId:'cus_test123',
-  subscriptionId:'sub_test123',currency:'EUR',
-  amountPaidMinor:1999n,paidAt:new Date(now*1000),
+const now = 1780000000;
+const expected = {
+  invoiceId: 'in_test123',
+  customerId: 'cus_test123',
+  subscriptionId: 'sub_test123',
+  currency: 'EUR',
+  amountPaidMinor: 1999n,
+  paidAt: new Date(now * 1000),
 };
-const invoice={
-  object:'invoice',id:expected.invoiceId,livemode:false,status:'paid',
-  paid:true,paid_out_of_band:false,collection_method:'charge_automatically',
-  customer:expected.customerId,currency:'eur',amount_paid:1999,
-  total:1999,amount_remaining:0,
-  parent:{subscription_details:{subscription:expected.subscriptionId}},
-  status_transitions:{paid_at:now},
+const invoice = {
+  object: 'invoice',
+  id: expected.invoiceId,
+  livemode: false,
+  status: 'paid',
+  paid: true,
+  paid_out_of_band: false,
+  collection_method: 'charge_automatically',
+  customer: expected.customerId,
+  currency: 'eur',
+  amount_paid: 1999,
+  total: 1999,
+  amount_remaining: 0,
+  parent: { subscription_details: { subscription: expected.subscriptionId } },
+  status_transitions: { paid_at: now },
 };
-const payments={
-  object:'list',has_more:false,data:[{
-    object:'invoice_payment',invoice:expected.invoiceId,livemode:false,
-    status:'paid',currency:'eur',amount_paid:1999,
-    payment:{type:'payment_intent',payment_intent:'pi_test123'},
-  }],
+const payments = {
+  object: 'list',
+  has_more: false,
+  data: [
+    {
+      object: 'invoice_payment',
+      invoice: expected.invoiceId,
+      livemode: false,
+      status: 'paid',
+      currency: 'eur',
+      amount_paid: 1999,
+      payment: { type: 'payment_intent', payment_intent: 'pi_test123' },
+    },
+  ],
 };
-const pi={
-  object:'payment_intent',id:'pi_test123',livemode:false,
-  status:'succeeded',customer:expected.customerId,currency:'eur',
-  amount_received:1999,latest_charge:'ch_test123',
+const pi = {
+  object: 'payment_intent',
+  id: 'pi_test123',
+  livemode: false,
+  status: 'succeeded',
+  customer: expected.customerId,
+  currency: 'eur',
+  amount_received: 1999,
+  latest_charge: 'ch_test123',
 };
-const charge={
-  object:'charge',id:'ch_test123',livemode:false,
-  payment_intent:pi.id,customer:expected.customerId,currency:'eur',
-  amount:1999,paid:true,captured:true,status:'succeeded',
+const charge = {
+  object: 'charge',
+  id: 'ch_test123',
+  livemode: false,
+  payment_intent: pi.id,
+  customer: expected.customerId,
+  currency: 'eur',
+  amount: 1999,
+  paid: true,
+  captured: true,
+  status: 'succeeded',
 };
-const list=(data:unknown[]=[],has_more=false)=>({object:'list',data,has_more});
-const refund=(status='succeeded',amount=300)=>({
-  object:'refund',id:'re_test123',livemode:false,
-  charge:charge.id,payment_intent:pi.id,
-  currency:'eur',status,amount,
+const list = (data: unknown[] = [], has_more = false) => ({ object: 'list', data, has_more });
+const refund = (status = 'succeeded', amount = 300) => ({
+  object: 'refund',
+  id: 're_test123',
+  livemode: false,
+  charge: charge.id,
+  payment_intent: pi.id,
+  currency: 'eur',
+  status,
+  amount,
 });
-const dispute=(status='needs_response')=>({
-  object:'dispute',id:'du_test123',livemode:false,
-  charge:charge.id,payment_intent:pi.id,
-  currency:'eur',status,amount:300,
+const dispute = (status = 'needs_response') => ({
+  object: 'dispute',
+  id: 'du_test123',
+  livemode: false,
+  charge: charge.id,
+  payment_intent: pi.id,
+  currency: 'eur',
+  status,
+  amount: 300,
 });
-const parse=(r:unknown=list(),d:unknown=list(),
-  overrides:{
-    invoice?:object;payments?:object;pi?:object;charge?:object;
-  }={})=>parseStripeTestPaymentRisk(
-    {...invoice,...overrides.invoice},
-    {...payments,...overrides.payments},
-    {...pi,...overrides.pi},
-    {...charge,...overrides.charge},
-    r,d,expected,
+const parse = (
+  r: unknown = list(),
+  d: unknown = list(),
+  overrides: {
+    invoice?: object;
+    payments?: object;
+    pi?: object;
+    charge?: object;
+  } = {},
+) =>
+  parseStripeTestPaymentRisk(
+    { ...invoice, ...overrides.invoice },
+    { ...payments, ...overrides.payments },
+    { ...pi, ...overrides.pi },
+    { ...charge, ...overrides.charge },
+    r,
+    d,
+    expected,
   );
 
 // prettier-ignore

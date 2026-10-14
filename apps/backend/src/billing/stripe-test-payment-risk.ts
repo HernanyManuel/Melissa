@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
-import { StripeTestInvoiceReader, stripeTestPaidInvoiceSnapshot } from './stripe-test-invoice-reader';
+import {
+  StripeTestInvoiceReader,
+  stripeTestPaidInvoiceSnapshot,
+} from './stripe-test-invoice-reader';
 
 export interface StripePaymentRiskProvider {
   retrieveInvoice(id: string): Promise<unknown>;
@@ -21,11 +24,16 @@ export interface RiskEvidence {
 }
 export type RiskParse =
   | { outcome: 'valid'; snapshot: RiskEvidence }
-  | { outcome:
-      'invoice_mismatch' | 'payment_mapping_invalid' |
-      'payment_mapping_incomplete' | 'charge_mismatch' |
-      'invalid_refund_list' | 'invalid_dispute_list' |
-      'incomplete_risk_data' };
+  | {
+      outcome:
+        | 'invoice_mismatch'
+        | 'payment_mapping_invalid'
+        | 'payment_mapping_incomplete'
+        | 'charge_mismatch'
+        | 'invalid_refund_list'
+        | 'invalid_dispute_list'
+        | 'incomplete_risk_data';
+    };
 export interface ExpectedRiskInvoice {
   invoiceId: string;
   customerId: string;
@@ -34,28 +42,40 @@ export interface ExpectedRiskInvoice {
   amountPaidMinor: bigint;
   paidAt: Date;
 }
-const PI=/^pi_[A-Za-z0-9_]{1,250}$/;
-const CH=/^ch_[A-Za-z0-9_]{1,250}$/;
-const RE=/^re_[A-Za-z0-9_]{1,250}$/;
-const DU=/^dp_[A-Za-z0-9_]{1,250}$|^du_[A-Za-z0-9_]{1,250}$/;
-const REFUND_STATUSES=['succeeded','pending','requires_action','failed','canceled'];
-const DISPUTE_STATUSES=[
-  'warning_needs_response','warning_under_review','warning_closed',
-  'needs_response','under_review','won','lost',
+const PI = /^pi_[A-Za-z0-9_]{1,250}$/;
+const CH = /^ch_[A-Za-z0-9_]{1,250}$/;
+const RE = /^re_[A-Za-z0-9_]{1,250}$/;
+const DU = /^dp_[A-Za-z0-9_]{1,250}$|^du_[A-Za-z0-9_]{1,250}$/;
+const REFUND_STATUSES = ['succeeded', 'pending', 'requires_action', 'failed', 'canceled'];
+const DISPUTE_STATUSES = [
+  'warning_needs_response',
+  'warning_under_review',
+  'warning_closed',
+  'needs_response',
+  'under_review',
+  'won',
+  'lost',
 ];
-function obj(v:unknown):Record<string,unknown>|null{
-  return v!==null&&typeof v==='object'&&!Array.isArray(v)
-    ? v as Record<string,unknown>:null;
+function obj(v: unknown): Record<string, unknown> | null {
+  return v !== null && typeof v === 'object' && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null;
 }
-function money(v:unknown):number|null{
-  return typeof v==='number'&&Number.isSafeInteger(v)&&v>=0&&v<=100_000_000_000
-    ? v:null;
+function money(v: unknown): number | null {
+  return typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && v <= 100_000_000_000
+    ? v
+    : null;
 }
-function list(v:unknown):{data:unknown[];hasMore:boolean}|null{
-  const x=obj(v);
-  if(x?.object!=='list'||!Array.isArray(x.data)||x.data.length>100||
-     typeof x.has_more!=='boolean') return null;
-  return {data:x.data,hasMore:x.has_more};
+function list(v: unknown): { data: unknown[]; hasMore: boolean } | null {
+  const x = obj(v);
+  if (
+    x?.object !== 'list' ||
+    !Array.isArray(x.data) ||
+    x.data.length > 100 ||
+    typeof x.has_more !== 'boolean'
+  )
+    return null;
+  return { data: x.data, hasMore: x.has_more };
 }
 
 // Refuse inferred payment ownership. The only accepted chain is one settled
@@ -161,26 +181,28 @@ export function parseStripeTestPaymentRisk(
   }};
 }
 
-export class StripeTestPaymentRiskReader extends StripeTestInvoiceReader
-  implements StripePaymentRiskProvider {
-  async listInvoicePayments(id:string):Promise<unknown>{
-    if(!/^in_[A-Za-z0-9_]{1,250}$/.test(id)) throw new Error('Invalid invoice ID');
-    return this.readTestResource('/v1/invoice_payments?invoice='+id+'&limit=100');
+export class StripeTestPaymentRiskReader
+  extends StripeTestInvoiceReader
+  implements StripePaymentRiskProvider
+{
+  async listInvoicePayments(id: string): Promise<unknown> {
+    if (!/^in_[A-Za-z0-9_]{1,250}$/.test(id)) throw new Error('Invalid invoice ID');
+    return this.readTestResource('/v1/invoice_payments?invoice=' + id + '&limit=100');
   }
-  async retrievePaymentIntent(id:string):Promise<unknown>{
-    if(!PI.test(id)) throw new Error('Invalid PaymentIntent ID');
-    return this.readTestResource('/v1/payment_intents/'+id);
+  async retrievePaymentIntent(id: string): Promise<unknown> {
+    if (!PI.test(id)) throw new Error('Invalid PaymentIntent ID');
+    return this.readTestResource('/v1/payment_intents/' + id);
   }
-  async retrieveCharge(id:string):Promise<unknown>{
-    if(!CH.test(id)) throw new Error('Invalid Charge ID');
-    return this.readTestResource('/v1/charges/'+id);
+  async retrieveCharge(id: string): Promise<unknown> {
+    if (!CH.test(id)) throw new Error('Invalid Charge ID');
+    return this.readTestResource('/v1/charges/' + id);
   }
-  async listRefunds(id:string):Promise<unknown>{
-    if(!CH.test(id)) throw new Error('Invalid Charge ID');
-    return this.readTestResource('/v1/refunds?charge='+id+'&limit=100');
+  async listRefunds(id: string): Promise<unknown> {
+    if (!CH.test(id)) throw new Error('Invalid Charge ID');
+    return this.readTestResource('/v1/refunds?charge=' + id + '&limit=100');
   }
-  async listDisputes(id:string):Promise<unknown>{
-    if(!CH.test(id)) throw new Error('Invalid Charge ID');
-    return this.readTestResource('/v1/disputes?charge='+id+'&limit=100');
+  async listDisputes(id: string): Promise<unknown> {
+    if (!CH.test(id)) throw new Error('Invalid Charge ID');
+    return this.readTestResource('/v1/disputes?charge=' + id + '&limit=100');
   }
 }
