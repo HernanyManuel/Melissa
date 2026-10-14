@@ -21,8 +21,7 @@ function object(value: unknown): Record<string, unknown> | null {
 }
 
 const seconds = (n: unknown): n is number =>
-  typeof n === 'number' && Number.isSafeInteger(n) &&
-  n >= 1000000000 && n < 253402300800;
+  typeof n === 'number' && Number.isSafeInteger(n) && n >= 1000000000 && n < 253402300800;
 
 // Separate paid status from a completed-but-unpaid session. A completed
 // session alone is never evidence of a completed recurring payment.
@@ -50,7 +49,10 @@ export function stripeTestCheckoutSessionSnapshot(input: unknown): VerifiedCheck
 }
 
 export class StripeTestCheckoutSessionReader {
-  constructor(private readonly key: string, private readonly http: typeof fetch = fetch) {
+  constructor(
+    private readonly key: string,
+    private readonly http: typeof fetch = fetch,
+  ) {
     if (!/^sk_test_[A-Za-z0-9_-]{16,256}$/.test(key))
       throw new Error('Stripe session reader requires a test key');
   }
@@ -59,15 +61,21 @@ export class StripeTestCheckoutSessionReader {
     if (!/^cs_test_[A-Za-z0-9_]{1,240}$/.test(id))
       throw new Error('Invalid Stripe test Checkout Session');
     const response = await this.http('https://api.stripe.com/v1/checkout/sessions/' + id, {
-      method: 'GET', redirect: 'error', signal: AbortSignal.timeout(5000),
+      method: 'GET',
+      redirect: 'error',
+      signal: AbortSignal.timeout(5000),
       headers: {
         Authorization: 'Bearer ' + this.key,
         'Stripe-Version': '2025-09-30.clover',
         Accept: 'application/json',
       },
     });
-    if (response.status !== 200 || !response.headers.get('content-type')?.includes('application/json') ||
-        !response.body) throw new Error('Stripe Checkout unavailable');
+    if (
+      response.status !== 200 ||
+      !response.headers.get('content-type')?.includes('application/json') ||
+      !response.body
+    )
+      throw new Error('Stripe Checkout unavailable');
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -79,7 +87,9 @@ export class StripeTestCheckoutSessionReader {
         if (size > 128 * 1024) throw new Error('Stripe response size exceeded');
         chunks.push(result.value);
       }
-    } finally { reader.releaseLock(); }
+    } finally {
+      reader.releaseLock();
+    }
     return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
   }
 }

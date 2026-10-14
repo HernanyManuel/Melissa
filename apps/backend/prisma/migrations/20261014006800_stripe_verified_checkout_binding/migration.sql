@@ -7,6 +7,9 @@ SET LOCAL statement_timeout = '60s';
 ALTER TABLE subscriptions
   ADD COLUMN checkout_session_id VARCHAR(255)
     CHECK (checkout_session_id IS NULL OR checkout_session_id ~ '^cs_test_[A-Za-z0-9_]+$');
+-- One Stripe customer must never be shared between tenant snapshots.
+CREATE UNIQUE INDEX subscriptions_provider_customer_unique
+  ON subscriptions(provider,provider_customer_id);
 CREATE UNIQUE INDEX subscriptions_checkout_session_unique
   ON subscriptions(checkout_session_id)
   WHERE checkout_session_id IS NOT NULL;

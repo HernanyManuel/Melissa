@@ -842,6 +842,7 @@ model TenantSubscription {
 
   @@id([tenantId, id])
   @@unique([provider, providerSubscriptionId])
+  @@unique([provider, providerCustomerId], map: "subscriptions_provider_customer_unique")
   @@map("subscriptions")
 }
 

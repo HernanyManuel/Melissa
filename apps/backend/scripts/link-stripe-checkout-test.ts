@@ -5,8 +5,7 @@ import { StripeTestCheckoutSessionReader } from '../src/billing/stripe-test-chec
 import { StripeTestSubscriptionReader } from '../src/billing/stripe-test-subscription-reader';
 
 async function main(): Promise<void> {
-  if (process.env.NODE_ENV !== 'test' ||
-      process.env.STRIPE_TEST_LINK_ENABLED !== 'true')
+  if (process.env.NODE_ENV !== 'test' || process.env.STRIPE_TEST_LINK_ENABLED !== 'true')
     throw new Error('Stripe Checkout linking is disabled outside explicit test mode');
   const key = process.env.STRIPE_TEST_SECRET_KEY;
   const url = process.env.BILLING_LINKER_DATABASE_URL;

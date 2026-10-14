@@ -8,10 +8,17 @@ import {
 
 export type CheckoutLinkOutcome = 'linked' | 'replayed' | 'rejected' | 'deferred';
 export type CheckoutLinkReason =
-  | 'provider_verified' | 'already_linked' | 'event_not_eligible'
-  | 'unknown_checkout' | 'intent_not_ready' | 'provider_unavailable'
-  | 'invalid_provider_snapshot' | 'session_mismatch'
-  | 'subscription_mismatch' | 'payment_not_verified' | 'binding_conflict';
+  | 'provider_verified'
+  | 'already_linked'
+  | 'event_not_eligible'
+  | 'unknown_checkout'
+  | 'intent_not_ready'
+  | 'provider_unavailable'
+  | 'invalid_provider_snapshot'
+  | 'session_mismatch'
+  | 'subscription_mismatch'
+  | 'payment_not_verified'
+  | 'binding_conflict';
 export interface CheckoutLinkResult {
   outcome: CheckoutLinkOutcome;
   reason: CheckoutLinkReason;
@@ -19,7 +26,8 @@ export interface CheckoutLinkResult {
 
 function object(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? value as Record<string, unknown> : null;
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 // ADR-110: an OFFLINE, operator-invoked test-only importer. The signed webhook
