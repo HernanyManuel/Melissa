@@ -2,7 +2,7 @@
 
 ## Estado
 
-Implementado na Phase 9 sobre `feature/phase-8-inbox` (PR #7 draft), **schema 66 inalterado**. CI do HEAD final a confirmar. O ecrã é read-only, sem checkout, cobrança, envio a fornecedores ou ações comerciais.
+Implementado na Phase 9 sobre `feature/phase-8-inbox` (PR #7 draft), **schema 66 inalterado**. Validação funcional: [CI #38520032622](https://github.com/HernanyManuel/Melissa/actions/runs/38520032622) integralmente verde no commit `215527ae8156fb4bf34b0ec8627eccdbf2cfa0ef`: backend (formatação/lint/TypeScript, testes unitários e integração PostgreSQL/RLS/Redis com worker real, OpenAPI e audit), Flutter (gen-l10n, análise estrita, widget tests, build Web) e Compose (readiness). O primeiro CI identificou apenas uma lista vazia sem tipo explícito no novo teste Dart, corrigida antes da aprovação. O ecrã é read-only, sem checkout, cobrança, envio a fornecedores ou ações comerciais.
 
 ## Contexto
 
@@ -18,7 +18,7 @@ A ADR-104 expõe `GET /api/v1/tenants/:tenantId/billing/plans` e `/billing/subsc
 
 ## Verificação
 
-Testes cobrindo tenant scoped GET-only, planos e quotas, catálogo vazio/subscrição nula, `status=active` com cancelamento e aviso inalterado, erro 403 na segunda chamada que limpa a primeira e repetição após recuperação, e resposta inesperada com entitlements ativos que força fail-closed. CI do commit final a validar.
+Testes cobrindo tenant scoped GET-only, planos e quotas, catálogo vazio/subscrição nula, `status=active` com cancelamento e aviso inalterado, erro 403 na segunda chamada que limpa a primeira e repetição após recuperação, e resposta inesperada com entitlements ativos que força fail-closed. CI funcional aprovado: execução #38520032622, Flutter + backend + Compose.
 
 ## Limites
 
