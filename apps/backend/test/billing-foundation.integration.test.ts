@@ -224,7 +224,7 @@ test('Phase 9 billing foundation isolates tenant subscriptions and fails closed'
     const [gateGrants] = await admin.$queryRaw<Array<{
       canSelect: boolean; canInsert: boolean; canUpdate: boolean; canDelete: boolean;
     }>>`SELECT
-      has_table_privilege('melissa_runtime','billing_entitlement_activation_gate','SELECT')
+      has_column_privilege('melissa_runtime','billing_entitlement_activation_gate','enabled','SELECT')
         AS "canSelect",
       has_table_privilege('melissa_runtime','billing_entitlement_activation_gate','INSERT')
         AS "canInsert",
