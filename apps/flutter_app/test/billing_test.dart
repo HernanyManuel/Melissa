@@ -92,7 +92,7 @@ void main() {
   testWidgets('billing shows current subscription without claiming verified entitlements', (tester) async {
     final api = await authenticatedApi((request) async {
       if (request.url.path.endsWith('/billing/plans')) {
-        return http.Response(jsonEncode({'items': []}), 200);
+        return http.Response(jsonEncode({'items': <Object?>[]}), 200);
       }
       return http.Response(jsonEncode(subscription(value: {
         'id': 'sub-local',
