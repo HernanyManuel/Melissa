@@ -95,6 +95,9 @@ test('Stripe signed test webhook persists immutable idempotent events without ac
     assert.equal(first.status, 200, await first.clone().text());
     assert.deepEqual(await first.json(), { received: true });
     assert.equal(await count(), 1);
+    const dispatched = await admin.stripeEventDispatch.findUniqueOrThrow({ where: { eventId: id } });
+    assert.equal(dispatched.state, 'pending');
+    assert.equal(dispatched.attempts, 0);
     const stored = await admin.stripeWebhookEvent.findUniqueOrThrow({ where: { eventId: id } });
     assert.equal(stored.status, 'received');
     assert.equal(stored.livemode, false);
@@ -105,6 +108,7 @@ test('Stripe signed test webhook persists immutable idempotent events without ac
 
     assert.equal((await post(body, signed(body, now))).status, 200);
     assert.equal(await count(), 1);
+    assert.equal(await admin.stripeEventDispatch.count({ where: { eventId: id } }), 1);
     const conflicting = Buffer.from(JSON.stringify({...event, created: now - 3}));
     assert.equal((await post(conflicting, signed(conflicting, now))).status, 409);
     assert.equal(await count(), 1);
