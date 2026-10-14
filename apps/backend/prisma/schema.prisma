@@ -915,3 +915,33 @@ model StripeCheckoutLinkAttempt {
   @@index([eventId, createdAt])
   @@map("stripe_checkout_link_attempts")
 }
+
+
+// ADR-111: signed test-mode events dispatched out-of-band, no runtime grants.
+model StripeEventDispatch {
+  eventId       String    @id @map("event_id") @db.VarChar(255)
+  eventType     String    @map("event_type") @db.VarChar(128)
+  state         String    @default("pending") @db.VarChar(16)
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  leaseToken    String?   @map("lease_token") @db.Uuid
+  leaseUntil    DateTime? @map("lease_until") @db.Timestamptz(6)
+  lastReason    String?   @map("last_reason") @db.VarChar(40)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([nextAttemptAt, eventId])
+  @@map("stripe_event_dispatch")
+}
+
+model StripeDispatchAttempt {
+  id        String   @id @db.Uuid
+  eventId   String   @map("event_id") @db.VarChar(255)
+  attempt   Int
+  action    String   @db.VarChar(16)
+  reason    String   @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([eventId, createdAt])
+  @@map("stripe_dispatch_attempts")
+}
