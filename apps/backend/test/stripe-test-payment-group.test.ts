@@ -1,43 +1,76 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseStripeTestPaymentGroup,PaymentGroupLink } from '../src/billing/stripe-test-payment-group';
+import {
+  parseStripeTestPaymentGroup,
+  PaymentGroupLink,
+} from '../src/billing/stripe-test-payment-group';
 
-const paidAt=1780000000;
-const expected={
-  invoiceId:'in_multi',customerId:'cus_multi',subscriptionId:'sub_multi',
-  currency:'EUR',amountPaidMinor:1999n,paidAt:new Date(paidAt*1000),
+const paidAt = 1780000000;
+const expected = {
+  invoiceId: 'in_multi',
+  customerId: 'cus_multi',
+  subscriptionId: 'sub_multi',
+  currency: 'EUR',
+  amountPaidMinor: 1999n,
+  paidAt: new Date(paidAt * 1000),
 };
-const invoice={
-  object:'invoice',id:expected.invoiceId,livemode:false,status:'paid',
-  paid:true,paid_out_of_band:false,collection_method:'charge_automatically',
-  customer:expected.customerId,currency:'eur',amount_paid:1999,
-  total:1999,amount_remaining:0,
-  parent:{subscription_details:{subscription:expected.subscriptionId}},
-  status_transitions:{paid_at:paidAt},
+const invoice = {
+  object: 'invoice',
+  id: expected.invoiceId,
+  livemode: false,
+  status: 'paid',
+  paid: true,
+  paid_out_of_band: false,
+  collection_method: 'charge_automatically',
+  customer: expected.customerId,
+  currency: 'eur',
+  amount_paid: 1999,
+  total: 1999,
+  amount_remaining: 0,
+  parent: { subscription_details: { subscription: expected.subscriptionId } },
+  status_transitions: { paid_at: paidAt },
 };
-const row=(n:number,amount:number)=>({
-  id:'inpay_multi'+n,object:'invoice_payment',livemode:false,
-  status:'paid',invoice:expected.invoiceId,currency:'eur',
-  amount_paid:amount,payment:{type:'payment_intent',payment_intent:'pi_multi'+n},
+const row = (n: number, amount: number) => ({
+  id: 'inpay_multi' + n,
+  object: 'invoice_payment',
+  livemode: false,
+  status: 'paid',
+  invoice: expected.invoiceId,
+  currency: 'eur',
+  amount_paid: amount,
+  payment: { type: 'payment_intent', payment_intent: 'pi_multi' + n },
 });
-const link=(n:number,amount:number):PaymentGroupLink=>({
-  paymentIntent:{
-    id:'pi_multi'+n,object:'payment_intent',livemode:false,
-    status:'succeeded',customer:expected.customerId,
-    currency:'eur',amount_received:amount,latest_charge:'ch_multi'+n,
+const link = (n: number, amount: number): PaymentGroupLink => ({
+  paymentIntent: {
+    id: 'pi_multi' + n,
+    object: 'payment_intent',
+    livemode: false,
+    status: 'succeeded',
+    customer: expected.customerId,
+    currency: 'eur',
+    amount_received: amount,
+    latest_charge: 'ch_multi' + n,
   },
-  charge:{
-    id:'ch_multi'+n,object:'charge',livemode:false,
-    status:'succeeded',customer:expected.customerId,
-    currency:'eur',paid:true,captured:true,
-    payment_intent:'pi_multi'+n,amount,
+  charge: {
+    id: 'ch_multi' + n,
+    object: 'charge',
+    livemode: false,
+    status: 'succeeded',
+    customer: expected.customerId,
+    currency: 'eur',
+    paid: true,
+    captured: true,
+    payment_intent: 'pi_multi' + n,
+    amount,
   },
 });
-const payments=(data:unknown[],has_more=false)=>({
-  object:'list',data,has_more,
+const payments = (data: unknown[], has_more = false) => ({
+  object: 'list',
+  data,
+  has_more,
 });
-const validPayments=payments([row(1,1000),row(2,999)]);
-const links:[PaymentGroupLink,PaymentGroupLink]=[link(1,1000),link(2,999)];
+const validPayments = payments([row(1, 1000), row(2, 999)]);
+const links: [PaymentGroupLink, PaymentGroupLink] = [link(1, 1000), link(2, 999)];
 
 // prettier-ignore
 test('multiple linked Stripe TEST InvoicePayments are only observations',()=>{

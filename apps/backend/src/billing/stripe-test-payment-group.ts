@@ -14,25 +14,34 @@ export interface PaymentGroupLink {
   charge: unknown;
 }
 export type PaymentGroupParse =
-  | { outcome: 'valid'; snapshot: {
-      digest: string;
-      count: number;
-      paidMinor: bigint;
-    } }
-  | { outcome:
-      'invoice_mismatch' | 'partial_list' |
-      'unsupported_payment_count' | 'invalid_payment_graph' };
+  | {
+      outcome: 'valid';
+      snapshot: {
+        digest: string;
+        count: number;
+        paidMinor: bigint;
+      };
+    }
+  | {
+      outcome:
+        | 'invoice_mismatch'
+        | 'partial_list'
+        | 'unsupported_payment_count'
+        | 'invalid_payment_graph';
+    };
 
-const ID=/^inpay_[A-Za-z0-9_]{1,248}$/;
-const PI=/^pi_[A-Za-z0-9_]{1,250}$/;
-const CH=/^ch_[A-Za-z0-9_]{1,250}$/;
-function obj(x:unknown):Record<string,unknown>|null{
-  return x!==null&&typeof x==='object'&&!Array.isArray(x)
-    ? x as Record<string,unknown>:null;
+const ID = /^inpay_[A-Za-z0-9_]{1,248}$/;
+const PI = /^pi_[A-Za-z0-9_]{1,250}$/;
+const CH = /^ch_[A-Za-z0-9_]{1,250}$/;
+function obj(x: unknown): Record<string, unknown> | null {
+  return x !== null && typeof x === 'object' && !Array.isArray(x)
+    ? (x as Record<string, unknown>)
+    : null;
 }
-function minor(x:unknown):number|null {
-  return typeof x==='number'&&Number.isSafeInteger(x)&&x>0&&x<=100_000_000_000
-    ? x:null;
+function minor(x: unknown): number | null {
+  return typeof x === 'number' && Number.isSafeInteger(x) && x > 0 && x <= 100_000_000_000
+    ? x
+    : null;
 }
 
 // A multi-PI invoice is only observed when all 2..8 allocations belong

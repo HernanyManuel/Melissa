@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  readBoundedStripeList, MAX_STRIPE_LIST_ITEMS, MAX_STRIPE_LIST_PAGES,
+  readBoundedStripeList,
+  MAX_STRIPE_LIST_ITEMS,
+  MAX_STRIPE_LIST_PAGES,
 } from '../src/billing/stripe-test-cursor-pagination';
 import { StripeTestPaymentRiskReader } from '../src/billing/stripe-test-payment-risk';
 import { StripeTestInvoiceReviewReader } from '../src/billing/stripe-test-invoice-review';
 
-const list=(data:unknown[],has_more=false)=>({object:'list',data,has_more});
-const row=(id:string)=>({id,object:'refund'});
+const list = (data: unknown[], has_more = false) => ({ object: 'list', data, has_more });
+const row = (id: string) => ({ id, object: 'refund' });
 
 // prettier-ignore
 test('bounded cursor pagination returns exactly complete data and rejects cycles',async()=>{

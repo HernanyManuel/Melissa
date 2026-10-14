@@ -4,20 +4,31 @@ import { stripeTestSubscriptionSnapshot } from './stripe-reconciler';
 import { parseStripeTestPaymentGroup } from './stripe-test-payment-group';
 
 export interface StripeTestPaymentGroupProvider {
-  retrieveInvoice(id:string):Promise<unknown>;
-  retrieveSubscription(id:string):Promise<unknown>;
-  listInvoicePayments(id:string):Promise<unknown>;
-  retrievePaymentIntent(id:string):Promise<unknown>;
-  retrieveCharge(id:string):Promise<unknown>;
+  retrieveInvoice(id: string): Promise<unknown>;
+  retrieveSubscription(id: string): Promise<unknown>;
+  listInvoicePayments(id: string): Promise<unknown>;
+  retrievePaymentIntent(id: string): Promise<unknown>;
+  retrieveCharge(id: string): Promise<unknown>;
 }
-type Outcome='recorded'|'replayed'|'deferred'|'rejected';
-type Reason='group_observed'|'already_observed'|'provider_unavailable'|
-  'untrusted_checkout'|'subscription_mismatch'|'invoice_mismatch'|
-  'partial_list'|'unsupported_payment_count'|'invalid_payment_graph';
-export interface PaymentGroupDecision{outcome:Outcome;reason:Reason}
-function obj(x:unknown):Record<string,unknown>|null {
-  return x!==null&&typeof x==='object'&&!Array.isArray(x)
-    ? x as Record<string,unknown>:null;
+type Outcome = 'recorded' | 'replayed' | 'deferred' | 'rejected';
+type Reason =
+  | 'group_observed'
+  | 'already_observed'
+  | 'provider_unavailable'
+  | 'untrusted_checkout'
+  | 'subscription_mismatch'
+  | 'invoice_mismatch'
+  | 'partial_list'
+  | 'unsupported_payment_count'
+  | 'invalid_payment_graph';
+export interface PaymentGroupDecision {
+  outcome: Outcome;
+  reason: Reason;
+}
+function obj(x: unknown): Record<string, unknown> | null {
+  return x !== null && typeof x === 'object' && !Array.isArray(x)
+    ? (x as Record<string, unknown>)
+    : null;
 }
 
 // No PI/Charge references are accepted from the operator. All links are
