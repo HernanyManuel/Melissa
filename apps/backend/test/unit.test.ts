@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import './whatsapp-inbound.test';
 import './stripe-checkout-provider.test';
+import './stripe-test-checkout-session-reader.test';
 import './quarantine-policy.test';
 import './receipt-state.test';
 import './messaging-provider.test';
