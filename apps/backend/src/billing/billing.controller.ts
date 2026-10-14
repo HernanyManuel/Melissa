@@ -4,6 +4,7 @@ import { AuthGuard, AuthRequest } from '../identity/auth.guard';
 import { BillingService } from './billing.service';
 import { StripeCheckoutService } from './stripe-checkout.service';
 import { CheckoutDto } from './checkout.dto';
+import { StripePortalService } from './stripe-portal.service';
 
 @ApiTags('Billing (test Checkout foundation)')
 @ApiBearerAuth()
@@ -13,6 +14,7 @@ export class BillingController {
   constructor(
     private readonly billing: BillingService,
     private readonly checkout: StripeCheckoutService,
+    private readonly portal: StripePortalService,
   ) {}
 
   @Get('plans')
@@ -37,6 +39,16 @@ export class BillingController {
     @Body() body: CheckoutDto,
   ) {
     return this.checkout.create(req.actor, tenantId, body);
+  }
+
+  @Post('portal')
+  @ApiOperation({
+    summary: 'Launch a strictly read-only Stripe TEST customer billing Portal',
+    description:
+      'Opt-in test environment and owner/admin only. Requires a previously bound Stripe Checkout and a current matching test subscription. No billing mutation or entitlement activation.',
+  })
+  launchPortal(@Req() req: AuthRequest, @Param('tenantId', ParseUUIDPipe) tenantId: string) {
+    return this.portal.launch(req.actor, tenantId);
   }
 
   @Get('subscription')
