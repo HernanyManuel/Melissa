@@ -82,7 +82,7 @@ export async function linkStoredStripeTestCheckout(
   return db.$transaction(async (tx) => {
     // One transactional lock per original intent prevents concurrent replays
     // from racing insert/audit. Unique DB constraints also fence other tenants.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${intent.id},0))`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${intent.id},0)) IS NULL AS locked`;
     const current = await tx.stripeCheckoutIntent.findUnique({
       where: { id: intent.id },
       select: {
