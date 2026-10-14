@@ -1,3 +1,9 @@
+## Sexta fatia — ADR-110 (schema 68): associação inicial Stripe TEST via consulta ao provider
+
+A CLI manual `stripe:link-test`, com `NODE_ENV=test`, `STRIPE_TEST_LINK_ENABLED=true`, `STRIPE_TEST_SECRET_KEY=sk_test_...` e `BILLING_LINKER_DATABASE_URL`, aceita um evento `checkout.session.completed` assinado já armazenado. Procura uma intenção por ID de sessão (`cs_test_`), valida sessão e subscrição atuais junto do Stripe, confere tenant/plano/preço e estado `paid/active` e guarda a primeira associação na tabela `subscriptions` com `checkout_session_id`. Audit append-only, idempotência e papel DB NOLOGIN específico: `melissa_billing_linker`, aprovisionado por `infra/scripts/billing-linker-login.sql` somente em teste controlado.
+
+Não utiliza `metadata.tenant_id` do webhook, não concede direitos comerciais, não cria clientes Stripe por parâmetros externos, não reconcilia eventos automaticamente, e não suporta upgrades, trials, customer portal, impostos ou pagamentos live. Os testes usam mocks do Stripe em PostgreSQL real; falta validar com Stripe test sandbox. `billingVerified=false` e `automationEnabled=false` permanecem fixos. Ver [ADR-110](decisions/ADR-110-stripe-verified-test-checkout-binding.md).
+
 ## Quinta fatia implementada — ADR-109 (Checkout test opt-in, schema 67)
 
 Existe agora um endpoint backend de início de Checkout **exclusivamente test-mode**, `POST /api/v1/tenants/:tenantId/billing/checkout`, protegido por `billing:write` de owner/admin. Aceita um plano publicado e um request UUID idempotente; valida identificadores e preço real `livemode=false` diretamente no Stripe antes de gerar um Checkout Session hospedado com URLs controlados no servidor. A tabela `stripe_checkout_intents` impede múltiplas intenções abertas por tenant, persiste o pedido e suporta retry depois de falhas temporárias. Está desativado por omissão, com retorno sempre a `checkout.stripe.com`, sem expor token, plano interno Stripe ou customer ID.
