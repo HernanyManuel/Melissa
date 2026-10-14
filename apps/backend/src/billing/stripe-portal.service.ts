@@ -20,8 +20,7 @@ export class StripePortalService {
   ) {}
 
   async launch(actor: Actor, tenantId: string): Promise<{ portalUrl: string }> {
-    if (this.config.NODE_ENV !== 'test' ||
-        this.config.STRIPE_TEST_PORTAL_ENABLED !== 'true')
+    if (this.config.NODE_ENV !== 'test' || this.config.STRIPE_TEST_PORTAL_ENABLED !== 'true')
       throw new NotFoundException();
 
     const prepared = await this.tenants.scoped(actor, tenantId, 'billing:write', async (tx) => {
@@ -29,7 +28,8 @@ export class StripePortalService {
       // closed without storing bearer redirect tokens in PostgreSQL.
       const recent = await tx.auditEvent.findFirst({
         where: {
-          tenantId, action: 'billing.portal.created',
+          tenantId,
+          action: 'billing.portal.created',
           createdAt: { gt: new Date(Date.now() - 30000) },
         },
         select: { id: true },
@@ -38,17 +38,25 @@ export class StripePortalService {
       const row = await tx.tenantSubscription.findUnique({
         where: { tenantId },
         select: {
-          id: true, tenantId: true, provider: true, providerCustomerId: true,
-          providerSubscriptionId: true, checkoutSessionId: true,
-          planId: true, status: true, plan: {
+          id: true,
+          tenantId: true,
+          provider: true,
+          providerCustomerId: true,
+          providerSubscriptionId: true,
+          checkoutSessionId: true,
+          planId: true,
+          status: true,
+          plan: {
             select: { stripePriceId: true, active: true },
           },
         },
       });
       if (
-        !row || row.provider !== 'stripe' ||
+        !row ||
+        row.provider !== 'stripe' ||
         !row.checkoutSessionId?.startsWith('cs_test_') ||
-        !row.plan.active || !row.plan.stripePriceId ||
+        !row.plan.active ||
+        !row.plan.stripePriceId ||
         row.status !== 'active'
       )
         throw new ConflictException('Verified test subscription required');
@@ -56,8 +64,12 @@ export class StripePortalService {
         where: { checkoutSessionId: row.checkoutSessionId },
         select: { tenantId: true, planId: true, status: true },
       });
-      if (!intent || intent.tenantId !== tenantId ||
-          intent.planId !== row.planId || intent.status !== 'ready')
+      if (
+        !intent ||
+        intent.tenantId !== tenantId ||
+        intent.planId !== row.planId ||
+        intent.status !== 'ready'
+      )
         throw new ConflictException('Trusted test Checkout association required');
       return {
         localId: row.id,
@@ -87,16 +99,22 @@ export class StripePortalService {
       const row = await tx.tenantSubscription.findUnique({
         where: { tenantId },
         select: {
-          id: true, provider: true, status: true,
-          providerCustomerId: true, providerSubscriptionId: true,
-          checkoutSessionId: true, plan: { select: { stripePriceId: true, active: true } },
+          id: true,
+          provider: true,
+          status: true,
+          providerCustomerId: true,
+          providerSubscriptionId: true,
+          checkoutSessionId: true,
+          plan: { select: { stripePriceId: true, active: true } },
         },
       });
       if (
-        !row || row.id !== prepared.localId ||
+        !row ||
+        row.id !== prepared.localId ||
         row.provider !== 'stripe' ||
         !row.checkoutSessionId?.startsWith('cs_test_') ||
-        row.status !== 'active' || !row.plan.active ||
+        row.status !== 'active' ||
+        !row.plan.active ||
         row.providerCustomerId !== prepared.customerId ||
         row.providerSubscriptionId !== prepared.subscriptionId ||
         row.plan.stripePriceId !== prepared.priceId
@@ -106,14 +124,18 @@ export class StripePortalService {
         where: { checkoutSessionId: prepared.checkoutSessionId },
         select: { tenantId: true, planId: true, status: true },
       });
-      if (!intent || intent.tenantId !== tenantId ||
-          intent.status !== 'ready' ||
-          intent.planId !== prepared.planId ||
-          row.checkoutSessionId !== prepared.checkoutSessionId)
+      if (
+        !intent ||
+        intent.tenantId !== tenantId ||
+        intent.status !== 'ready' ||
+        intent.planId !== prepared.planId ||
+        row.checkoutSessionId !== prepared.checkoutSessionId
+      )
         throw new ConflictException('Checkout association changed');
       const recent = await tx.auditEvent.findFirst({
         where: {
-          tenantId, action: 'billing.portal.created',
+          tenantId,
+          action: 'billing.portal.created',
           createdAt: { gt: new Date(Date.now() - 30000) },
         },
         select: { id: true },

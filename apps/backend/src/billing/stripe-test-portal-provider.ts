@@ -89,11 +89,17 @@ export class StripeTestPortalProvider {
 
     const origin = new URL(input.origin);
     if (
-      !(['https:'].includes(origin.protocol) ||
+      !(
+        ['https:'].includes(origin.protocol) ||
         (origin.protocol === 'http:' &&
-          ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname))) ||
-      origin.origin !== input.origin || origin.pathname !== '/' ||
-      origin.search || origin.hash || origin.username || origin.password
+          ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname))
+      ) ||
+      origin.origin !== input.origin ||
+      origin.pathname !== '/' ||
+      origin.search ||
+      origin.hash ||
+      origin.username ||
+      origin.password
     )
       throw new Error('Untrusted Stripe Portal return origin');
 
@@ -101,9 +107,12 @@ export class StripeTestPortalProvider {
       await this.request('/v1/subscriptions/' + input.subscriptionId, { method: 'GET' }),
     );
     if (
-      !sub || sub.id !== input.subscriptionId ||
-      sub.customer !== input.customerId || sub.price !== input.priceId ||
-      sub.status !== 'active' || sub.trialEnd !== null ||
+      !sub ||
+      sub.id !== input.subscriptionId ||
+      sub.customer !== input.customerId ||
+      sub.price !== input.priceId ||
+      sub.status !== 'active' ||
+      sub.trialEnd !== null ||
       sub.periodEnd <= new Date()
     )
       throw new Error('Stripe test subscription is not verified for Portal');
@@ -118,11 +127,13 @@ export class StripeTestPortalProvider {
     if (
       configuration.object !== 'billing_portal.configuration' ||
       configuration.id !== input.configurationId ||
-      configuration.livemode !== false || configuration.active !== true ||
-      invoice?.enabled !== true || login?.enabled !== false ||
+      configuration.livemode !== false ||
+      configuration.active !== true ||
+      invoice?.enabled !== true ||
+      login?.enabled !== false ||
       !features ||
-      Object.entries(features).some(([name, value]) =>
-        name !== 'invoice_history' && record(value)?.enabled !== false
+      Object.entries(features).some(
+        ([name, value]) => name !== 'invoice_history' && record(value)?.enabled !== false,
       )
     )
       throw new Error('Stripe test Portal configuration is not strictly read-only');
@@ -141,7 +152,8 @@ export class StripeTestPortalProvider {
     if (
       session.object !== 'billing_portal.session' ||
       session.livemode !== false ||
-      typeof session.id !== 'string' || !/^bps_[A-Za-z0-9_]{1,250}$/.test(session.id) ||
+      typeof session.id !== 'string' ||
+      !/^bps_[A-Za-z0-9_]{1,250}$/.test(session.id) ||
       session.customer !== input.customerId ||
       session.configuration !== input.configurationId ||
       session.return_url !== returnUrl ||
@@ -153,9 +165,14 @@ export class StripeTestPortalProvider {
       throw new Error('Invalid Stripe TEST Portal session');
     const link = new URL(session.url);
     if (
-      link.protocol !== 'https:' || link.hostname !== 'billing.stripe.com' ||
+      link.protocol !== 'https:' ||
+      link.hostname !== 'billing.stripe.com' ||
       !/^\/p\/session\/test_[A-Za-z0-9_-]+$/.test(link.pathname) ||
-      link.port || link.username || link.password || link.hash || link.search
+      link.port ||
+      link.username ||
+      link.password ||
+      link.hash ||
+      link.search
     )
       throw new Error('Unexpected Stripe Portal redirect host');
     return { url: session.url };

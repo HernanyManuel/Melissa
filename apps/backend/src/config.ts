@@ -11,7 +11,10 @@ const schema = z.object({
   // Stripe ingestion is off by default and restricted to non-live events.
   STRIPE_TEST_CHECKOUT_ENABLED: z.enum(['false', 'true']).default('false'),
   STRIPE_TEST_PORTAL_ENABLED: z.enum(['false', 'true']).default('false'),
-  STRIPE_TEST_PORTAL_CONFIGURATION_ID: z.string().regex(/^bpc_[A-Za-z0-9_]{1,240}$/).optional(),
+  STRIPE_TEST_PORTAL_CONFIGURATION_ID: z
+    .string()
+    .regex(/^bpc_[A-Za-z0-9_]{1,240}$/)
+    .optional(),
   STRIPE_TEST_SECRET_KEY: z
     .string()
     .regex(/^sk_test_[A-Za-z0-9_-]{16,256}$/)
@@ -195,7 +198,9 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
       !result.data.STRIPE_TEST_PORTAL_CONFIGURATION_ID ||
       !result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN
     )
-      throw new Error('Stripe test Portal requires test environment, key, configuration and origin');
+      throw new Error(
+        'Stripe test Portal requires test environment, key, configuration and origin',
+      );
     const url = new URL(result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN);
     const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
     if (

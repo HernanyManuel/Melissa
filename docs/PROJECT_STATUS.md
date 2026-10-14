@@ -1,3 +1,9 @@
+## Phase 9 — ADR-112: Customer Portal Stripe TEST estritamente read-only (schema 70)
+
+Foi implementado `POST /api/v1/tenants/:tenantId/billing/portal`, desligado por omissão, limitado a owner/admin, a `NODE_ENV=test` e a uma configuração Stripe test `bpc_...` explicitamente segura. O backend verifica em duas transações independentes autorização/membership/RLS, subscrição e intenção `cs_test_` original, além de consultar o Stripe para conferir subscrição, preço, cliente e configuração sem mutações; só então retorna uma URL efémera no host `billing.stripe.com`. Auditoria `billing.portal.created` sem URL e throttle de 30 segundos por tenant. Migration 70 concede apenas SELECT dos IDs Stripe sob a RLS já forçada.
+
+A integração e os testes automatizados usam fornecedor simulado; confirmar CI verde no HEAD final. Stripe sandbox real e controlo externo da configuração ainda não validados. Não há qualquer alteração ao Flutter, nem alterações contratuais, quotas ou direitos pagos: `billingVerified=false` e `automationEnabled=false`. Sem merge, deploy ou pagamentos live. [ADR-112](decisions/ADR-112-stripe-test-read-only-customer-portal.md).
+
 ## Phase 9 — ADR-111: fila e dispatch Stripe TEST com recuperação (schema 69)
 
 Foi implementada uma fila persistente `stripe_event_dispatch`, criada atomicamente pelo inbox de webhook assinado, com leases, backoff limitado e histórico append-only. Um processo de lote manual, explicitamente ativado em teste, consulta a fila através do papel NOLOGIN de dispatcher (aprovado manualmente), e delega associação inicial e reconciliação aos seus próprios papéis restritos, sem credenciais Stripe no worker normal.
