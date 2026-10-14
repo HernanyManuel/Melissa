@@ -1,3 +1,9 @@
+## Phase 9 — ADR-111: fila e dispatch Stripe TEST com recuperação (schema 69)
+
+Foi implementada uma fila persistente `stripe_event_dispatch`, criada atomicamente pelo inbox de webhook assinado, com leases, backoff limitado e histórico append-only. Um processo de lote manual, explicitamente ativado em teste, consulta a fila através do papel NOLOGIN de dispatcher (aprovado manualmente), e delega associação inicial e reconciliação aos seus próprios papéis restritos, sem credenciais Stripe no worker normal.
+
+O funcionamento continua condicionado a `NODE_ENV=test` e flags específicas. CI de integração PostgreSQL/RLS e provider simulado deve ser confirmado no HEAD final. Stripe sandbox real não validado; não existe fila ativa de produção, merge ou deploy. Nenhum pagamento live nem entitlement está ativo; `billingVerified=false` e `automationEnabled=false` mantêm-se. [ADR-111](decisions/ADR-111-stripe-test-event-dispatch-retry.md).
+
 ## Phase 9 — ADR-110: ligação verificada da primeira subscrição Stripe test (schema 68)
 
 Um comando **offline e opt-in para operador em ambiente de teste** consegue agora ligar uma `checkout.session.completed` anteriormente validada e armazenada (ADR-105) à intenção `stripe_checkout_intents` criada pelo servidor (ADR-109). O tenant, plano e preço têm origem na intenção local; nunca em metadata do webhook, nem num redirect. O associador consulta a Checkout Session e a Subscription diretamente no Stripe test, confirma `status=complete`, `payment_status=paid`, customer, ID de subscrição, item único, preço e período, e rejeita divergências. Inserção inicial e auditoria são atómicas, com replay idempotente e proteção contra associações cruzadas.

@@ -48,8 +48,8 @@ Cada PR deve citar também os subitens da secção e anexar evidência concreta 
 | 39 | Usage Metering | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 40 | Custos internos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 41 | Cost Guard | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
-| 42 | Billing | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catálogo e subscription snapshot, ecrã Flutter read-only, ingest/reconcile test Stripe; Checkout test com associação verificada offline/opt-in (sem Stripe real validado); Portal e enforcement pendentes (ADRs 104–110) |
-| 43 | Planos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catálogo API e visualização Flutter com preços configuráveis; criação administrativa e Checkout iniciado apenas em test mode sem associação (ADRs 104/108/109/110) |
+| 42 | Billing | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catálogo e subscription snapshot, ecrã Flutter read-only, ingest/reconcile test Stripe; Checkout test com associação verificada offline/opt-in (sem Stripe real validado); Portal e enforcement pendentes (ADRs 104–111) |
+| 43 | Planos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catálogo API e visualização Flutter com preços configuráveis; criação administrativa e Checkout iniciado apenas em test mode sem associação (ADRs 104/108/109/110/111) |
 | 44 | Subscriptions | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: snapshot com RLS, reconciliação Stripe test, consulta Flutter segura; onboarding e alterações contratuais pendentes (ADRs 104–108) |
 | 45 | Webhooks Stripe | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: transporte HMAC test, inbox imutável e reconciliação manual sob papel DB mínimo (ADR-107); falta worker, credenciais/Stripe E2E real e gestão de eventos em produção (ADRs 105–107) |
 | 46 | Limites | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |

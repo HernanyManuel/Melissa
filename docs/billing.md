@@ -1,3 +1,7 @@
+## Sétima fatia — ADR-111 (schema 69): dispatch do inbox Stripe TEST
+
+Os eventos suportados recebidos e assinados entram numa fila transacional com `pending/leased/complete/dead`, tentativas auditadas e reprocessamento após falha/expiração de lease. A CLI `stripe:dispatch-test` de lote limitado só corre em `NODE_ENV=test`, com autorização explícita das três flags de billing, três ligações PostgreSQL de papéis separados e chave `sk_test_`. O dispatcher não pode consultar payloads do Stripe nem modificar subscrições; encaminha `checkout.session.completed` ao linker e eventos de subscrição/invoice ao reconciler. Backoff 30–1800 s, máximo 6 tentativas. Não há task automática na infraestrutura de produção, nem entitlement ou Customer Portal. Ver [ADR-111](decisions/ADR-111-stripe-test-event-dispatch-retry.md).
+
 ## Sexta fatia — ADR-110 (schema 68): associação inicial Stripe TEST via consulta ao provider
 
 A CLI manual `stripe:link-test`, com `NODE_ENV=test`, `STRIPE_TEST_LINK_ENABLED=true`, `STRIPE_TEST_SECRET_KEY=sk_test_...` e `BILLING_LINKER_DATABASE_URL`, aceita um evento `checkout.session.completed` assinado já armazenado. Procura uma intenção por ID de sessão (`cs_test_`), valida sessão e subscrição atuais junto do Stripe, confere tenant/plano/preço e estado `paid/active` e guarda a primeira associação na tabela `subscriptions` com `checkout_session_id`. Audit append-only, idempotência e papel DB NOLOGIN específico: `melissa_billing_linker`, aprovisionado por `infra/scripts/billing-linker-login.sql` somente em teste controlado.
