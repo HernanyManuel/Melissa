@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readBoundedStripeList } from './stripe-test-cursor-pagination';
 import {
   StripeTestInvoiceReader,
   stripeTestPaidInvoiceSnapshot,
@@ -130,6 +131,6 @@ export class StripeTestInvoiceReviewReader
   async listCreditNotes(invoiceId: string): Promise<unknown> {
     if (!/^in_[A-Za-z0-9_]{1,250}$/.test(invoiceId))
       throw new Error('Invalid Stripe test invoice ID');
-    return this.readTestResource('/v1/credit_notes?invoice=' + invoiceId + '&limit=100');
+    return readBoundedStripeList((cursor) => this.readTestResource('/v1/credit_notes?invoice=' + invoiceId + '&limit=100' + (cursor ? '&starting_after=' + cursor : '')));
   }
 }

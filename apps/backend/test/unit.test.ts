@@ -7,6 +7,8 @@ import './stripe-test-dispatcher.test';
 import './stripe-test-invoice-reader.test';
 import './stripe-test-invoice-review.test';
 import './stripe-test-payment-risk.test';
+import './stripe-test-cursor-pagination.test';
+import './stripe-test-payment-group.test';
 import './entitlement-policy.test';
 import './quarantine-policy.test';
 import './receipt-state.test';

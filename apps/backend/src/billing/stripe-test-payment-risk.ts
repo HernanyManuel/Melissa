@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readBoundedStripeList } from './stripe-test-cursor-pagination';
 import {
   StripeTestInvoiceReader,
   stripeTestPaidInvoiceSnapshot,
@@ -187,7 +188,7 @@ export class StripeTestPaymentRiskReader
 {
   async listInvoicePayments(id: string): Promise<unknown> {
     if (!/^in_[A-Za-z0-9_]{1,250}$/.test(id)) throw new Error('Invalid invoice ID');
-    return this.readTestResource('/v1/invoice_payments?invoice=' + id + '&limit=100');
+    return readBoundedStripeList((cursor) => this.readTestResource('/v1/invoice_payments?invoice=' + id + '&limit=100' + (cursor ? '&starting_after=' + cursor : '')));
   }
   async retrievePaymentIntent(id: string): Promise<unknown> {
     if (!PI.test(id)) throw new Error('Invalid PaymentIntent ID');
@@ -199,10 +200,10 @@ export class StripeTestPaymentRiskReader
   }
   async listRefunds(id: string): Promise<unknown> {
     if (!CH.test(id)) throw new Error('Invalid Charge ID');
-    return this.readTestResource('/v1/refunds?charge=' + id + '&limit=100');
+    return readBoundedStripeList((cursor) => this.readTestResource('/v1/refunds?charge=' + id + '&limit=100' + (cursor ? '&starting_after=' + cursor : '')));
   }
   async listDisputes(id: string): Promise<unknown> {
     if (!CH.test(id)) throw new Error('Invalid Charge ID');
-    return this.readTestResource('/v1/disputes?charge=' + id + '&limit=100');
+    return readBoundedStripeList((cursor) => this.readTestResource('/v1/disputes?charge=' + id + '&limit=100' + (cursor ? '&starting_after=' + cursor : '')));
   }
 }

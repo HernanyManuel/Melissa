@@ -6,6 +6,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { recordStoredStripeTestInvoice } from '../src/billing/stripe-invoice-evidence-verifier';
 import { reviewStoredStripeTestInvoice } from '../src/billing/stripe-invoice-review-verifier';
 import { reviewStripeTestPaymentRisk } from '../src/billing/stripe-payment-risk-verifier';
+import { reviewStripeTestPaymentGroup } from '../src/billing/stripe-payment-group-verifier';
 
 const uuidPart = () => randomUUID().replace(/-/g, '');
 const eventId = () => 'evt_' + uuidPart();
@@ -362,6 +363,107 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
     assert.deepEqual(riskRls,{relrowsecurity:true,relforcerowsecurity:true});
     await assert.rejects(runtime.stripeTestPaymentRiskReview.count());
     assert.equal(await admin.stripeTestPaymentRiskReview.count({
+      where:{tenantId:tenantB},
+    }),0);
+
+    // ADR-118: 2 TEST invoice payments linked through independent, fully
+    // allocated PaymentIntents and Charges. Never treats them as refunds
+    // reconciled, settled, billable or a commercial entitlement.
+    const allocation=[{part:1,minor:1000},{part:2,minor:999}];
+    let groupIncomplete=false;
+    let tamperedGroup=false;
+    const groupProvider={
+      retrieveInvoice:reviewProvider.retrieveInvoice,
+      retrieveSubscription:provider.retrieveSubscription,
+      listInvoicePayments:async(id:string)=>{
+        assert.equal(id,evidence.invoiceId);
+        return {object:'list',has_more:groupIncomplete,
+          data:allocation.map(p=>({
+            id:'inpay_group_'+p.part,object:'invoice_payment',
+            invoice:evidence.invoiceId,livemode:false,status:'paid',
+            currency:'eur',amount_paid:p.minor,
+            payment:{type:'payment_intent',payment_intent:'pi_group_'+p.part},
+          }))};
+      },
+      retrievePaymentIntent:async(id:string)=>{
+        const p=allocation.find(x=>id==='pi_group_'+x.part);
+        assert(p);
+        return {id,object:'payment_intent',livemode:false,
+          status:'succeeded',customer:tamperedGroup?'cus_foreign':customerId,
+          currency:'eur',amount_received:p.minor,
+          latest_charge:'ch_group_'+p.part};
+      },
+      retrieveCharge:async(id:string)=>{
+        const p=allocation.find(x=>id==='ch_group_'+x.part);
+        assert(p);
+        return {id,object:'charge',livemode:false,status:'succeeded',
+          payment_intent:'pi_group_'+p.part,customer:customerId,
+          currency:'eur',amount:p.minor,paid:true,captured:true};
+      },
+    };
+    await assert.rejects(reviewStripeTestPaymentGroup(
+      admin,evidence.invoiceId,groupProvider),
+      /Dedicated invoice verifier role required/);
+    assert.deepEqual(await reviewStripeTestPaymentGroup(
+      verifier,evidence.invoiceId,groupProvider),
+      {outcome:'recorded',reason:'group_observed'});
+    const group=await admin.stripeTestInvoicePaymentGroup.findFirstOrThrow({
+      where:{invoiceId:evidence.invoiceId},
+    });
+    assert.equal(group.tenantId,tenantA);
+    assert.equal(group.subscriptionId,subscriptionRowId);
+    assert.equal(group.observedPaymentCount,2);
+    assert.equal(group.observedPaidMinor,1999n);
+    assert.equal(group.refundGraphVerified,false);
+    assert.equal(group.settlementVerified,false);
+    assert.equal(group.financialClearance,false);
+    assert.equal(group.billable,false);
+    assert.deepEqual(await reviewStripeTestPaymentGroup(
+      verifier,evidence.invoiceId,groupProvider),
+      {outcome:'replayed',reason:'already_observed'});
+    assert.equal(await admin.stripeTestInvoicePaymentGroup.count(),1);
+    groupIncomplete=true;
+    assert.deepEqual(await reviewStripeTestPaymentGroup(
+      verifier,evidence.invoiceId,groupProvider),
+      {outcome:'deferred',reason:'partial_list'});
+    groupIncomplete=false;
+    tamperedGroup=true;
+    assert.deepEqual(await reviewStripeTestPaymentGroup(
+      verifier,evidence.invoiceId,groupProvider),
+      {outcome:'rejected',reason:'invalid_payment_graph'});
+    tamperedGroup=false;
+    assert.equal(await admin.stripeTestInvoicePaymentGroup.count(),1);
+    await assert.rejects(admin.stripeTestInvoicePaymentGroup.update({
+      where:{id:group.id},data:{observedPaidMinor:1n},
+    }));
+    await assert.rejects(admin.stripeTestInvoicePaymentGroup.delete({
+      where:{id:group.id},
+    }));
+    const [groupGrants]=await admin.$queryRaw<Array<{
+      runtimeRead:boolean;runtimeWrite:boolean;
+      verifierInsert:boolean;verifierUpdate:boolean;
+    }>>`SELECT
+      has_table_privilege('melissa_runtime','stripe_test_invoice_payment_groups',
+        'SELECT') AS "runtimeRead",
+      has_table_privilege('melissa_runtime','stripe_test_invoice_payment_groups',
+        'INSERT') AS "runtimeWrite",
+      has_column_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_invoice_payment_groups','snapshot_sha256','INSERT')
+        AS "verifierInsert",
+      has_table_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_invoice_payment_groups','UPDATE')
+        AS "verifierUpdate"`;
+    assert.deepEqual(groupGrants,{
+      runtimeRead:false,runtimeWrite:false,
+      verifierInsert:true,verifierUpdate:false,
+    });
+    const [groupRls]=await admin.$queryRaw<Array<{
+      relrowsecurity:boolean;relforcerowsecurity:boolean;
+    }>>`SELECT relrowsecurity,relforcerowsecurity FROM pg_class
+      WHERE relname='stripe_test_invoice_payment_groups'`;
+    assert.deepEqual(groupRls,{relrowsecurity:true,relforcerowsecurity:true});
+    await assert.rejects(runtime.stripeTestInvoicePaymentGroup.count());
+    assert.equal(await admin.stripeTestInvoicePaymentGroup.count({
       where:{tenantId:tenantB},
     }),0);
 
