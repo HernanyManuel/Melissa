@@ -44,7 +44,7 @@ export class StripeCheckoutGateway {
   }
   validatePrice(plan: CheckoutPlanPrice) { return this.provider.validatePrice(plan); }
   createSession(args: {
-    intentId: string; priceId: string; tenantId: string; origin: string; expiresAt: Date; expiresAt: Date;
+    intentId: string; priceId: string; tenantId: string; origin: string; expiresAt: Date;
   }) { return this.provider.createSession(args); }
 }
 
@@ -110,7 +110,7 @@ export class StripeTestCheckoutProvider {
   }
 
   async createSession(args: {
-    intentId: string; priceId: string; tenantId: string; origin: string;
+    intentId: string; priceId: string; tenantId: string; origin: string; expiresAt: Date;
   }): Promise<CheckoutSession> {
     const params = new URLSearchParams({
       mode: 'subscription',
