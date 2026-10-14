@@ -48,12 +48,15 @@ export function evaluateCommercialEntitlements(
     if (facts.provider !== 'stripe') blockers.push('unsupported_provider');
     if (facts.status !== 'active') blockers.push('subscription_not_active');
     if (
-      !facts.periodStart || !facts.periodEnd ||
+      !facts.periodStart ||
+      !facts.periodEnd ||
       !Number.isFinite(facts.periodStart.getTime()) ||
       !Number.isFinite(facts.periodEnd.getTime()) ||
-      facts.periodStart > now || facts.periodEnd <= now ||
+      facts.periodStart > now ||
+      facts.periodEnd <= now ||
       facts.periodEnd <= facts.periodStart
-    ) blockers.push('subscription_period_invalid');
+    )
+      blockers.push('subscription_period_invalid');
     if (!facts.localCheckoutMatched) blockers.push('untrusted_checkout');
     if (!facts.activePlan) blockers.push('plan_unavailable');
   }
@@ -82,8 +85,11 @@ export interface ObservedQuota {
 }
 
 export function observedQuota(used: number, limit: number | null): ObservedQuota {
-  if (!Number.isSafeInteger(used) || used < 0 ||
-      (limit !== null && (!Number.isSafeInteger(limit) || limit < 0)))
+  if (
+    !Number.isSafeInteger(used) ||
+    used < 0 ||
+    (limit !== null && (!Number.isSafeInteger(limit) || limit < 0))
+  )
     throw new Error('Invalid quota snapshot');
   return {
     measured: true,

@@ -52,18 +52,33 @@ test('commercial entitlements deny even paid-looking and compromised snapshots',
     'billing_verification_missing',
     'billable_usage_undefined',
   ]);
-  assert(evaluateCommercialEntitlements({ ...eligible, localCheckoutMatched: false }, now)
-    .blockers.includes('untrusted_checkout'));
-  assert(evaluateCommercialEntitlements({ ...eligible, status: 'trialing' }, now)
-    .blockers.includes('subscription_not_active'));
-  assert(evaluateCommercialEntitlements({ ...eligible, subscriptionPresent: false }, now)
-    .blockers.includes('missing_subscription'));
+  assert(
+    evaluateCommercialEntitlements(
+      { ...eligible, localCheckoutMatched: false },
+      now,
+    ).blockers.includes('untrusted_checkout'),
+  );
+  assert(
+    evaluateCommercialEntitlements({ ...eligible, status: 'trialing' }, now).blockers.includes(
+      'subscription_not_active',
+    ),
+  );
+  assert(
+    evaluateCommercialEntitlements(
+      { ...eligible, subscriptionPresent: false },
+      now,
+    ).blockers.includes('missing_subscription'),
+  );
   assert.throws(() => evaluateCommercialEntitlements(eligible, new Date('invalid')));
 });
 
 test('quota previews never become enforceable or invent billable usage', () => {
   assert.deepEqual(observedQuota(2, 1), {
-    measured: true, used: 2, limit: 1, exceeded: true, enforceable: false,
+    measured: true,
+    used: 2,
+    limit: 1,
+    exceeded: true,
+    enforceable: false,
   });
   assert.equal(observedQuota(1, 1).exceeded, false);
   assert.equal(observedQuota(0, null).exceeded, null);
