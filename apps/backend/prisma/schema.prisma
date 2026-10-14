@@ -997,3 +997,39 @@ model StripeInvoiceEvidenceAttempt {
   @@index([eventId, createdAt])
   @@map("stripe_invoice_evidence_attempts")
 }
+
+
+// ADR-116: immutable service-period and credit-note review observations.
+// No entitlement, invoice settlement or verified-refunds capability.
+model StripeTestInvoiceReview {
+  id                 String   @id @db.Uuid
+  invoiceId          String   @map("invoice_id") @db.VarChar(255)
+  tenantId           String   @map("tenant_id") @db.Uuid
+  subscriptionId     String   @map("subscription_id") @db.Uuid
+  snapshotSha256     String   @map("snapshot_sha256") @db.VarChar(64)
+  linePriceId        String   @map("line_price_id") @db.VarChar(255)
+  servicePeriodStart DateTime @map("service_period_start") @db.Timestamptz(6)
+  servicePeriodEnd   DateTime @map("service_period_end") @db.Timestamptz(6)
+  creditNoteCount    Int      @map("credit_note_count")
+  issuedCreditMinor  BigInt   @map("issued_credit_minor")
+  state              String   @default("observed") @db.VarChar(16)
+  refundsVerified    Boolean  @default(false) @map("refunds_verified")
+  financialClearance Boolean  @default(false) @map("financial_clearance")
+  billable           Boolean  @default(false)
+  observedAt         DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+
+  @@unique([invoiceId, snapshotSha256])
+  @@index([tenantId, observedAt, id])
+  @@map("stripe_test_invoice_reviews")
+}
+
+model StripeInvoiceReviewAttempt {
+  id        String   @id @db.Uuid
+  invoiceId String   @map("invoice_id") @db.VarChar(255)
+  outcome   String   @db.VarChar(16)
+  reason    String   @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([invoiceId, createdAt])
+  @@map("stripe_invoice_review_attempts")
+}
