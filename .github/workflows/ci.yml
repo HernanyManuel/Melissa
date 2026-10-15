@@ -67,6 +67,11 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
+      - name: Capture ADR-119 exact Prettier output (temporary)
+        run: |
+          for f in apps/backend/src/billing/stripe-group-charge-risk-verifier.ts apps/backend/src/billing/stripe-test-group-charge-risk.ts apps/backend/test/stripe-test-group-charge-risk.test.ts apps/backend/scripts/review-stripe-test-group-risk.ts; do
+            pnpm exec prettier "$f" | base64 -w0 | fold -w 1600 | awk -v file="$f" '{print "MELISSA_FORMATTED:" file ":" NR ":" $0}'
+          done
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck

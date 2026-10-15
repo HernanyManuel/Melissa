@@ -57,9 +57,9 @@ test('multi-Charge risk snapshots aggregate all verified allocations, never clea
   assert.equal(zero.snapshot.chargeCount,2);
   assert.equal(zero.snapshot.refundCount,0);
   const rows=links();
-  rows[0].refunds=empty([refund(0,'pending')]);
-  rows[1].refunds=empty([refund(1,'succeeded')]);
-  rows[1].disputes=empty([dispute(1,'under_review')]);
+  rows[0]!.refunds=empty([refund(0,'pending')]);
+  rows[1]!.refunds=empty([refund(1,'succeeded')]);
+  rows[1]!.disputes=empty([dispute(1,'under_review')]);
   const observed=parseStripeTestGroupChargeRisk(invoice,payments(),rows,expected);
   assert.equal(observed.outcome,'valid');
   if(observed.outcome!=='valid') throw new Error('Expected observations');
@@ -70,7 +70,7 @@ test('multi-Charge risk snapshots aggregate all verified allocations, never clea
   assert.notEqual(observed.snapshot.riskDigest,zero.snapshot.riskDigest);
   const replay=parseStripeTestGroupChargeRisk(invoice,payments(),rows,expected);
   assert.deepEqual(replay,observed);
-  rows[0].refunds=empty([refund(0,'succeeded')]);
+  rows[0]!.refunds=empty([refund(0,'succeeded')]);
   const changed=parseStripeTestGroupChargeRisk(invoice,payments(),rows,expected);
   assert.equal(changed.outcome,'valid');
   if(changed.outcome==='valid')
@@ -79,15 +79,15 @@ test('multi-Charge risk snapshots aggregate all verified allocations, never clea
 
 // prettier-ignore
 test('all Charges must be complete, linked and non-duplicated or review refuses',()=>{
-  const incomplete=links();incomplete[1].refunds=empty([],true);
+  const incomplete=links();incomplete[1]!.refunds=empty([],true);
   assert.equal(parseStripeTestGroupChargeRisk(invoice,payments(),incomplete,expected).outcome,
     'incomplete_risk_data');
-  const foreign=links();foreign[1].refunds=empty([{
+  const foreign=links();foreign[1]!.refunds=empty([{
     ...refund(1,'succeeded'),charge:'ch_foreign',
   }]);
   assert.equal(parseStripeTestGroupChargeRisk(invoice,payments(),foreign,expected).outcome,
     'invalid_risk_graph');
-  const wrongDispute=links();wrongDispute[0].disputes=empty([{
+  const wrongDispute=links();wrongDispute[0]!.disputes=empty([{
     ...dispute(0,'needs_response'),payment_intent:'pi_foreign',
   }]);
   assert.equal(parseStripeTestGroupChargeRisk(invoice,payments(),wrongDispute,expected).outcome,
@@ -98,7 +98,7 @@ test('all Charges must be complete, linked and non-duplicated or review refuses'
     ...expected,customerId:'cus_foreign',
   }).outcome,'invoice_mismatch');
   const broken=links();
-  broken[1].charge={...broken[1].charge,customer:'cus_foreign'};
+  broken[1]!.charge={...broken[1]!.charge,customer:'cus_foreign'};
   assert.equal(parseStripeTestGroupChargeRisk(invoice,payments(),broken,expected).outcome,
     'invalid_risk_graph');
 });

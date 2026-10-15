@@ -65,6 +65,7 @@ export function parseStripeTestGroupChargeRisk(
       ...invoice,amount_paid:amount,total:amount,amount_remaining:0,
     };
     const piece=charges[i];
+    if(!piece) return {outcome:'invalid_risk_graph'};
     const parsed=parseStripeTestPaymentRisk(
       slicedInvoice,{object:'list',has_more:false,data:[payment]},
       piece.paymentIntent,piece.charge,piece.refunds,piece.disputes,{
