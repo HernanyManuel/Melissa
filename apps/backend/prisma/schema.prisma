@@ -1105,3 +1105,41 @@ model StripeInvoicePaymentGroupAttempt {
   @@index([invoiceId, createdAt])
   @@map("stripe_invoice_payment_group_attempts")
 }
+
+
+// ADR-119: non-clearing, append-only multi-Charge refund/dispute observations.
+model StripeTestGroupChargeRiskReview {
+  id                     String   @id @db.Uuid
+  groupId                String   @map("group_id") @db.Uuid
+  invoiceId              String   @map("invoice_id") @db.VarChar(255)
+  tenantId               String   @map("tenant_id") @db.Uuid
+  subscriptionId         String   @map("subscription_id") @db.Uuid
+  snapshotSha256         String   @map("snapshot_sha256") @db.Char(64)
+  observedChargeCount    Int      @map("observed_charge_count") @db.SmallInt
+  observedRefundCount    Int      @map("observed_refund_count")
+  succeededRefundMinor   BigInt   @map("succeeded_refund_minor")
+  pendingRefundMinor     BigInt   @map("pending_refund_minor")
+  observedDisputeCount   Int      @map("observed_dispute_count")
+  unresolvedDisputeCount Int      @map("unresolved_dispute_count")
+  riskState              String   @default("observed") @map("risk_state") @db.VarChar(16)
+  refundGraphVerified    Boolean  @default(false) @map("refund_graph_verified")
+  settlementVerified     Boolean  @default(false) @map("settlement_verified")
+  financialClearance     Boolean  @default(false) @map("financial_clearance")
+  billable               Boolean  @default(false)
+  observedAt             DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+
+  @@unique([groupId, snapshotSha256])
+  @@index([tenantId, observedAt, id])
+  @@map("stripe_test_group_charge_risk_reviews")
+}
+
+model StripeGroupChargeRiskAttempt {
+  id        String   @id @db.Uuid
+  invoiceId String   @map("invoice_id") @db.VarChar(255)
+  outcome   String   @db.VarChar(16)
+  reason    String   @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([invoiceId, createdAt])
+  @@map("stripe_group_charge_risk_attempts")
+}
