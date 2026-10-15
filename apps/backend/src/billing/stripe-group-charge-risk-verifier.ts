@@ -2,33 +2,40 @@ import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { stripeTestSubscriptionSnapshot } from './stripe-reconciler';
 import { StripeTestPaymentRiskReader } from './stripe-test-payment-risk';
-import {
-  LinkedChargeRisk,
-  parseStripeTestGroupChargeRisk,
-} from './stripe-test-group-charge-risk';
+import { LinkedChargeRisk, parseStripeTestGroupChargeRisk } from './stripe-test-group-charge-risk';
 
 export interface GroupChargeRiskProvider {
-  retrieveInvoice(id:string):Promise<unknown>;
-  retrieveSubscription(id:string):Promise<unknown>;
-  listInvoicePayments(id:string):Promise<unknown>;
-  retrievePaymentIntent(id:string):Promise<unknown>;
-  retrieveCharge(id:string):Promise<unknown>;
-  listRefunds(id:string):Promise<unknown>;
-  listDisputes(id:string):Promise<unknown>;
+  retrieveInvoice(id: string): Promise<unknown>;
+  retrieveSubscription(id: string): Promise<unknown>;
+  listInvoicePayments(id: string): Promise<unknown>;
+  retrievePaymentIntent(id: string): Promise<unknown>;
+  retrieveCharge(id: string): Promise<unknown>;
+  listRefunds(id: string): Promise<unknown>;
+  listDisputes(id: string): Promise<unknown>;
 }
-export class StripeTestGroupChargeRiskReader extends StripeTestPaymentRiskReader
+export class StripeTestGroupChargeRiskReader
+  extends StripeTestPaymentRiskReader
   implements GroupChargeRiskProvider {}
 
 export type GroupRiskDecision = {
-  outcome:'recorded'|'replayed'|'deferred'|'rejected';
-  reason:'risk_observed'|'already_observed'|'group_not_observed'|
-    'provider_unavailable'|'subscription_mismatch'|'untrusted_checkout'|
-    'invoice_mismatch'|'invalid_payment_graph'|'partial_list'|
-    'invalid_risk_graph'|'incomplete_risk_data';
+  outcome: 'recorded' | 'replayed' | 'deferred' | 'rejected';
+  reason:
+    | 'risk_observed'
+    | 'already_observed'
+    | 'group_not_observed'
+    | 'provider_unavailable'
+    | 'subscription_mismatch'
+    | 'untrusted_checkout'
+    | 'invoice_mismatch'
+    | 'invalid_payment_graph'
+    | 'partial_list'
+    | 'invalid_risk_graph'
+    | 'incomplete_risk_data';
 };
-function obj(x:unknown):Record<string,unknown>|null {
-  return x!==null&&typeof x==='object'&&!Array.isArray(x)
-    ? x as Record<string,unknown>:null;
+function obj(x: unknown): Record<string, unknown> | null {
+  return x !== null && typeof x === 'object' && !Array.isArray(x)
+    ? (x as Record<string, unknown>)
+    : null;
 }
 
 // Offline Stripe TEST only. This requires a pre-recorded immutable ADR-118

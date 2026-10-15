@@ -24,8 +24,9 @@ export type GroupChargeRiskParse =
         unresolvedDisputeCount: number;
       };
     }
-  | { outcome: 'invoice_mismatch' | 'partial_list' | 'invalid_risk_graph' |
-       'incomplete_risk_data' };
+  | {
+      outcome: 'invoice_mismatch' | 'partial_list' | 'invalid_risk_graph' | 'incomplete_risk_data';
+    };
 
 function obj(x: unknown): Record<string, unknown> | null {
   return x !== null && typeof x === 'object' && !Array.isArray(x)
