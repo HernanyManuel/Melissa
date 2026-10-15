@@ -7,6 +7,7 @@ import { recordStoredStripeTestInvoice } from '../src/billing/stripe-invoice-evi
 import { reviewStoredStripeTestInvoice } from '../src/billing/stripe-invoice-review-verifier';
 import { reviewStripeTestPaymentRisk } from '../src/billing/stripe-payment-risk-verifier';
 import { reviewStripeTestPaymentGroup } from '../src/billing/stripe-payment-group-verifier';
+import { reviewStripeTestGroupChargeRisk } from '../src/billing/stripe-group-charge-risk-verifier';
 
 const uuidPart = () => randomUUID().replace(/-/g, '');
 const eventId = () => 'evt_' + uuidPart();
@@ -464,6 +465,121 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
     assert.deepEqual(groupRls,{relrowsecurity:true,relforcerowsecurity:true});
     await assert.rejects(runtime.stripeTestInvoicePaymentGroup.count());
     assert.equal(await admin.stripeTestInvoicePaymentGroup.count({
+      where:{tenantId:tenantB},
+    }),0);
+
+    // ADR-119: multi-Charge risk review must cover EVERY Charge in the
+    // already recorded group. All values are non-financial observations.
+    const groupRefunds=new Map<string,Array<Record<string,unknown>>>();
+    const groupDisputes=new Map<string,Array<Record<string,unknown>>>();
+    let groupRiskIncomplete=false;
+    let groupRiskForeign=false;
+    const groupRiskProvider={
+      ...groupProvider,
+      listRefunds:async(id:string)=>{
+        assert(id==='ch_group_1'||id==='ch_group_2');
+        return {object:'list',has_more:groupRiskIncomplete&&id==='ch_group_2',
+          data:groupRefunds.get(id)??[]};
+      },
+      listDisputes:async(id:string)=>{
+        assert(id==='ch_group_1'||id==='ch_group_2');
+        const original=groupDisputes.get(id)??[];
+        return {object:'list',has_more:false,data:groupRiskForeign&&
+          id==='ch_group_2'?original.map(x=>({...x,charge:'ch_foreign'})):
+          original};
+      },
+    };
+    await assert.rejects(reviewStripeTestGroupChargeRisk(
+      admin,evidence.invoiceId,groupRiskProvider),
+      /Dedicated invoice verifier role required/);
+    assert.deepEqual(await reviewStripeTestGroupChargeRisk(
+      verifier,evidence.invoiceId,groupRiskProvider),
+      {outcome:'recorded',reason:'risk_observed'});
+    let groupRisk=await admin.stripeTestGroupChargeRiskReview.findFirstOrThrow({
+      where:{invoiceId:evidence.invoiceId},
+    });
+    assert.equal(groupRisk.groupId,group.id);
+    assert.equal(groupRisk.tenantId,tenantA);
+    assert.equal(groupRisk.observedChargeCount,2);
+    assert.equal(groupRisk.observedRefundCount,0);
+    assert.equal(groupRisk.refundGraphVerified,false);
+    assert.equal(groupRisk.settlementVerified,false);
+    assert.equal(groupRisk.financialClearance,false);
+    assert.equal(groupRisk.billable,false);
+    assert.deepEqual(await reviewStripeTestGroupChargeRisk(
+      verifier,evidence.invoiceId,groupRiskProvider),
+      {outcome:'replayed',reason:'already_observed'});
+    groupRefunds.set('ch_group_1',[{
+      object:'refund',id:'re_group_a',charge:'ch_group_1',
+      payment_intent:'pi_group_1',livemode:false,currency:'eur',
+      amount:250,status:'pending',
+    }]);
+    groupRefunds.set('ch_group_2',[{
+      object:'refund',id:'re_group_b',charge:'ch_group_2',
+      payment_intent:'pi_group_2',livemode:false,currency:'eur',
+      amount:300,status:'succeeded',
+    }]);
+    groupDisputes.set('ch_group_2',[{
+      object:'dispute',id:'du_group_b',charge:'ch_group_2',
+      payment_intent:'pi_group_2',livemode:false,currency:'eur',
+      amount:400,status:'under_review',
+    }]);
+    assert.deepEqual(await reviewStripeTestGroupChargeRisk(
+      verifier,evidence.invoiceId,groupRiskProvider),
+      {outcome:'recorded',reason:'risk_observed'});
+    groupRisk=await admin.stripeTestGroupChargeRiskReview.findFirstOrThrow({
+      where:{invoiceId:evidence.invoiceId,observedRefundCount:2},
+    });
+    assert.equal(groupRisk.succeededRefundMinor,300n);
+    assert.equal(groupRisk.pendingRefundMinor,250n);
+    assert.equal(groupRisk.observedDisputeCount,1);
+    assert.equal(groupRisk.unresolvedDisputeCount,1);
+    assert.equal(await admin.stripeTestGroupChargeRiskReview.count(),2);
+    groupRiskIncomplete=true;
+    assert.deepEqual(await reviewStripeTestGroupChargeRisk(
+      verifier,evidence.invoiceId,groupRiskProvider),
+      {outcome:'deferred',reason:'incomplete_risk_data'});
+    groupRiskIncomplete=false;
+    groupRiskForeign=true;
+    assert.deepEqual(await reviewStripeTestGroupChargeRisk(
+      verifier,evidence.invoiceId,groupRiskProvider),
+      {outcome:'rejected',reason:'invalid_risk_graph'});
+    groupRiskForeign=false;
+    assert.equal(await admin.stripeGroupChargeRiskAttempt.count({
+      where:{invoiceId:evidence.invoiceId},
+    }),5);
+    await assert.rejects(admin.stripeTestGroupChargeRiskReview.update({
+      where:{id:groupRisk.id},data:{pendingRefundMinor:100n},
+    }));
+    await assert.rejects(admin.stripeTestGroupChargeRiskReview.delete({
+      where:{id:groupRisk.id},
+    }));
+    await assert.rejects(runtime.stripeTestGroupChargeRiskReview.count());
+    const [groupRiskGrants]=await admin.$queryRaw<Array<{
+      runtimeRead:boolean;runtimeInsert:boolean;verifierInsert:boolean;
+      verifierUpdate:boolean;
+    }>>`SELECT
+      has_table_privilege('melissa_runtime',
+        'stripe_test_group_charge_risk_reviews','SELECT') AS "runtimeRead",
+      has_table_privilege('melissa_runtime',
+        'stripe_test_group_charge_risk_reviews','INSERT') AS "runtimeInsert",
+      has_column_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_group_charge_risk_reviews','snapshot_sha256','INSERT')
+        AS "verifierInsert",
+      has_table_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_group_charge_risk_reviews','UPDATE') AS "verifierUpdate"`;
+    assert.deepEqual(groupRiskGrants,{
+      runtimeRead:false,runtimeInsert:false,
+      verifierInsert:true,verifierUpdate:false,
+    });
+    const [groupRiskRls]=await admin.$queryRaw<Array<{
+      relrowsecurity:boolean;relforcerowsecurity:boolean;
+    }>>`SELECT relrowsecurity,relforcerowsecurity FROM pg_class
+      WHERE relname='stripe_test_group_charge_risk_reviews'`;
+    assert.deepEqual(groupRiskRls,{
+      relrowsecurity:true,relforcerowsecurity:true,
+    });
+    assert.equal(await admin.stripeTestGroupChargeRiskReview.count({
       where:{tenantId:tenantB},
     }),0);
 
