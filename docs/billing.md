@@ -1,3 +1,7 @@
+## Décima quinta fatia — ADR-119 (schema 77): refund/dispute por todas as Charges Stripe TEST
+
+`stripe:group-risk-test in_...` é uma revisão manual/test-only para um grupo Stripe já verificado: valida cada Charge e lista completa limitada de refunds/disputes, produz snapshots append-only de riscos por grupo e regista rejeições/deferred. O papel runtime não tem grants e o ledger impede clearing, refunds finalizados, cobrabilidade ou direitos pagos. `billingVerified=false` e `automationEnabled=false`; conta sandbox E2E ainda não validada. [ADR-119](decisions/ADR-119-stripe-test-multi-charge-risk-observations.md).
+
 ## Décima quarta fatia — ADR-118 (schema 76): paginação de segurança e grupos de pagamento
 
 `readBoundedStripeList` percorre até 3 páginas/100 itens de InvoicePayments, refunds, disputes e credit notes, sempre com cursor Stripe e sinalização incompleta (`deferred`) quando excede teto. O comando operador `stripe:payment-group-test in_...`, com papel independente no modo TEST, verifica 2–8 alocações exatas à invoice e PIs/Charges individuais vinculados ao tenant e regista um digest imutável. **Não** reconcilia refunds/disputes de todas as Charges nem prova settlement, pelo que o novo ledger mantém todas as flags de clearing, pagamento final, direitos e faturação em `false`. [ADR-118](decisions/ADR-118-bounded-stripe-test-pagination-and-payment-groups.md).
