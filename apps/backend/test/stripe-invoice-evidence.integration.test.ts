@@ -8,6 +8,7 @@ import { reviewStoredStripeTestInvoice } from '../src/billing/stripe-invoice-rev
 import { reviewStripeTestPaymentRisk } from '../src/billing/stripe-payment-risk-verifier';
 import { reviewStripeTestPaymentGroup } from '../src/billing/stripe-payment-group-verifier';
 import { reviewStripeTestGroupChargeRisk } from '../src/billing/stripe-group-charge-risk-verifier';
+import { reviewStripeTestGroupBalances } from '../src/billing/stripe-group-balance-verifier';
 
 const uuidPart = () => randomUUID().replace(/-/g, '');
 const eventId = () => 'evt_' + uuidPart();
@@ -580,6 +581,112 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
       relrowsecurity:true,relforcerowsecurity:true,
     });
     assert.equal(await admin.stripeTestGroupChargeRiskReview.count({
+      where:{tenantId:tenantB},
+    }),0);
+
+    // ADR-120: each Charge balance_transaction is verified directly from
+    // Stripe TEST. An available Stripe balance does not imply bank payout.
+    let missingBalance=false;
+    let foreignBalance=false;
+    let balanceAvailable=false;
+    const balances={
+      ...groupRiskProvider,
+      retrieveCharge:async(id:string)=>{
+        const original=await groupProvider.retrieveCharge(id);
+        return {...original,balance_transaction:
+          missingBalance&&id==='ch_group_2'?null:
+            'txn_'+id};
+      },
+      retrieveBalanceTransaction:async(id:string)=>{
+        assert(id==='txn_ch_group_1'||id==='txn_ch_group_2');
+        const chargeId=id.slice(4);
+        const amount=chargeId==='ch_group_1'?1000:999;
+        return {object:'balance_transaction',id,source:foreignBalance&&
+          chargeId==='ch_group_2'?'ch_foreign':chargeId,
+          type:'charge',status:balanceAvailable?'available':'pending',
+          currency:'eur',amount,fee:90,net:amount-90,
+          available_on:paidAt+86400};
+      },
+    };
+    await assert.rejects(reviewStripeTestGroupBalances(
+      admin,evidence.invoiceId,balances),
+      /Dedicated invoice verifier role required/);
+    assert.deepEqual(await reviewStripeTestGroupBalances(
+      verifier,evidence.invoiceId,balances),
+      {outcome:'recorded',reason:'balance_observed'});
+    let balance=await admin.stripeTestGroupBalanceReview.findFirstOrThrow({
+      where:{invoiceId:evidence.invoiceId},
+    });
+    assert.equal(balance.groupId,group.id);
+    assert.equal(balance.tenantId,tenantA);
+    assert.equal(balance.grossMinor,1999n);
+    assert.equal(balance.feeMinor,180n);
+    assert.equal(balance.netMinor,1819n);
+    assert.equal(balance.pendingTransactionCount,2);
+    assert.equal(balance.availableTransactionCount,0);
+    assert.equal(balance.payoutVerified,false);
+    assert.equal(balance.settlementVerified,false);
+    assert.equal(balance.financialClearance,false);
+    assert.equal(balance.billable,false);
+    assert.deepEqual(await reviewStripeTestGroupBalances(
+      verifier,evidence.invoiceId,balances),
+      {outcome:'replayed',reason:'already_observed'});
+    balanceAvailable=true;
+    assert.deepEqual(await reviewStripeTestGroupBalances(
+      verifier,evidence.invoiceId,balances),
+      {outcome:'recorded',reason:'balance_observed'});
+    balance=await admin.stripeTestGroupBalanceReview.findFirstOrThrow({
+      where:{invoiceId:evidence.invoiceId,availableTransactionCount:2},
+    });
+    assert.equal(balance.netMinor,1819n);
+    assert.equal(balance.payoutVerified,false);
+    assert.equal(await admin.stripeTestGroupBalanceReview.count(),2);
+    missingBalance=true;
+    assert.deepEqual(await reviewStripeTestGroupBalances(
+      verifier,evidence.invoiceId,balances),
+      {outcome:'deferred',reason:'balance_transaction_missing'});
+    missingBalance=false;
+    foreignBalance=true;
+    assert.deepEqual(await reviewStripeTestGroupBalances(
+      verifier,evidence.invoiceId,balances),
+      {outcome:'rejected',reason:'invalid_balance_graph'});
+    foreignBalance=false;
+    assert.equal(await admin.stripeGroupBalanceAttempt.count({
+      where:{invoiceId:evidence.invoiceId},
+    }),5);
+    await assert.rejects(admin.stripeTestGroupBalanceReview.update({
+      where:{id:balance.id},data:{feeMinor:1n},
+    }));
+    await assert.rejects(admin.stripeTestGroupBalanceReview.delete({
+      where:{id:balance.id},
+    }));
+    await assert.rejects(verifier.stripeTestGroupBalanceReview.delete({
+      where:{id:balance.id},
+    }));
+    await assert.rejects(runtime.stripeTestGroupBalanceReview.count());
+    const [balanceGrants]=await admin.$queryRaw<Array<{
+      runtimeRead:boolean;runtimeInsert:boolean;verifierInsert:boolean;
+      verifierUpdate:boolean;
+    }>>`SELECT
+      has_table_privilege('melissa_runtime',
+        'stripe_test_group_balance_reviews','SELECT') AS "runtimeRead",
+      has_table_privilege('melissa_runtime',
+        'stripe_test_group_balance_reviews','INSERT') AS "runtimeInsert",
+      has_column_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_group_balance_reviews','snapshot_sha256','INSERT')
+        AS "verifierInsert",
+      has_table_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_group_balance_reviews','UPDATE') AS "verifierUpdate"`;
+    assert.deepEqual(balanceGrants,{
+      runtimeRead:false,runtimeInsert:false,
+      verifierInsert:true,verifierUpdate:false,
+    });
+    const [balanceRls]=await admin.$queryRaw<Array<{
+      relrowsecurity:boolean;relforcerowsecurity:boolean;
+    }>>`SELECT relrowsecurity,relforcerowsecurity FROM pg_class
+      WHERE relname='stripe_test_group_balance_reviews'`;
+    assert.deepEqual(balanceRls,{relrowsecurity:true,relforcerowsecurity:true});
+    assert.equal(await admin.stripeTestGroupBalanceReview.count({
       where:{tenantId:tenantB},
     }),0);
 

@@ -25,7 +25,8 @@
     "stripe:review-invoice-test": "tsx scripts/review-stripe-test-invoice.ts",
     "stripe:payment-risk-test": "tsx scripts/review-stripe-test-payment-risk.ts",
     "stripe:payment-group-test": "tsx scripts/review-stripe-test-payment-group.ts",
-    "stripe:group-risk-test": "tsx scripts/review-stripe-test-group-risk.ts"
+    "stripe:group-risk-test": "tsx scripts/review-stripe-test-group-risk.ts",
+    "stripe:group-balance-test": "tsx scripts/review-stripe-test-group-balance.ts"
   },
   "dependencies": {
     "@nestjs/common": "11.2.3",
