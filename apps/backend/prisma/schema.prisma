@@ -1143,3 +1143,41 @@ model StripeGroupChargeRiskAttempt {
   @@index([invoiceId, createdAt])
   @@map("stripe_group_charge_risk_attempts")
 }
+
+
+// ADR-120: Stripe TEST Charge balance-impact observations, not payout evidence.
+model StripeTestGroupBalanceReview {
+  id                        String   @id @db.Uuid
+  groupId                   String   @map("group_id") @db.Uuid
+  invoiceId                 String   @map("invoice_id") @db.VarChar(255)
+  tenantId                  String   @map("tenant_id") @db.Uuid
+  subscriptionId            String   @map("subscription_id") @db.Uuid
+  snapshotSha256            String   @map("snapshot_sha256") @db.Char(64)
+  observedChargeCount       Int      @map("observed_charge_count") @db.SmallInt
+  grossMinor                BigInt   @map("gross_minor")
+  feeMinor                  BigInt   @map("fee_minor")
+  netMinor                  BigInt   @map("net_minor")
+  pendingTransactionCount   Int      @map("pending_transaction_count") @db.SmallInt
+  availableTransactionCount Int      @map("available_transaction_count") @db.SmallInt
+  state                     String   @default("observed") @db.VarChar(16)
+  payoutVerified            Boolean  @default(false) @map("payout_verified")
+  settlementVerified        Boolean  @default(false) @map("settlement_verified")
+  financialClearance        Boolean  @default(false) @map("financial_clearance")
+  billable                  Boolean  @default(false)
+  observedAt                DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+
+  @@unique([groupId, snapshotSha256])
+  @@index([tenantId, observedAt, id])
+  @@map("stripe_test_group_balance_reviews")
+}
+
+model StripeGroupBalanceAttempt {
+  id        String   @id @db.Uuid
+  invoiceId String   @map("invoice_id") @db.VarChar(255)
+  outcome   String   @db.VarChar(16)
+  reason    String   @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([invoiceId, createdAt])
+  @@map("stripe_group_balance_attempts")
+}
