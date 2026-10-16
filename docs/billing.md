@@ -1,3 +1,7 @@
+## Décima sexta fatia — ADR-120 (schema 78): saldos Stripe TEST observados, sem payout
+
+`stripe:group-balance-test in_...` lê os impactos de saldo Stripe da Charge de cada pagamento de um grupo de 2–8 já vinculado, observando `amount`, `fee`, `net` e `status=pending|available`. Usa papel verificador dedicado, SHA-256, histórico imutável, isolamento RLS e auditoria; não trata `available` como transferência bancária. A base exige `payout_verified=false`, `settlement_verified=false`, `financial_clearance=false`, `billable=false` e a API não possui grants. [ADR-120](decisions/ADR-120-stripe-test-group-balance-impact-observations.md).
+
 ## Décima quinta fatia — ADR-119 (schema 77): refund/dispute por todas as Charges Stripe TEST
 
 `stripe:group-risk-test in_...` é uma revisão manual/test-only para um grupo Stripe já verificado: valida cada Charge e lista completa limitada de refunds/disputes, produz snapshots append-only de riscos por grupo e regista rejeições/deferred. O papel runtime não tem grants e o ledger impede clearing, refunds finalizados, cobrabilidade ou direitos pagos. `billingVerified=false` e `automationEnabled=false`; conta sandbox E2E ainda não validada. [ADR-119](decisions/ADR-119-stripe-test-multi-charge-risk-observations.md).
