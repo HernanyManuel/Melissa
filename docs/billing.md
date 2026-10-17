@@ -1,3 +1,7 @@
+## ADR-121 parcial (schema 79): observação restrita de payout TEST
+
+Contrato de observação determinístico e GET Stripe TEST paginado. Migration cria ledger e auditoria sem escrita pela API; exige coincidência de tenant/grupo/revisão ADR-120 e flags financeiras irrevogavelmente falsas. Ainda não há verificador que associe com segurança as transações ao payout, nem provas E2E. Sem cobrança ou entitlements.
+
 ## Décima sexta fatia — ADR-120 (schema 78): saldos Stripe TEST observados, sem payout
 
 `stripe:group-balance-test in_...` lê os impactos de saldo Stripe da Charge de cada pagamento de um grupo de 2–8 já vinculado, observando `amount`, `fee`, `net` e `status=pending|available`. Usa papel verificador dedicado, SHA-256, histórico imutável, isolamento RLS e auditoria; não trata `available` como transferência bancária. A base exige `payout_verified=false`, `settlement_verified=false`, `financial_clearance=false`, `billable=false` e a API não possui grants. [ADR-120](decisions/ADR-120-stripe-test-group-balance-impact-observations.md).

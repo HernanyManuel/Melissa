@@ -1181,3 +1181,40 @@ model StripeGroupBalanceAttempt {
   @@index([invoiceId, createdAt])
   @@map("stripe_group_balance_attempts")
 }
+
+ 
+// ADR-121: strictly observational Stripe TEST payout membership.
+// Database CHECK constraints prevent financial or commercial activation.
+model StripeTestGroupPayoutObservation {
+  id                   String   @id @db.Uuid
+  balanceReviewId      String   @map("balance_review_id") @db.Uuid
+  groupId              String   @map("group_id") @db.Uuid
+  invoiceId            String   @map("invoice_id") @db.VarChar(255)
+  tenantId             String   @map("tenant_id") @db.Uuid
+  subscriptionId       String   @map("subscription_id") @db.Uuid
+  payoutId             String   @map("payout_id") @db.VarChar(255)
+  snapshotSha256       String   @map("snapshot_sha256") @db.Char(64)
+  includedChargeCount  Int      @map("included_charge_count") @db.SmallInt
+  observedNetMinor     BigInt   @map("observed_net_minor")
+  state                String   @default("observed") @db.VarChar(16)
+  payoutVerified       Boolean  @default(false) @map("payout_verified")
+  settlementVerified   Boolean  @default(false) @map("settlement_verified")
+  financialClearance   Boolean  @default(false) @map("financial_clearance")
+  billable             Boolean  @default(false)
+  observedAt           DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+
+  @@unique([balanceReviewId, payoutId, snapshotSha256])
+  @@index([tenantId, observedAt, id])
+  @@map("stripe_test_group_payout_observations")
+}
+
+model StripeGroupPayoutAttempt {
+  id        String   @id @db.Uuid
+  invoiceId String   @map("invoice_id") @db.VarChar(255)
+  outcome   String   @db.VarChar(16)
+  reason    String   @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([invoiceId, createdAt])
+  @@map("stripe_group_payout_attempts")
+}

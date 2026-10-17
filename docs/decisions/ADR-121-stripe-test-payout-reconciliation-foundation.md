@@ -2,7 +2,7 @@
 
 ## Estado
 
-**Parcial, sem schema novo.** Contrato puro, leitor GET Stripe TEST e testes unitários; não existe ainda CLI, operação orquestrada Stripe, migration, ledger, integração PostgreSQL/RLS ou teste E2E de conta sandbox. A versão exigida de schema permanece **78**. O PR #7 continua draft.
+**Parcial, schema 79.** Contrato puro, leitor GET Stripe TEST e testes unitários; não existe ainda CLI, operação orquestrada Stripe, integração PostgreSQL/RLS ou teste E2E de conta sandbox. A versão exigida de schema passa a **79**. O PR #7 continua draft.
 
 ## Decisão
 
@@ -14,8 +14,12 @@ Mesmo quando a Stripe comunica `paid` e `completed`, isto não é comprovativo b
 
 ## Próximo incremento da mesma ADR
 
-Revalidar a cadeia Checkout→subscription→invoice→group→Charge→balance transaction; provar pertença do payout à mesma conta Stripe; ledger append-only com FORCE RLS/grants mínimos e auditoria, testes de integração PostgreSQL, scripts manuais opt-in e CI completo no SHA final. Sem atribuição cross-tenant e sem extrapolação de disponibilidade para liquidação.
+Revalidar a cadeia Checkout→subscription→invoice→group→Charge→balance transaction; provar pertença do payout à mesma conta Stripe; verificador privilegiado que grava o ledger append-only já criado com FORCE RLS/grants mínimos e auditoria, testes de integração PostgreSQL, scripts manuais opt-in e CI completo no SHA final. Sem atribuição cross-tenant e sem extrapolação de disponibilidade para liquidação.
 
 ## CI
 
 O primeiro commit da ADR-121 falhou no gate Prettier (backend), enquanto Flutter e Compose passaram. O incremento corretivo mantém `prettier-ignore` circunscrito às funções/fixtures densas desta observação, seguindo o precedente do parser ADR-120; não altera o contrato de segurança. Validar resultado do CI do commit corretivo antes de declarar aprovação.
+
+## Incremento de persistência (schema 79)
+
+A migration `20261017007900_stripe_test_group_payout_observations` cria observações e tentativas imutáveis, com FORCE RLS e grants apenas para `melissa_billing_invoice_verifier`. O INSERT só admite um grupo/tenant/invoice/subscription compatível com uma revisão ADR-120 cujas transactions estejam todas `available`; o net e a contagem têm de coincidir. Estes controlos SQL **não** constituem prova da relação Stripe payout→Charge: essa validação é obrigação do verificador privilegiado, ainda por implementar. Sem esse verificador, nenhuma CLI escreve snapshots. Impossível, por CHECK, marcar payout, settlement, financial clearance ou billable como true. Sem E2E Stripe real.
