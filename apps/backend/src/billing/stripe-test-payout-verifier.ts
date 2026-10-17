@@ -1,10 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { stripeTestSubscriptionSnapshot } from './stripe-reconciler';
-import {
-  LinkedBalanceCharge,
-  parseStripeTestGroupBalances,
-} from './stripe-test-group-balance';
+import { LinkedBalanceCharge, parseStripeTestGroupBalances } from './stripe-test-group-balance';
 import {
   ExpectedPayoutBalance,
   observeAutomaticStripeTestPayout,
