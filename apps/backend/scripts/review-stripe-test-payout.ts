@@ -1,7 +1,11 @@
 import 'reflect-metadata';
 import { PrismaClient } from '@prisma/client';
-import { reviewStripeTestAutomaticPayout, StripeTestPayoutVerifierReader } from '../src/billing/stripe-test-payout-verifier';
+import {
+  reviewStripeTestAutomaticPayout,
+  StripeTestPayoutVerifierReader,
+} from '../src/billing/stripe-test-payout-verifier';
 
+// prettier-ignore
 async function main(): Promise<void> {
   if (process.env.NODE_ENV !== 'test' || process.env.STRIPE_TEST_PAYOUT_ENABLED !== 'true')
     throw new Error('Stripe TEST payout observations disabled');
@@ -17,6 +21,7 @@ async function main(): Promise<void> {
     process.stdout.write(JSON.stringify(result)+'\n');
   } finally { await db.$disconnect(); }
 }
+// prettier-ignore
 void main().catch(()=>{
   process.stderr.write('Stripe TEST payout review failed\n');
   process.exitCode=1;

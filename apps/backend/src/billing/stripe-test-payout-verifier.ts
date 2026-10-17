@@ -6,6 +6,7 @@ import { ExpectedPayoutBalance, observeAutomaticStripeTestPayout } from './strip
 import { StripeTestPayoutReader } from './stripe-test-payout-reader';
 import { StripeTestGroupBalanceReader } from './stripe-group-balance-verifier';
 
+// prettier-ignore
 export interface StripeTestPayoutProvider {
   retrieveInvoice(id: string): Promise<unknown>;
   retrieveSubscription(id: string): Promise<unknown>;
@@ -16,6 +17,7 @@ export interface StripeTestPayoutProvider {
   retrievePayout(id: string): Promise<unknown>;
   listAutomaticPayoutTransactions(id: string): Promise<unknown>;
 }
+// prettier-ignore
 export class StripeTestPayoutVerifierReader extends StripeTestPayoutReader {
   private readonly balances: StripeTestGroupBalanceReader;
   constructor(key: string, http: typeof fetch = fetch) {
@@ -27,10 +29,12 @@ export class StripeTestPayoutVerifierReader extends StripeTestPayoutReader {
   retrieveBalanceTransaction(id: string): Promise<unknown> { return this.balances.retrieveBalanceTransaction(id); }
   listInvoicePayments(id: string): Promise<unknown> { return this.balances.listInvoicePayments(id); }
 }
+// prettier-ignore
 export interface PayoutReviewResult {
   outcome: 'recorded' | 'replayed' | 'rejected' | 'deferred';
   reason: string;
 }
+// prettier-ignore
 function object(x: unknown): Record<string, unknown> | null {
   return x !== null && typeof x === 'object' && !Array.isArray(x)
     ? x as Record<string, unknown> : null;
