@@ -733,6 +733,19 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
     assert.deepEqual(await reviewStripeTestAutomaticPayout(
       verifier,evidence.invoiceId,'po_group_test',payoutProvider),
       {outcome:'replayed',reason:'already_observed'});
+    // Advisory lock serializes same-invoice requests. Exactly one immutable
+    // payout snapshot survives even when two verifier processes race.
+    const concurrent=await Promise.all([
+      reviewStripeTestAutomaticPayout(verifier,evidence.invoiceId,'po_group_test',payoutProvider),
+      reviewStripeTestAutomaticPayout(verifier,evidence.invoiceId,'po_group_test',payoutProvider),
+    ]);
+    assert.deepEqual(concurrent,[
+      {outcome:'replayed',reason:'already_observed'},
+      {outcome:'replayed',reason:'already_observed'},
+    ]);
+    assert.equal(await admin.stripeTestGroupPayoutObservation.count({
+      where:{invoiceId:evidence.invoiceId},
+    }),1);
     partialPayout=true;
     assert.deepEqual(await reviewStripeTestAutomaticPayout(
       verifier,evidence.invoiceId,'po_group_test',payoutProvider),
@@ -750,7 +763,7 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
     manualPayout=false;
     assert.equal(await admin.stripeGroupPayoutAttempt.count({
       where:{invoiceId:evidence.invoiceId},
-    }),5);
+    }),7);
     await assert.rejects(admin.stripeTestGroupPayoutObservation.update({
       where:{id:payoutReview.id},data:{observedNetMinor:1n},
     }));

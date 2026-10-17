@@ -31,3 +31,7 @@ A migration `20261017007900_stripe_test_group_payout_observations` cria observa�
 ## Integração PostgreSQL/RLS
 
 A suite existente `stripe-invoice-evidence.integration.test.ts` passou a exercitar também `reviewStripeTestAutomaticPayout` com provider Stripe simulado: gravação, replay, partial list, payout manual, source estrangeiro, auditoria, imutabilidade, grants mínimos, FORCE RLS e isolamento tenant. Estes testes dependem do CI; não representam sandbox real. Não há autorização de merge ou faturação live.
+
+## Cobertura adicional de concorrência e pertença
+
+A integração PostgreSQL inclui agora duas invocações simultâneas sobre a mesma invoice: o lock transacional força replay sem criar uma segunda observação. Os testes unitários confirmam que transações de outras origens podem coexistir no payout mas não compensam uma transação esperada em falta, e que IDs duplicados e valores líquidos inconsistentes são rejeitados. Permanecem pendentes testes E2E com conta Stripe TEST efetiva e evidência bancária de settlement (fora do âmbito desta ADR).

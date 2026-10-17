@@ -41,3 +41,18 @@ test('ADR-121: defer incomplete, manual and non-reconciled payouts', () => {
   assert.equal(observe(payout, { ...rows, has_more: true }, expected).outcome, 'deferred');
   assert.equal(observe(payout, { ...rows, data: [rows.data[0]] }, expected).outcome, 'deferred');
 });
+
+// prettier-ignore
+test('ADR-121: rejects account-list duplicates and never guesses missing group membership', () => {
+  const foreign={object:'balance_transaction',id:'txn_other',source:'ch_other',
+    type:'charge',currency:'eur',net:100};
+  assert.equal(observe(payout,{...rows,data:[...rows.data,foreign]},expected).outcome,'observed');
+  assert.deepEqual(observe(payout,{...rows,data:[rows.data[0],foreign]},expected),
+    {outcome:'deferred',reason:'group_not_fully_in_payout'});
+  assert.deepEqual(observe(payout,{...rows,data:[...rows.data,foreign,foreign]},expected),
+    {outcome:'rejected',reason:'invalid_transaction_list'});
+  assert.deepEqual(observe(payout,{...rows,data:[...rows.data,{...foreign,id:'txn_bad?param=x'}]},expected),
+    {outcome:'rejected',reason:'invalid_transaction_list'});
+  assert.deepEqual(observe(payout,{...rows,data:[rows.data[0],{...rows.data[1],net:0}]},expected),
+    {outcome:'rejected',reason:'transaction_mismatch'});
+});
