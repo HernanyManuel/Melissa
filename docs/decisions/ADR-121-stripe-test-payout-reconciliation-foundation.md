@@ -2,7 +2,7 @@
 
 ## Estado
 
-**Parcial, sem schema novo.** Contrato puro e testes unitários; não existe ainda CLI, consulta Stripe, migration, ledger, integração PostgreSQL/RLS ou teste E2E de conta sandbox. A versão exigida de schema permanece **78**. O PR #7 continua draft.
+**Parcial, sem schema novo.** Contrato puro, leitor GET Stripe TEST e testes unitários; não existe ainda CLI, operação orquestrada Stripe, migration, ledger, integração PostgreSQL/RLS ou teste E2E de conta sandbox. A versão exigida de schema permanece **78**. O PR #7 continua draft.
 
 ## Decisão
 
@@ -14,7 +14,7 @@ Mesmo quando a Stripe comunica `paid` e `completed`, isto não é comprovativo b
 
 ## Próximo incremento da mesma ADR
 
-Implementar leitor GET Stripe TEST com limites e cursores; revalidar a cadeia Checkout→subscription→invoice→group→Charge→balance transaction; provar pertença do payout à mesma conta Stripe; ledger append-only com FORCE RLS/grants mínimos e auditoria, testes de integração PostgreSQL, scripts manuais opt-in e CI completo no SHA final. Sem atribuição cross-tenant e sem extrapolação de disponibilidade para liquidação.
+Revalidar a cadeia Checkout→subscription→invoice→group→Charge→balance transaction; provar pertença do payout à mesma conta Stripe; ledger append-only com FORCE RLS/grants mínimos e auditoria, testes de integração PostgreSQL, scripts manuais opt-in e CI completo no SHA final. Sem atribuição cross-tenant e sem extrapolação de disponibilidade para liquidação.
 
 ## CI
 
