@@ -1,6 +1,7 @@
 import { Dependencies } from '../dependencies';
 import { allows } from '../tenancy/permissions';
 import { ConversationLock } from './conversation-lock';
+import { appendInboxEvent } from './inbox-event-store';
 
 export class InboundProcessor {
   constructor(private readonly deps: Dependencies) {}
@@ -126,6 +127,13 @@ export class InboundProcessor {
             createdAt: event.createdAt,
             batchId: input.batchId,
           },
+        });
+        await appendInboxEvent(tx, {
+          tenantId,
+          conversationId: conversation.id,
+          eventType: 'message.received',
+          messageId: message.id,
+          actorId: input.actorId,
         });
         if (
           input.origin === 'whatsapp' &&

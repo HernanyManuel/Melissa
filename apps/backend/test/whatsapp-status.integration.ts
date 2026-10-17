@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHmac, randomInt, randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { WhatsAppIngress } from '../src/channels/whatsapp-ingress';
 import { PrismaAITurnLedgerRepository } from '../src/ai/ai-turn-ledger';
@@ -26,8 +26,15 @@ export async function testWhatsAppStatuses(
 ) {
   const externalId = `wamid.status.${randomUUID()}`;
   const now = Math.floor(Date.now() / 1000);
-  const customer = await admin.customer.findFirstOrThrow({
-    where: { tenantId: scope.tenantId },
+  // The unique (tenant, channel, customer) key requires a dedicated fixture.
+  // Picking an arbitrary existing customer is nondeterministic after inbound processing.
+  const customer = await admin.customer.create({
+    data: {
+      tenantId: scope.tenantId,
+      id: randomUUID(),
+      displayName: 'Status callback fixture',
+      phoneE164: `+3519${String(randomInt(100_000_000)).padStart(8, '0')}`,
+    },
   });
   const conversationId = randomUUID();
   await admin.conversation.create({

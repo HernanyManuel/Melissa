@@ -46,8 +46,14 @@ test('serial calendar loop never overlaps reconciliation cycles', async () => {
     1,
     () => undefined,
   );
-  await delay(50);
-  await loop.stop();
+  // CI scheduling can pause timers well beyond 50 ms. Wait for the
+  // observable condition instead of assuming two cycles ran by a deadline.
+  const deadline = Date.now() + 1500;
+  try {
+    while (runs < 2 && Date.now() < deadline) await delay(10);
+  } finally {
+    await loop.stop();
+  }
   assert(runs >= 2);
   assert.equal(maxActive, 1);
 });
