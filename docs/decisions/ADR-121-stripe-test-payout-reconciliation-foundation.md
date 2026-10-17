@@ -27,3 +27,7 @@ A migration `20261017007900_stripe_test_group_payout_observations` cria observa�
 ## Verificador TEST manual
 
 `NODE_ENV=test STRIPE_TEST_PAYOUT_ENABLED=true pnpm --filter @melissa/backend stripe:payout-test in_... po_...` requer `STRIPE_TEST_SECRET_KEY` e `BILLING_INVOICE_VERIFIER_DATABASE_URL` do papel segregado. Reconsulta invoice/subscription/Checkout, pagamentos, PI, Charges e balance transactions, valida o digest ADR-120 já persistido, reconsulta payout e lista completa paginada e só então regista observação ou replay. Estados incompletos são deferred. A associação observada continua sem prova de entrada bancária. Faltam os testes PostgreSQL/RLS específicos e E2E Stripe TEST real; CI deste commit por verificar.
+
+## Integração PostgreSQL/RLS
+
+A suite existente `stripe-invoice-evidence.integration.test.ts` passou a exercitar também `reviewStripeTestAutomaticPayout` com provider Stripe simulado: gravação, replay, partial list, payout manual, source estrangeiro, auditoria, imutabilidade, grants mínimos, FORCE RLS e isolamento tenant. Estes testes dependem do CI; não representam sandbox real. Não há autorização de merge ou faturação live.

@@ -9,6 +9,7 @@ import { reviewStripeTestPaymentRisk } from '../src/billing/stripe-payment-risk-
 import { reviewStripeTestPaymentGroup } from '../src/billing/stripe-payment-group-verifier';
 import { reviewStripeTestGroupChargeRisk } from '../src/billing/stripe-group-charge-risk-verifier';
 import { reviewStripeTestGroupBalances } from '../src/billing/stripe-group-balance-verifier';
+import { reviewStripeTestAutomaticPayout } from '../src/billing/stripe-test-payout-verifier';
 
 const uuidPart = () => randomUUID().replace(/-/g, '');
 const eventId = () => 'evt_' + uuidPart();
@@ -687,6 +688,99 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
       WHERE relname='stripe_test_group_balance_reviews'`;
     assert.deepEqual(balanceRls,{relrowsecurity:true,relforcerowsecurity:true});
     assert.equal(await admin.stripeTestGroupBalanceReview.count({
+      where:{tenantId:tenantB},
+    }),0);
+
+
+    // ADR-121: real PostgreSQL + restricted verifier; mock Stripe payout ONLY.
+    let partialPayout=false,foreignPayout=false,manualPayout=false;
+    const payoutProvider={
+      ...balances,
+      retrievePayout:async(id:string)=>{
+        assert.equal(id,'po_group_test');
+        return {object:'payout',id,livemode:false,automatic:!manualPayout,
+          reconciliation_status:'completed',status:'paid',
+          currency:'eur',amount:1819};
+      },
+      listAutomaticPayoutTransactions:async(id:string)=>{
+        assert.equal(id,'po_group_test');
+        return {object:'list',has_more:partialPayout,data:[
+          {object:'balance_transaction',id:'txn_ch_group_1',
+            source:'ch_group_1',type:'charge',currency:'eur',net:910},
+          {object:'balance_transaction',id:'txn_ch_group_2',
+            source:foreignPayout?'ch_other':'ch_group_2',
+            type:'charge',currency:'eur',net:909},
+        ]};
+      },
+    };
+    await assert.rejects(reviewStripeTestAutomaticPayout(
+      admin,evidence.invoiceId,'po_group_test',payoutProvider),
+      /Dedicated invoice verifier role required/);
+    assert.deepEqual(await reviewStripeTestAutomaticPayout(
+      verifier,evidence.invoiceId,'po_group_test',payoutProvider),
+      {outcome:'recorded',reason:'payout_observed'});
+    const payoutReview=await admin.stripeTestGroupPayoutObservation.findFirstOrThrow({
+      where:{invoiceId:evidence.invoiceId},
+    });
+    assert.equal(payoutReview.tenantId,tenantA);
+    assert.equal(payoutReview.groupId,group.id);
+    assert.equal(payoutReview.balanceReviewId,balance.id);
+    assert.equal(payoutReview.observedNetMinor,1819n);
+    assert.equal(payoutReview.payoutVerified,false);
+    assert.equal(payoutReview.settlementVerified,false);
+    assert.equal(payoutReview.financialClearance,false);
+    assert.equal(payoutReview.billable,false);
+    assert.deepEqual(await reviewStripeTestAutomaticPayout(
+      verifier,evidence.invoiceId,'po_group_test',payoutProvider),
+      {outcome:'replayed',reason:'already_observed'});
+    partialPayout=true;
+    assert.deepEqual(await reviewStripeTestAutomaticPayout(
+      verifier,evidence.invoiceId,'po_group_test',payoutProvider),
+      {outcome:'deferred',reason:'partial_list'});
+    partialPayout=false;
+    foreignPayout=true;
+    assert.deepEqual(await reviewStripeTestAutomaticPayout(
+      verifier,evidence.invoiceId,'po_group_test',payoutProvider),
+      {outcome:'rejected',reason:'transaction_mismatch'});
+    foreignPayout=false;
+    manualPayout=true;
+    assert.deepEqual(await reviewStripeTestAutomaticPayout(
+      verifier,evidence.invoiceId,'po_group_test',payoutProvider),
+      {outcome:'deferred',reason:'manual_payout'});
+    manualPayout=false;
+    assert.equal(await admin.stripeGroupPayoutAttempt.count({
+      where:{invoiceId:evidence.invoiceId},
+    }),5);
+    await assert.rejects(admin.stripeTestGroupPayoutObservation.update({
+      where:{id:payoutReview.id},data:{observedNetMinor:1n},
+    }));
+    await assert.rejects(verifier.stripeTestGroupPayoutObservation.delete({
+      where:{id:payoutReview.id},
+    }));
+    await assert.rejects(runtime.stripeTestGroupPayoutObservation.count());
+    const [payoutGrants]=await admin.$queryRaw<Array<{
+      runtimeRead:boolean;runtimeWrite:boolean;verifierInsert:boolean;
+      verifierUpdate:boolean;reconcilerRead:boolean;
+    }>>`SELECT
+      has_table_privilege('melissa_runtime',
+        'stripe_test_group_payout_observations','SELECT') AS "runtimeRead",
+      has_table_privilege('melissa_runtime',
+        'stripe_test_group_payout_observations','INSERT') AS "runtimeWrite",
+      has_column_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_group_payout_observations','snapshot_sha256','INSERT')
+        AS "verifierInsert",
+      has_table_privilege('melissa_billing_invoice_verifier',
+        'stripe_test_group_payout_observations','UPDATE') AS "verifierUpdate",
+      has_table_privilege('melissa_billing_reconciler',
+        'stripe_test_group_payout_observations','SELECT') AS "reconcilerRead"`;
+    assert.deepEqual(payoutGrants,{runtimeRead:false,runtimeWrite:false,
+      verifierInsert:true,verifierUpdate:false,reconcilerRead:false});
+    const [payoutRls]=await admin.$queryRaw<Array<{
+      relrowsecurity:boolean;relforcerowsecurity:boolean;
+    }>>`SELECT relrowsecurity,relforcerowsecurity FROM pg_class
+      WHERE relname='stripe_test_group_payout_observations'`;
+    assert.deepEqual(payoutRls,{relrowsecurity:true,relforcerowsecurity:true});
+    assert.equal(await admin.stripeTestGroupPayoutObservation.count({
       where:{tenantId:tenantB},
     }),0);
 
