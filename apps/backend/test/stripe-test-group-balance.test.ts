@@ -3,49 +3,85 @@ import { test } from 'node:test';
 import { parseStripeTestGroupBalances } from '../src/billing/stripe-test-group-balance';
 import { StripeTestGroupBalanceReader } from '../src/billing/stripe-group-balance-verifier';
 
-const now=1780000000;
-const expected={
-  invoiceId:'in_group_balance',customerId:'cus_balance',
-  subscriptionId:'sub_balance',currency:'EUR',
-  amountPaidMinor:1999n,paidAt:new Date(now*1000),
+const now = 1780000000;
+const expected = {
+  invoiceId: 'in_group_balance',
+  customerId: 'cus_balance',
+  subscriptionId: 'sub_balance',
+  currency: 'EUR',
+  amountPaidMinor: 1999n,
+  paidAt: new Date(now * 1000),
 };
-const invoice={
-  object:'invoice',id:expected.invoiceId,livemode:false,status:'paid',
-  paid:true,paid_out_of_band:false,collection_method:'charge_automatically',
-  customer:expected.customerId,currency:'eur',
-  amount_paid:1999,total:1999,amount_remaining:0,
-  parent:{subscription_details:{subscription:expected.subscriptionId}},
-  status_transitions:{paid_at:now},
+const invoice = {
+  object: 'invoice',
+  id: expected.invoiceId,
+  livemode: false,
+  status: 'paid',
+  paid: true,
+  paid_out_of_band: false,
+  collection_method: 'charge_automatically',
+  customer: expected.customerId,
+  currency: 'eur',
+  amount_paid: 1999,
+  total: 1999,
+  amount_remaining: 0,
+  parent: { subscription_details: { subscription: expected.subscriptionId } },
+  status_transitions: { paid_at: now },
 };
-const payments={
-  object:'list',has_more:false,
-  data:[1000,999].map((n,i)=>({
-    object:'invoice_payment',id:'inpay_balance_'+i,
-    invoice:expected.invoiceId,livemode:false,status:'paid',
-    currency:'eur',amount_paid:n,
-    payment:{type:'payment_intent',payment_intent:'pi_balance_'+i},
+const payments = {
+  object: 'list',
+  has_more: false,
+  data: [1000, 999].map((n, i) => ({
+    object: 'invoice_payment',
+    id: 'inpay_balance_' + i,
+    invoice: expected.invoiceId,
+    livemode: false,
+    status: 'paid',
+    currency: 'eur',
+    amount_paid: n,
+    payment: { type: 'payment_intent', payment_intent: 'pi_balance_' + i },
   })),
 };
-const links=()=>[1000,999].map((n,i)=>({
-  paymentIntent:{
-    object:'payment_intent',id:'pi_balance_'+i,livemode:false,
-    customer:expected.customerId,status:'succeeded',
-    currency:'eur',amount_received:n,latest_charge:'ch_balance_'+i,
-  },
-  charge:{
-    object:'charge',id:'ch_balance_'+i,livemode:false,
-    payment_intent:'pi_balance_'+i,customer:expected.customerId,
-    currency:'eur',status:'succeeded',paid:true,captured:true,
-    amount:n,balance_transaction:'txn_balance_'+i,
-  },
-  balanceTransaction:{
-    object:'balance_transaction',id:'txn_balance_'+i,
-    source:'ch_balance_'+i,type:'charge',status:i?'pending':'available',
-    currency:'eur',amount:n,fee:100,net:n-100,available_on:now+86400,
-  },
-}));
-const parse=(l:ReturnType<typeof links>=links(),p:unknown=payments)=>
-  parseStripeTestGroupBalances(invoice,p,l,expected);
+const links = () =>
+  [1000, 999].map((n, i) => ({
+    paymentIntent: {
+      object: 'payment_intent',
+      id: 'pi_balance_' + i,
+      livemode: false,
+      customer: expected.customerId,
+      status: 'succeeded',
+      currency: 'eur',
+      amount_received: n,
+      latest_charge: 'ch_balance_' + i,
+    },
+    charge: {
+      object: 'charge',
+      id: 'ch_balance_' + i,
+      livemode: false,
+      payment_intent: 'pi_balance_' + i,
+      customer: expected.customerId,
+      currency: 'eur',
+      status: 'succeeded',
+      paid: true,
+      captured: true,
+      amount: n,
+      balance_transaction: 'txn_balance_' + i,
+    },
+    balanceTransaction: {
+      object: 'balance_transaction',
+      id: 'txn_balance_' + i,
+      source: 'ch_balance_' + i,
+      type: 'charge',
+      status: i ? 'pending' : 'available',
+      currency: 'eur',
+      amount: n,
+      fee: 100,
+      net: n - 100,
+      available_on: now + 86400,
+    },
+  }));
+const parse = (l: ReturnType<typeof links> = links(), p: unknown = payments) =>
+  parseStripeTestGroupBalances(invoice, p, l, expected);
 
 // prettier-ignore
 test('Stripe TEST grouped balance shows fees/net and changing availability only',()=>{

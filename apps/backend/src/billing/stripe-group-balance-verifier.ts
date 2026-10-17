@@ -5,33 +5,43 @@ import { StripeTestPaymentRiskReader } from './stripe-test-payment-risk';
 import { LinkedBalanceCharge, parseStripeTestGroupBalances } from './stripe-test-group-balance';
 
 export interface GroupBalanceProvider {
-  retrieveInvoice(id:string):Promise<unknown>;
-  retrieveSubscription(id:string):Promise<unknown>;
-  listInvoicePayments(id:string):Promise<unknown>;
-  retrievePaymentIntent(id:string):Promise<unknown>;
-  retrieveCharge(id:string):Promise<unknown>;
-  retrieveBalanceTransaction(id:string):Promise<unknown>;
+  retrieveInvoice(id: string): Promise<unknown>;
+  retrieveSubscription(id: string): Promise<unknown>;
+  listInvoicePayments(id: string): Promise<unknown>;
+  retrievePaymentIntent(id: string): Promise<unknown>;
+  retrieveCharge(id: string): Promise<unknown>;
+  retrieveBalanceTransaction(id: string): Promise<unknown>;
 }
-export class StripeTestGroupBalanceReader extends StripeTestPaymentRiskReader
-  implements GroupBalanceProvider {
-  async retrieveBalanceTransaction(id:string):Promise<unknown>{
-    if(!/^txn_[A-Za-z0-9_]{1,250}$/.test(id))
+export class StripeTestGroupBalanceReader
+  extends StripeTestPaymentRiskReader
+  implements GroupBalanceProvider
+{
+  async retrieveBalanceTransaction(id: string): Promise<unknown> {
+    if (!/^txn_[A-Za-z0-9_]{1,250}$/.test(id))
       throw new Error('Invalid Stripe balance transaction ID');
-    return this.readTestResource('/v1/balance_transactions/'+id);
+    return this.readTestResource('/v1/balance_transactions/' + id);
   }
 }
 export interface GroupBalanceDecision {
-  outcome:'recorded'|'replayed'|'rejected'|'deferred';
+  outcome: 'recorded' | 'replayed' | 'rejected' | 'deferred';
   reason:
-    'balance_observed'|'already_observed'|'group_not_observed'|
-    'group_risk_not_observed'|'provider_unavailable'|
-    'subscription_mismatch'|'untrusted_checkout'|'invoice_mismatch'|
-    'invalid_payment_graph'|'partial_list'|'invalid_balance_graph'|
-    'balance_transaction_missing';
+    | 'balance_observed'
+    | 'already_observed'
+    | 'group_not_observed'
+    | 'group_risk_not_observed'
+    | 'provider_unavailable'
+    | 'subscription_mismatch'
+    | 'untrusted_checkout'
+    | 'invoice_mismatch'
+    | 'invalid_payment_graph'
+    | 'partial_list'
+    | 'invalid_balance_graph'
+    | 'balance_transaction_missing';
 }
-function obj(x:unknown):Record<string,unknown>|null{
-  return x!==null&&typeof x==='object'&&!Array.isArray(x)
-    ? x as Record<string,unknown>:null;
+function obj(x: unknown): Record<string, unknown> | null {
+  return x !== null && typeof x === 'object' && !Array.isArray(x)
+    ? (x as Record<string, unknown>)
+    : null;
 }
 
 // The TEST balance is a provider observation, NOT a bank payout.

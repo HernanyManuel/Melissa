@@ -1,30 +1,51 @@
 import { createHash } from 'node:crypto';
-import { GroupExpected, PaymentGroupLink, parseStripeTestPaymentGroup } from './stripe-test-payment-group';
+import {
+  GroupExpected,
+  PaymentGroupLink,
+  parseStripeTestPaymentGroup,
+} from './stripe-test-payment-group';
 
 export interface LinkedBalanceCharge extends PaymentGroupLink {
   balanceTransaction: unknown;
 }
 export type GroupBalanceParse =
-  | { outcome: 'valid'; snapshot: {
-      groupDigest: string; balanceDigest: string; chargeCount: number;
-      grossMinor: bigint; feeMinor: bigint; netMinor: bigint;
-      pendingCount: number; availableCount: number;
-    }}
-  | { outcome: 'invoice_mismatch' | 'partial_list' | 'invalid_payment_graph'
-      | 'balance_transaction_missing' | 'invalid_balance_graph' };
+  | {
+      outcome: 'valid';
+      snapshot: {
+        groupDigest: string;
+        balanceDigest: string;
+        chargeCount: number;
+        grossMinor: bigint;
+        feeMinor: bigint;
+        netMinor: bigint;
+        pendingCount: number;
+        availableCount: number;
+      };
+    }
+  | {
+      outcome:
+        | 'invoice_mismatch'
+        | 'partial_list'
+        | 'invalid_payment_graph'
+        | 'balance_transaction_missing'
+        | 'invalid_balance_graph';
+    };
 
-const BALANCE_ID=/^txn_[A-Za-z0-9_]{1,250}$/;
-function obj(x:unknown):Record<string,unknown>|null{
-  return x!==null && typeof x==='object' && !Array.isArray(x)
-    ? x as Record<string,unknown>:null;
+const BALANCE_ID = /^txn_[A-Za-z0-9_]{1,250}$/;
+function obj(x: unknown): Record<string, unknown> | null {
+  return x !== null && typeof x === 'object' && !Array.isArray(x)
+    ? (x as Record<string, unknown>)
+    : null;
 }
-function minor(x:unknown):number|null{
-  return typeof x==='number' && Number.isSafeInteger(x) &&
-    x>=0 && x<=100_000_000_000 ? x:null;
+function minor(x: unknown): number | null {
+  return typeof x === 'number' && Number.isSafeInteger(x) && x >= 0 && x <= 100_000_000_000
+    ? x
+    : null;
 }
-function seconds(x:unknown):number|null{
-  return typeof x==='number' && Number.isSafeInteger(x) &&
-    x>=1000000000 && x<253402300800 ? x:null;
+function seconds(x: unknown): number | null {
+  return typeof x === 'number' && Number.isSafeInteger(x) && x >= 1000000000 && x < 253402300800
+    ? x
+    : null;
 }
 
 // A balance transaction available in Stripe's internal balance does not
