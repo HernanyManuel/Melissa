@@ -3,12 +3,14 @@ import { createHash } from 'node:crypto';
 // ADR-121 foundation: provider-only evidence, not a banking or commercial assertion.
 // The caller MUST derive expected balance transaction IDs from a trusted ADR-120
 // snapshot revalidated against its Stripe TEST Charges, never from HTTP input.
+// prettier-ignore
 export interface ExpectedPayoutBalance {
   id: string;
   source: string;
   currency: string;
   netMinor: number;
 }
+// prettier-ignore
 export type PayoutObservation =
   | { outcome: 'observed'; digest: string; payoutId: string; includedCount: number;
       observedNetMinor: bigint; settlementVerified: false; billable: false }
@@ -17,10 +19,12 @@ export type PayoutObservation =
 const ID = /^txn_[A-Za-z0-9_]{1,250}$/;
 const PAYOUT = /^po_[A-Za-z0-9_]{1,250}$/;
 const CHARGE = /^ch_[A-Za-z0-9_]{1,250}$/;
+// prettier-ignore
 function obj(x: unknown): Record<string, unknown> | null {
   return x !== null && typeof x === 'object' && !Array.isArray(x)
     ? x as Record<string, unknown> : null;
 }
+// prettier-ignore
 function money(x: unknown): x is number {
   return typeof x === 'number' && Number.isSafeInteger(x) &&
     x >= -100_000_000_000 && x <= 100_000_000_000;
@@ -28,6 +32,7 @@ function money(x: unknown): x is number {
 // The balance_transactions?payout=... filter is documented ONLY for automatic
 // payouts. A manual payout cannot be assigned to an individual Charge here.
 // List completion must be proved using ADR-118's bounded pagination helper.
+// prettier-ignore
 export function observeAutomaticStripeTestPayout(
   payoutRaw: unknown,
   boundedTransactionsRaw: unknown,

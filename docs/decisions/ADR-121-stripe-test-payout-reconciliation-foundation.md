@@ -15,3 +15,7 @@ Mesmo quando a Stripe comunica `paid` e `completed`, isto não é comprovativo b
 ## Próximo incremento da mesma ADR
 
 Implementar leitor GET Stripe TEST com limites e cursores; revalidar a cadeia Checkout→subscription→invoice→group→Charge→balance transaction; provar pertença do payout à mesma conta Stripe; ledger append-only com FORCE RLS/grants mínimos e auditoria, testes de integração PostgreSQL, scripts manuais opt-in e CI completo no SHA final. Sem atribuição cross-tenant e sem extrapolação de disponibilidade para liquidação.
+
+## CI
+
+O primeiro commit da ADR-121 falhou no gate Prettier (backend), enquanto Flutter e Compose passaram. O incremento corretivo mantém `prettier-ignore` circunscrito às funções/fixtures densas desta observação, seguindo o precedente do parser ADR-120; não altera o contrato de segurança. Validar resultado do CI do commit corretivo antes de declarar aprovação.
