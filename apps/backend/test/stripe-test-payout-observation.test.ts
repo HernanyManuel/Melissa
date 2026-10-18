@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import type { ExpectedPayoutBalance } from '../src/billing/stripe-test-payout-observation';
 import { observeAutomaticStripeTestPayout as observe } from '../src/billing/stripe-test-payout-observation';
 
 // prettier-ignore
@@ -72,6 +73,6 @@ test('ADR-121: fail closed for payout lifecycle, wrong currency and malformed fi
     assert.equal(observe(candidate,rows,expected).outcome,outcome);
   assert.equal(observe(payout,{...rows,has_more:'false'},expected).outcome,'rejected');
   assert.equal(observe(payout,{...rows,data:'not a list'},expected).outcome,'rejected');
-  assert.equal(observe(payout,rows,[expected[0],expected[0]]).outcome,'rejected');
-  assert.equal(observe(payout,rows,[...expected,{...expected[0],id:'txn_bad'}]).outcome,'rejected');
+  assert.equal(observe(payout,rows,[expected[0]!,expected[0]!]).outcome,'rejected');
+  assert.equal(observe(payout,rows,[...expected,{...expected[0]!,id:'txn_bad'}]).outcome,'rejected');
 });

@@ -37,9 +37,11 @@ test('ADR-121 payout reader only sends GET to fixed Stripe TEST host', async () 
   assert.equal(urls.length, 2);
 });
 
+// prettier-ignore
 test('ADR-121 payout pagination refuses incomplete cycles and duplicate cursor IDs', async () => {
   const key = 'sk_test_' + 'b'.repeat(32);
   const urls: string[] = [];
+  // prettier-ignore
   const reader = new StripeTestPayoutReader(key, async (input) => {
     const url = String(input);
     urls.push(url);
