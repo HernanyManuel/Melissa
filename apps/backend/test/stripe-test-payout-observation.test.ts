@@ -73,5 +73,6 @@ test('ADR-121: fail closed for payout lifecycle, wrong currency and malformed fi
   assert.equal(observe(payout,{...rows,has_more:'false'},expected).outcome,'rejected');
   assert.equal(observe(payout,{...rows,data:'not a list'},expected).outcome,'rejected');
   assert.equal(observe(payout,rows,[expected[0]!,expected[0]!]).outcome,'rejected');
-  assert.equal(observe(payout,rows,[...expected,{...expected[0]!,id:'txn_bad'}]).outcome,'rejected');
+  assert.deepEqual(observe(payout,rows,[...expected,{...expected[0]!,id:'txn_bad'}]),
+    {outcome:'deferred',reason:'group_not_fully_in_payout'});
 });
