@@ -29,3 +29,7 @@ O CI **verde** da execução #39075192879 cobre testes unitários e a integraç�
 ## Bloqueios e trabalhos futuros
 
 Ainda faltam validação contra uma conta Stripe TEST configurada com payouts automáticos e dados apropriados, execução supervisionada da CLI contra essa conta, avaliação de anomalias reais da API/paginação e revisão operacional do modelo de conta Stripe. Não há prova de liquidação bancária, nem autorização para cobrança LIVE ou entitlements pagos. Não fazer merge/deploy sem decisão explícita posterior.
+
+## Protocolo para execução Stripe TEST real
+
+O ensaio externo ainda não foi realizado. O [protocolo operacional](../billing-stripe-test-payout-validation.md) documenta pré-requisitos, execução estritamente manual, condições de paragem e critérios de evidência sem armazenamento de segredos. Novos testes unitários cobrem estados do payout, dados malformados, moeda divergente e charge graph duplicado; o CI do incremento deve ser revalidado.

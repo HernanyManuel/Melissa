@@ -56,3 +56,22 @@ test('ADR-121: rejects account-list duplicates and never guesses missing group m
   assert.deepEqual(observe(payout,{...rows,data:[rows.data[0],{...rows.data[1],net:0}]},expected),
     {outcome:'rejected',reason:'transaction_mismatch'});
 });
+
+// prettier-ignore
+test('ADR-121: fail closed for payout lifecycle, wrong currency and malformed financial data',()=>{
+  const variants=[
+    [{...payout,status:'pending'},'deferred'],
+    [{...payout,status:'failed'},'deferred'],
+    [{...payout,reconciliation_status:'not_applicable'},'deferred'],
+    [{...payout,currency:'usd'},'rejected'],
+    [{...payout,amount:-10},'rejected'],
+    [{...payout,amount:Number.MAX_SAFE_INTEGER+1},'rejected'],
+    [{...payout,livemode:undefined},'rejected'],
+  ] as const;
+  for(const [candidate,outcome] of variants)
+    assert.equal(observe(candidate,rows,expected).outcome,outcome);
+  assert.equal(observe(payout,{...rows,has_more:'false'},expected).outcome,'rejected');
+  assert.equal(observe(payout,{...rows,data:'not a list'},expected).outcome,'rejected');
+  assert.equal(observe(payout,rows,[expected[0],expected[0]]).outcome,'rejected');
+  assert.equal(observe(payout,rows,[...expected,{...expected[0],id:'txn_bad'}]).outcome,'rejected');
+});
