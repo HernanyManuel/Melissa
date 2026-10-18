@@ -1,6 +1,6 @@
-## ADR-121 parcial (schema 79): observação restrita de payout TEST
+## ADR-121 (schema 79, CI aprovado): payout automático Stripe TEST observado, não liquidado
 
-Contrato de observação determinístico e GET Stripe TEST paginado. Migration cria ledger e auditoria sem escrita pela API; exige coincidência de tenant/grupo/revisão ADR-120 e flags financeiras irrevogavelmente falsas. Ainda não há verificador que associe com segurança as transações ao payout, nem provas E2E. Sem cobrança ou entitlements.
+O comando **manual** `stripe:payout-test in_... po_...`, restrito a `NODE_ENV=test`, chave Stripe TEST e papel de BD isolado, revalida invoice, Checkout, subscrição, grupo de Charges e impactos de saldo ADR-120 antes de observar a pertença das transações a um payout automático. Ledger e tentativas são append-only, FORCE RLS, idempotentes mesmo sob concorrência. Backend, Flutter e Compose passaram no CI #39075192879, com provider Stripe **simulado** em PostgreSQL real. E2E contra Stripe TEST efetiva permanece pendente. **Nenhuma liquidação bancária, faturação ou entitlement é autorizado.** [ADR-121](decisions/ADR-121-stripe-test-payout-reconciliation-foundation.md).
 
 ## Décima sexta fatia — ADR-120 (schema 78): saldos Stripe TEST observados, sem payout
 

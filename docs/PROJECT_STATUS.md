@@ -1,6 +1,6 @@
-## Phase 9 — ADR-121 parcial: payout Stripe TEST (schema 79)
+## Phase 9 — ADR-121: observação de payout automático Stripe TEST (schema 79, CI aprovado)
 
-Leitor GET de payouts automáticos, parser fail-closed e migration 79 com observações/auditoria append-only, FORCE RLS e grants apenas para verificador offline. Ainda **não** existe orquestrador privilegiado que confirme proveniência da invoice/tenant nem testes PostgreSQL/E2E sandbox; nenhuma CLI de payout pode gravar observações. Todas as flags de settlement, payout_verified, financial_clearance e billable continuam falsas. CI do HEAD a verificar. Sem merge/deploy/live.
+Parser restritivo, leitor GET paginado, verificador offline segregado e CLI manual opt-in `stripe:payout-test in_... po_...`. Regista snapshots e auditoria imutáveis, com FORCE RLS, unicidade e serialização concorrente por invoice. O CI #39075192879 (HEAD `9335048`) passou backend, Flutter e Compose, incluindo integração PostgreSQL com Stripe simulado. **Falta E2E externo Stripe TEST real** e não existe prova de liquidação bancária; `payout_verified`, `settlement_verified`, `financial_clearance` e `billable` mantêm-se FALSE por CHECK SQL. PR #7 draft; sem merge, deploy, LIVE ou ativação de direitos pagos. [ADR-121](decisions/ADR-121-stripe-test-payout-reconciliation-foundation.md).
 
 ## Phase 9 — ADR-120: impactos de saldo Stripe TEST de grupos de Charges (schema 78)
 

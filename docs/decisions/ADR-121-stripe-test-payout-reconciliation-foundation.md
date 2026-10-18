@@ -1,37 +1,31 @@
-# ADR-121 — Fundação para observação de payout automático Stripe TEST
+# ADR-121 — Observação restrita de payouts automáticos Stripe TEST
 
-## Estado
+## Estado — implementação e CI concluídos; E2E externo pendente
 
-**Parcial, schema 79.** Contrato puro, leitor GET Stripe TEST e testes unitários; não existe ainda CLI, operação orquestrada Stripe, integração PostgreSQL/RLS ou teste E2E de conta sandbox. A versão exigida de schema passa a **79**. O PR #7 continua draft.
+Schema **79**, HEAD de validação `9335048e5a124d91169634d13a0c7ea7a9659989`.
+GitHub Actions [#39075192879](https://github.com/HernanyManuel/Melissa/actions/runs/39075192879): backend, Flutter e Compose **success**.
+PR #7 mantém-se **draft**. Este estado não implica aprovação de lançamento, de faturação ou de liquidação.
 
-## Decisão
+## Decisão e limites de segurança
 
-A Stripe documenta o filtro `GET /v1/balance_transactions?payout=po_...` **apenas para payouts automáticos**. A sua utilização exige obter o payout diretamente no fornecedor com chave TEST, observar `automatic=true`, `reconciliation_status=completed` e recolher uma lista completa via paginação limitada. Os IDs de transação esperados têm de vir da validação segura de Charges de ADR-120, nunca do browser, metadata ou operador. Payout manual, falha, estados incompletos, divergência de moeda/source/net, lista truncada ou Charge ausente não demonstram atribuição: devolver deferred/rejected.
+Apenas um payout **automático** Stripe TEST pode ter as balance transactions enumeradas pelo filtro `GET /v1/balance_transactions?payout=po_...`. A camada privilegiada lê o payout e a lista completa, paginada e limitada; revalida a cadeia de confiança Checkout → subscrição → invoice → InvoicePayments → PaymentIntents → Charges → balance transactions. O grupo e o balanço já observados nas ADR-118 e ADR-120 têm de coincidir com invoice, tenant, subscrição, contagem e valores. Identificadores esperados nunca são recebidos do browser, da metadata ou de um operador.
 
-O módulo `stripe-test-payout-observation.ts` concretiza somente a decisão determinística **offline**, sem acesso à rede ou à BD. Aceita um objeto Stripe TEST verificado e uma lista já carregada e limitada; a futura camada privilegiada tem de provar origem, integridade, paginação e tenant antes de o invocar. Outros movimentos de conta podem coexistir num payout; por isso nem o somatório das Charges de uma invoice tem de coincidir com o montante total do payout.
+O parser determinístico só observa quando `livemode=false`, `automatic=true`, `status=paid`, `reconciliation_status=completed` e todas as transações esperadas surgem com `source`, moeda e `net` coincidentes. Paginação incompleta, payout manual, estados intermédios ou transações em falta não autorizam observação. Movimentos de outras origens podem pertencer ao payout e não substituem as transações do grupo. Não se exige que o montante total do payout seja igual ao subtotal da invoice.
 
-Mesmo quando a Stripe comunica `paid` e `completed`, isto não é comprovativo bancário definitivo e pode haver reversões/falhas posteriores. `settlementVerified=false`, `billable=false`, `billingVerified=false`, `automationEnabled=false` e `billing_entitlement_activation_gate.enabled=false` mantêm-se obrigatórios. Sem novas permissões, pagamentos, deploy, merge ou alteração comercial.
+Mesmo um payout Stripe com estado `paid` não comprova entrada bancária definitiva. Os CHECKs da BD obrigam `payout_verified=false`, `settlement_verified=false`, `financial_clearance=false` e `billable=false`. A política de entitlements permanece **deny-only**; `billing_entitlement_activation_gate.enabled=false`.
 
-## Próximo incremento da mesma ADR
+## Implementação
 
-Revalidar a cadeia Checkout→subscription→invoice→group→Charge→balance transaction; provar pertença do payout à mesma conta Stripe; verificador privilegiado que grava o ledger append-only já criado com FORCE RLS/grants mínimos e auditoria, testes de integração PostgreSQL, scripts manuais opt-in e CI completo no SHA final. Sem atribuição cross-tenant e sem extrapolação de disponibilidade para liquidação.
+- `stripe-test-payout-observation.ts`: validação e digest determinístico SHA-256, sem I/O.
+- `stripe-test-payout-reader.ts`: GET Stripe TEST com URL fixa, validação de IDs e paginação limitada.
+- `stripe-test-payout-verifier.ts`: papel `melissa_billing_invoice_verifier`, revalidação de origem e titularidade, `pg_advisory_xact_lock` por invoice, gravação append-only e tentativas auditadas; replays seguros.
+- `apps/backend/scripts/review-stripe-test-payout.ts`: execução **manual**, apenas `NODE_ENV=test`, `STRIPE_TEST_PAYOUT_ENABLED=true`, chave `sk_test_` e URL segregado `BILLING_INVOICE_VERIFIER_DATABASE_URL`. Invocação: `pnpm --filter @melissa/backend stripe:payout-test in_... po_...`.
+- Migration `20261017007900_stripe_test_group_payout_observations`: ledger e auditoria imutáveis, `FORCE ROW LEVEL SECURITY`, INSERT de colunas estritamente limitadas ao verificador e sem grants à API. Requer uma revisão ADR-120 com todas as transações `available`.
 
-## CI
+## Provas automatizadas verificadas
 
-O primeiro commit da ADR-121 falhou no gate Prettier (backend), enquanto Flutter e Compose passaram. O incremento corretivo mantém `prettier-ignore` circunscrito às funções/fixtures densas desta observação, seguindo o precedente do parser ADR-120; não altera o contrato de segurança. Validar resultado do CI do commit corretivo antes de declarar aprovação.
+O CI **verde** da execução #39075192879 cobre testes unitários e a integração PostgreSQL com Stripe simulado: observação e replay, duas execuções concorrentes sobre a mesma invoice sem duplicação, listas parciais, payout manual, transação estrangeira, IDs duplicados, moeda/source/net inconsistentes, imutabilidade, FORCE RLS, privilégios mínimos e isolamento entre tenants. O teste real de Stripe TEST **não** foi executado.
 
-## Incremento de persistência (schema 79)
+## Bloqueios e trabalhos futuros
 
-A migration `20261017007900_stripe_test_group_payout_observations` cria observações e tentativas imutáveis, com FORCE RLS e grants apenas para `melissa_billing_invoice_verifier`. O INSERT só admite um grupo/tenant/invoice/subscription compatível com uma revisão ADR-120 cujas transactions estejam todas `available`; o net e a contagem têm de coincidir. Estes controlos SQL **não** constituem prova da relação Stripe payout→Charge: essa validação é obrigação do verificador privilegiado, ainda por implementar. Sem esse verificador, nenhuma CLI escreve snapshots. Impossível, por CHECK, marcar payout, settlement, financial clearance ou billable como true. Sem E2E Stripe real.
-
-## Verificador TEST manual
-
-`NODE_ENV=test STRIPE_TEST_PAYOUT_ENABLED=true pnpm --filter @melissa/backend stripe:payout-test in_... po_...` requer `STRIPE_TEST_SECRET_KEY` e `BILLING_INVOICE_VERIFIER_DATABASE_URL` do papel segregado. Reconsulta invoice/subscription/Checkout, pagamentos, PI, Charges e balance transactions, valida o digest ADR-120 já persistido, reconsulta payout e lista completa paginada e só então regista observação ou replay. Estados incompletos são deferred. A associação observada continua sem prova de entrada bancária. Faltam os testes PostgreSQL/RLS específicos e E2E Stripe TEST real; CI deste commit por verificar.
-
-## Integração PostgreSQL/RLS
-
-A suite existente `stripe-invoice-evidence.integration.test.ts` passou a exercitar também `reviewStripeTestAutomaticPayout` com provider Stripe simulado: gravação, replay, partial list, payout manual, source estrangeiro, auditoria, imutabilidade, grants mínimos, FORCE RLS e isolamento tenant. Estes testes dependem do CI; não representam sandbox real. Não há autorização de merge ou faturação live.
-
-## Cobertura adicional de concorrência e pertença
-
-A integração PostgreSQL inclui agora duas invocações simultâneas sobre a mesma invoice: o lock transacional força replay sem criar uma segunda observação. Os testes unitários confirmam que transações de outras origens podem coexistir no payout mas não compensam uma transação esperada em falta, e que IDs duplicados e valores líquidos inconsistentes são rejeitados. Permanecem pendentes testes E2E com conta Stripe TEST efetiva e evidência bancária de settlement (fora do âmbito desta ADR).
+Ainda faltam validação contra uma conta Stripe TEST configurada com payouts automáticos e dados apropriados, execução supervisionada da CLI contra essa conta, avaliação de anomalias reais da API/paginação e revisão operacional do modelo de conta Stripe. Não há prova de liquidação bancária, nem autorização para cobrança LIVE ou entitlements pagos. Não fazer merge/deploy sem decisão explícita posterior.
