@@ -61,3 +61,37 @@ test('ADR-121 payout pagination refuses incomplete cycles and duplicate cursor I
     'https://api.stripe.com/v1/balance_transactions?payout=po_cycle&limit=100',
   )));
 });
+
+test('ADR-121 payout reader follows only Stripe-issued cursors and completes two pages', async () => {
+  const key = 'sk_test_' + 'c'.repeat(32);
+  const urls: string[] = [];
+  const reader = new StripeTestPayoutReader(key, async (input, init) => {
+    const url = String(input);
+    urls.push(url);
+    assert.equal(init?.method, 'GET');
+    const second = url.includes('&starting_after=txn_page_one');
+    return new Response(
+      JSON.stringify({
+        object: 'list',
+        has_more: !second,
+        data: [{ object: 'balance_transaction', id: second ? 'txn_page_two' : 'txn_page_one' }],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  });
+  const result = (await reader.listAutomaticPayoutTransactions('po_two_pages')) as {
+    object: string;
+    has_more: boolean;
+    data: Array<{ id: string }>;
+  };
+  assert.equal(result.object, 'list');
+  assert.equal(result.has_more, false);
+  assert.deepEqual(
+    result.data.map((transaction) => transaction.id),
+    ['txn_page_one', 'txn_page_two'],
+  );
+  assert.deepEqual(urls, [
+    'https://api.stripe.com/v1/balance_transactions?payout=po_two_pages&limit=100',
+    'https://api.stripe.com/v1/balance_transactions?payout=po_two_pages&limit=100&starting_after=txn_page_one',
+  ]);
+});
