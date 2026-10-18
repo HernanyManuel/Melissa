@@ -50,10 +50,10 @@ test('ADR-121 payout pagination refuses incomplete cycles and duplicate cursor I
       data: [{ id, object: 'balance_transaction' }],
     }), { status: 200, headers: { 'content-type': 'application/json' } });
   });
-  const result = await reader.listAutomaticPayoutTransactions('po_cycle');
-  const list = result as { object: string; has_more: boolean; data: unknown[] };
-  assert.equal(list.object, 'list');
-  assert.equal(list.has_more, true);
+  await assert.rejects(
+    reader.listAutomaticPayoutTransactions('po_cycle'),
+    /Malformed or repeated Stripe TEST ID/,
+  );
   assert(urls.length <= 3);
   assert(urls.every((url) => url.startsWith(
     'https://api.stripe.com/v1/balance_transactions?payout=po_cycle&limit=100',
