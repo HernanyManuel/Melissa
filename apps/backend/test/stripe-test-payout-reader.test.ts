@@ -119,3 +119,22 @@ test('ADR-121 payout pagination does not promote three incomplete pages to a com
     'https://api.stripe.com/v1/balance_transactions?payout=po_page_cap&limit=100&starting_after=txn_page_2',
   ]);
 });
+
+// prettier-ignore
+test('ADR-121 payout pagination stops at 100 items without inferring completion', async () => {
+  const key='sk_test_'+'e'.repeat(32);
+  let requests=0;
+  const reader=new StripeTestPayoutReader(key,async()=>{
+    requests++;
+    return new Response(JSON.stringify({object:'list',has_more:true,
+      data:Array.from({length:100},(_,i)=>({
+        object:'balance_transaction',id:'txn_cap_'+String(i+1),
+      }))}),{status:200,headers:{'content-type':'application/json'}});
+  });
+  const result=await reader.listAutomaticPayoutTransactions('po_item_cap') as
+    {object:string;has_more:boolean;data:unknown[]};
+  assert.equal(result.object,'list');
+  assert.equal(result.has_more,true);
+  assert.equal(result.data.length,100);
+  assert.equal(requests,1);
+});
