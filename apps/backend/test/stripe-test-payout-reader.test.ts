@@ -95,3 +95,27 @@ test('ADR-121 payout reader follows only Stripe-issued cursors and completes two
     'https://api.stripe.com/v1/balance_transactions?payout=po_two_pages&limit=100&starting_after=txn_page_one',
   ]);
 });
+
+// prettier-ignore
+test('ADR-121 payout pagination does not promote three incomplete pages to a complete list', async () => {
+  const key='sk_test_'+'d'.repeat(32);
+  const urls:string[]=[];
+  let page=0;
+  const reader=new StripeTestPayoutReader(key,async(input)=>{
+    urls.push(String(input));
+    page++;
+    return new Response(JSON.stringify({object:'list',has_more:true,
+      data:[{object:'balance_transaction',id:'txn_page_'+page}]}),
+      {status:200,headers:{'content-type':'application/json'}});
+  });
+  const result=await reader.listAutomaticPayoutTransactions('po_page_cap') as
+    {object:string;has_more:boolean;data:Array<{id:string}>};
+  assert.equal(result.object,'list');
+  assert.equal(result.has_more,true);
+  assert.equal(result.data.length,3);
+  assert.deepEqual(urls,[
+    'https://api.stripe.com/v1/balance_transactions?payout=po_page_cap&limit=100',
+    'https://api.stripe.com/v1/balance_transactions?payout=po_page_cap&limit=100&starting_after=txn_page_1',
+    'https://api.stripe.com/v1/balance_transactions?payout=po_page_cap&limit=100&starting_after=txn_page_2',
+  ]);
+});
