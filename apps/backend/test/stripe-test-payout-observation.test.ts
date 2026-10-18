@@ -1,6 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ExpectedPayoutBalance } from '../src/billing/stripe-test-payout-observation';
 import { observeAutomaticStripeTestPayout as observe } from '../src/billing/stripe-test-payout-observation';
 
 // prettier-ignore
