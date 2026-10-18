@@ -36,3 +36,26 @@ test('ADR-121 payout reader only sends GET to fixed Stripe TEST host', async () 
   await assert.rejects(reader.listAutomaticPayoutTransactions('po_test1&limit=999'));
   assert.equal(urls.length, 2);
 });
+
+test('ADR-121 payout pagination refuses incomplete cycles and duplicate cursor IDs', async () => {
+  const key = 'sk_test_' + 'b'.repeat(32);
+  const urls: string[] = [];
+  const reader = new StripeTestPayoutReader(key, async (input) => {
+    const url = String(input);
+    urls.push(url);
+    const id = 'txn_same';
+    return new Response(JSON.stringify({
+      object: 'list',
+      has_more: true,
+      data: [{ id, object: 'balance_transaction' }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  });
+  const result = await reader.listAutomaticPayoutTransactions('po_cycle');
+  const list = result as { object: string; has_more: boolean; data: unknown[] };
+  assert.equal(list.object, 'list');
+  assert.equal(list.has_more, true);
+  assert(urls.length <= 3);
+  assert(urls.every((url) => url.startsWith(
+    'https://api.stripe.com/v1/balance_transactions?payout=po_cycle&limit=100',
+  )));
+});
