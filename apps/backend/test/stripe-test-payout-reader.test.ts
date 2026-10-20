@@ -154,3 +154,19 @@ test('ADR-121 payout reader rejects empty advancing pages and malformed Stripe I
     assert.equal(requests,1);
   }
 });
+
+// prettier-ignore
+test('ADR-121 payout reader rejects oversized provider pages even when marked complete', async () => {
+  const key='sk_test_'+'g'.repeat(32);
+  let requests=0;
+  const reader=new StripeTestPayoutReader(key,async()=>{
+    requests++;
+    return new Response(JSON.stringify({object:'list',has_more:false,
+      data:Array.from({length:101},(_,i)=>({object:'balance_transaction',
+        id:'txn_oversize_'+(i+1)}))}),
+      {status:200,headers:{'content-type':'application/json'}});
+  });
+  await assert.rejects(reader.listAutomaticPayoutTransactions('po_oversize'),
+    /Malformed Stripe TEST list/);
+  assert.equal(requests,1);
+});
