@@ -186,6 +186,7 @@ export async function reviewStripeTestAutomaticPayout(
       };
       return audit(result.outcome,reasons[result.reason]??'invalid_payout');
     }
+    if(result.payoutId!==payoutId) return audit('rejected','invalid_payout');
     if(result.observedNetMinor!==balance.netMinor ||
       result.includedCount!==parsed.snapshot.chargeCount)
       return audit('rejected','transaction_mismatch');

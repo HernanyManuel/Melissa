@@ -694,11 +694,13 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
 
     // ADR-121: real PostgreSQL + restricted verifier; mock Stripe payout ONLY.
     let partialPayout=false,foreignPayout=false,manualPayout=false;
+    let mismatchedPayoutId=false;
     const payoutProvider={
       ...balances,
       retrievePayout:async(id:string)=>{
         assert.equal(id,'po_group_test');
-        return {object:'payout',id,livemode:false,automatic:!manualPayout,
+        return {object:'payout',id:mismatchedPayoutId?'po_unrelated':id,
+          livemode:false,automatic:!manualPayout,
           reconciliation_status:'completed',status:'paid',
           currency:'eur',amount:1819};
       },
@@ -761,9 +763,17 @@ test('restricted Stripe test invoice evidence is linked, replay-safe and non-ent
       verifier,evidence.invoiceId,'po_group_test',payoutProvider),
       {outcome:'deferred',reason:'manual_payout'});
     manualPayout=false;
+    mismatchedPayoutId=true;
+    assert.deepEqual(await reviewStripeTestAutomaticPayout(
+      verifier,evidence.invoiceId,'po_group_test',payoutProvider),
+      {outcome:'rejected',reason:'invalid_payout'});
+    mismatchedPayoutId=false;
+    assert.equal(await admin.stripeTestGroupPayoutObservation.count({
+      where:{invoiceId:evidence.invoiceId},
+    }),1);
     assert.equal(await admin.stripeGroupPayoutAttempt.count({
       where:{invoiceId:evidence.invoiceId},
-    }),7);
+    }),8);
     await assert.rejects(admin.stripeTestGroupPayoutObservation.update({
       where:{id:payoutReview.id},data:{observedNetMinor:1n},
     }));

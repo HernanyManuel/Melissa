@@ -33,3 +33,7 @@ Ainda faltam validação contra uma conta Stripe TEST configurada com payouts au
 ## Protocolo para execução Stripe TEST real
 
 O ensaio externo ainda não foi realizado. O [protocolo operacional](../billing-stripe-test-payout-validation.md) documenta pré-requisitos, execução estritamente manual, condições de paragem e critérios de evidência sem armazenamento de segredos. Novos testes unitários cobrem estados do payout, dados malformados, moeda divergente e charge graph duplicado; o CI do incremento deve ser revalidado.
+
+## Confirmação do identificador de payout
+
+O verificador compara agora o ID do objeto `payout` devolvido pelo fornecedor com o ID `po_` pedido pelo operador. Uma resposta válida de outra referência é rejeitada com auditoria `invalid_payout`; o teste PostgreSQL com provider simulado confirma que não cria uma nova observação. Este reforço não altera flags financeiras nem o schema 79; CI do novo commit ainda por validar.
