@@ -138,3 +138,19 @@ test('ADR-121 payout pagination stops at 100 items without inferring completion'
   assert.equal(result.data.length,100);
   assert.equal(requests,1);
 });
+
+// prettier-ignore
+test('ADR-121 payout reader rejects empty advancing pages and malformed Stripe IDs', async () => {
+  const key='sk_test_'+'f'.repeat(32);
+  for(const data of [[],[{object:'balance_transaction',id:'bad?cursor=1'}]]) {
+    let requests=0;
+    const reader=new StripeTestPayoutReader(key,async()=>{
+      requests++;
+      return new Response(JSON.stringify({object:'list',has_more:true,data}),
+        {status:200,headers:{'content-type':'application/json'}});
+    });
+    await assert.rejects(reader.listAutomaticPayoutTransactions('po_invalid_page'),
+      /Non-advancing Stripe TEST cursor|Malformed or repeated Stripe TEST ID/);
+    assert.equal(requests,1);
+  }
+});
