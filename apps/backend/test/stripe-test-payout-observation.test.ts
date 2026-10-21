@@ -95,3 +95,19 @@ test('ADR-121: payout digest binds payout identity, membership and net without o
     assert.equal(changed.billable,false);
   }
 });
+
+// prettier-ignore
+test('ADR-121: equal net does not make a different Charge membership the same evidence',()=>{
+  const original=observe(payout,rows,expected);
+  const different=observe(payout,{...rows,data:[
+    rows.data[0],{...rows.data[1],id:'txn_third',source:'ch_third'},
+  ]},[expected[0]!,{...expected[1]!,id:'txn_third',source:'ch_third'}]);
+  assert.equal(original.outcome,'observed');
+  assert.equal(different.outcome,'observed');
+  if(original.outcome==='observed' && different.outcome==='observed'){
+    assert.equal(original.observedNetMinor,different.observedNetMinor);
+    assert.notEqual(original.digest,different.digest);
+    assert.equal(different.settlementVerified,false);
+    assert.equal(different.billable,false);
+  }
+});
