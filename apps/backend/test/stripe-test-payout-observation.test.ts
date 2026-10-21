@@ -111,3 +111,20 @@ test('ADR-121: equal net does not make a different Charge membership the same ev
     assert.equal(different.billable,false);
   }
 });
+
+// prettier-ignore
+test('ADR-121: unrelated account movements cannot change a validated group digest',()=>{
+  const baseline=observe(payout,rows,expected);
+  const unrelated={object:'balance_transaction',id:'txn_unrelated',
+    source:'ch_unrelated',type:'charge',currency:'eur',net:150};
+  const extra=observe(payout,{...rows,data:[unrelated,...rows.data]},expected);
+  assert.equal(baseline.outcome,'observed');
+  assert.equal(extra.outcome,'observed');
+  if(baseline.outcome==='observed' && extra.outcome==='observed'){
+    assert.equal(extra.digest,baseline.digest);
+    assert.equal(extra.observedNetMinor,baseline.observedNetMinor);
+    assert.equal(extra.includedCount,baseline.includedCount);
+    assert.equal(extra.settlementVerified,false);
+    assert.equal(extra.billable,false);
+  }
+});
