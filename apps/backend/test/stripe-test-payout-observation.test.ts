@@ -76,3 +76,22 @@ test('ADR-121: fail closed for payout lifecycle, wrong currency and malformed fi
   assert.deepEqual(observe(payout,rows,[...expected,{...expected[0]!,id:'txn_bad'}]),
     {outcome:'deferred',reason:'group_not_fully_in_payout'});
 });
+
+// prettier-ignore
+test('ADR-121: payout digest binds payout identity, membership and net without order dependence',()=>{
+  const first=observe(payout,rows,expected);
+  const another=observe({...payout,id:'po_other'},rows,expected);
+  const changed=observe(payout,{...rows,data:[
+    {...rows.data[0],net:79},rows.data[1],
+  ]},[{...expected[0]!,netMinor:79},expected[1]!]);
+  assert.equal(first.outcome,'observed');
+  assert.equal(another.outcome,'observed');
+  assert.equal(changed.outcome,'observed');
+  if(first.outcome==='observed' && another.outcome==='observed' && changed.outcome==='observed'){
+    assert.notEqual(first.digest,another.digest);
+    assert.notEqual(first.digest,changed.digest);
+    assert.equal(changed.observedNetMinor,169n);
+    assert.equal(changed.settlementVerified,false);
+    assert.equal(changed.billable,false);
+  }
+});
