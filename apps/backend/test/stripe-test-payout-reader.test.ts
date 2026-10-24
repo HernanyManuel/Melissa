@@ -170,3 +170,24 @@ test('ADR-121 payout reader rejects oversized provider pages even when marked co
     /Malformed Stripe TEST list/);
   assert.equal(requests,1);
 });
+
+// prettier-ignore
+test('ADR-121: payout reader keeps 100-item cross-page result incomplete', async()=>{
+  const key='sk_test_'+'h'.repeat(32);
+  let requests=0;
+  const reader=new StripeTestPayoutReader(key,async()=>{
+    requests++;
+    const count=requests===1?60:40;
+    const start=requests===1?0:60;
+    return new Response(JSON.stringify({object:'list',has_more:true,
+      data:Array.from({length:count},(_,i)=>({
+        object:'balance_transaction',id:'txn_bounded_'+(start+i+1),
+      }))}),{status:200,headers:{'content-type':'application/json'}});
+  });
+  const result=await reader.listAutomaticPayoutTransactions('po_cross_page') as
+    {object:string;has_more:boolean;data:unknown[]};
+  assert.equal(result.object,'list');
+  assert.equal(result.data.length,100);
+  assert.equal(result.has_more,true);
+  assert.equal(requests,2);
+});
