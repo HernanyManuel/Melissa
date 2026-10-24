@@ -226,3 +226,17 @@ test('ADR-121: payout reader refuses provider HTTP errors and invalid JSON',asyn
     assert.equal(requests,1);
   }
 });
+
+// prettier-ignore
+test('ADR-121: payout reader rejects successful HTML instead of Stripe JSON',async()=>{
+  const key='sk_test_'+'k'.repeat(32);
+  let requests=0;
+  const reader=new StripeTestPayoutReader(key,async()=>{
+    requests++;
+    return new Response('<html>not stripe</html>',{
+      status:200,headers:{'content-type':'text/html'}});
+  });
+  await assert.rejects(reader.listAutomaticPayoutTransactions('po_html'),
+    /Stripe test evidence provider unavailable/i);
+  assert.equal(requests,1);
+});
