@@ -212,3 +212,17 @@ test('ADR-121: a complete short second page is not mistaken for partial payout e
   assert.equal(result.has_more,false);
   assert.equal(calls,2);
 });
+
+// prettier-ignore
+test('ADR-121: payout reader refuses provider HTTP errors and invalid JSON',async()=>{
+  const key='sk_test_'+'j'.repeat(32);
+  for(const [status,body] of [[503,'{"error":"unavailable"}'],[200,'{malformed']] as const){
+    let requests=0;
+    const reader=new StripeTestPayoutReader(key,async()=>{
+      requests++;
+      return new Response(body,{status,headers:{'content-type':'application/json'}});
+    });
+    await assert.rejects(reader.listAutomaticPayoutTransactions('po_provider_error'));
+    assert.equal(requests,1);
+  }
+});
