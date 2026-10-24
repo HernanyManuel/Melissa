@@ -126,6 +126,14 @@ test('human handoff advances epoch once and replays idempotently', { timeout: 15
       }),
       1,
     );
+    const [handoffEventCount] = await admin.$queryRaw<Array<{ count: bigint }>>`
+      SELECT count(*) AS count
+      FROM inbox_events
+      WHERE tenant_id=${tenantId}::uuid
+        AND conversation_id=${conversationId}::uuid
+        AND event_type='conversation.handoff_requested'
+    `;
+    assert.equal(handoffEventCount?.count, 1n);
 
     const replay = await handoff.request(
       {
@@ -151,6 +159,14 @@ test('human handoff advances epoch once and replays idempotently', { timeout: 15
       }),
       1,
     );
+    const [handoffEventCountAfterReplay] = await admin.$queryRaw<Array<{ count: bigint }>>`
+      SELECT count(*) AS count
+      FROM inbox_events
+      WHERE tenant_id=${tenantId}::uuid
+        AND conversation_id=${conversationId}::uuid
+        AND event_type='conversation.handoff_requested'
+    `;
+    assert.equal(handoffEventCountAfterReplay?.count, 1n);
 
     await assert.rejects(
       handoff.request(

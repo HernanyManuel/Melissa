@@ -11,6 +11,16 @@ import { TenantService } from './tenancy/tenant.service';
 import { TenantController } from './tenancy/tenant.controller';
 import { BusinessController } from './business/business.controller';
 import { BusinessService } from './business/business.service';
+import { BillingController } from './billing/billing.controller';
+import { BillingService } from './billing/billing.service';
+import { BillingUsageService } from './billing/billing-usage.service';
+import { BillingEntitlementService } from './billing/billing-entitlement.service';
+import { StripeCheckoutService } from './billing/stripe-checkout.service';
+import { StripeCheckoutGateway } from './billing/stripe-test-checkout-provider';
+import { StripePortalGateway } from './billing/stripe-test-portal-provider';
+import { StripePortalService } from './billing/stripe-portal.service';
+import { StripeWebhookController } from './billing/stripe-webhook.controller';
+import { StripeWebhookInbox } from './billing/stripe-webhook.inbox';
 import { BookingAdminService } from './business/booking-admin.service';
 import { CustomerController } from './customers/customer.controller';
 import { CustomerService } from './customers/customer.service';
@@ -35,6 +45,8 @@ import {
     AuthController,
     TenantController,
     BusinessController,
+    BillingController,
+    StripeWebhookController,
     CustomerController,
     ChannelController,
     MessagingController,
@@ -50,6 +62,14 @@ import {
     IdentityRateLimit,
     TenantService,
     BusinessService,
+    BillingService,
+    BillingUsageService,
+    BillingEntitlementService,
+    StripeCheckoutService,
+    StripeCheckoutGateway,
+    StripePortalGateway,
+    StripePortalService,
+    StripeWebhookInbox,
     BookingAdminService,
     CustomerService,
     ChannelService,

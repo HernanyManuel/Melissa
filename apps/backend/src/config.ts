@@ -8,6 +8,25 @@ const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   WORKER_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   MESSAGE_DEBOUNCE_MS: z.coerce.number().int().min(100).max(2000).default(1500),
+  // Stripe ingestion is off by default and restricted to non-live events.
+  STRIPE_TEST_CHECKOUT_ENABLED: z.enum(['false', 'true']).default('false'),
+  STRIPE_TEST_PORTAL_ENABLED: z.enum(['false', 'true']).default('false'),
+  STRIPE_TEST_PORTAL_CONFIGURATION_ID: z
+    .string()
+    .regex(/^bpc_[A-Za-z0-9_]{1,240}$/)
+    .optional(),
+  STRIPE_TEST_SECRET_KEY: z
+    .string()
+    .regex(/^sk_test_[A-Za-z0-9_-]{16,256}$/)
+    .optional(),
+  STRIPE_TEST_CHECKOUT_RETURN_ORIGIN: z.string().url().optional(),
+  STRIPE_WEBHOOK_ENABLED: z.enum(['false', 'true']).default('false'),
+  STRIPE_WEBHOOK_SECRET: z
+    .string()
+    .min(22)
+    .max(512)
+    .regex(/^whsec_[A-Za-z0-9_-]+$/)
+    .optional(),
   WHATSAPP_WEBHOOK_ENABLED: z.enum(['false', 'true']).default('false'),
   WHATSAPP_INTEGRATION_KEY: z
     .string()
@@ -64,6 +83,7 @@ const schema = z.object({
   SECRET_MOUNT_DIRECTORY: z.string().max(1024).optional().or(z.literal('')),
   MEDIA_INGESTION_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   AI_OUTBOUND_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
+  HUMAN_OUTBOUND_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   AI_TURN_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   CALENDAR_SYNC_WORKER_ENABLED: z.enum(['false', 'true']).default('false'),
   MALWARE_SCANNER: z.enum(['disabled', 'clamav']).default('disabled'),
@@ -155,6 +175,47 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
         result.error.issues.map((issue) => issue.path.join('.')).join(', '),
     );
   }
+  if (result.data.STRIPE_TEST_CHECKOUT_ENABLED === 'true') {
+    if (!result.data.STRIPE_TEST_SECRET_KEY || !result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN)
+      throw new Error('Stripe test Checkout requires server-side key and return origin');
+    const url = new URL(result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN);
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (
+      (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) ||
+      url.username ||
+      url.password ||
+      url.pathname !== '/' ||
+      url.search ||
+      url.hash ||
+      url.origin !== result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN
+    )
+      throw new Error('Stripe test Checkout requires a safe exact return origin');
+  }
+  if (result.data.STRIPE_TEST_PORTAL_ENABLED === 'true') {
+    if (
+      result.data.NODE_ENV !== 'test' ||
+      !result.data.STRIPE_TEST_SECRET_KEY ||
+      !result.data.STRIPE_TEST_PORTAL_CONFIGURATION_ID ||
+      !result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN
+    )
+      throw new Error(
+        'Stripe test Portal requires test environment, key, configuration and origin',
+      );
+    const url = new URL(result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN);
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (
+      (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) ||
+      url.username ||
+      url.password ||
+      url.pathname !== '/' ||
+      url.search ||
+      url.hash ||
+      url.origin !== result.data.STRIPE_TEST_CHECKOUT_RETURN_ORIGIN
+    )
+      throw new Error('Stripe test Portal requires a safe exact return origin');
+  }
+  if (result.data.STRIPE_WEBHOOK_ENABLED === 'true' && !result.data.STRIPE_WEBHOOK_SECRET)
+    throw new Error('Stripe webhook requires a server-side signing secret');
   if (
     result.data.WHATSAPP_WEBHOOK_ENABLED === 'true' &&
     (!result.data.WHATSAPP_INTEGRATION_KEY ||
@@ -237,20 +298,20 @@ export function parseConfig(input: Record<string, unknown>): Configuration {
     throw new Error(
       'Media ingestion worker requires transport, storage, quarantine keyring and malware scanner',
     );
+  const liveOutboundEnabled =
+    result.data.AI_OUTBOUND_WORKER_ENABLED === 'true' ||
+    result.data.HUMAN_OUTBOUND_WORKER_ENABLED === 'true';
   if (
-    result.data.AI_OUTBOUND_WORKER_ENABLED === 'true' &&
+    liveOutboundEnabled &&
     (result.data.SECRET_PROVIDER !== 'mounted-file' ||
       !result.data.SECRET_MOUNT_DIRECTORY ||
       !result.data.WHATSAPP_MESSAGING_API_VERSION)
   )
     throw new Error(
-      'AI outbound worker requires mounted secrets and explicit WhatsApp messaging API version',
+      'Live outbound workers require mounted secrets and explicit WhatsApp messaging API version',
     );
-  if (
-    result.data.AI_OUTBOUND_WORKER_ENABLED === 'false' &&
-    result.data.WHATSAPP_MESSAGING_API_VERSION
-  )
-    throw new Error('WhatsApp messaging API version requires AI_OUTBOUND_WORKER_ENABLED=true');
+  if (!liveOutboundEnabled && result.data.WHATSAPP_MESSAGING_API_VERSION)
+    throw new Error('WhatsApp messaging API version requires a live outbound worker');
   if (
     result.data.CALENDAR_SYNC_WORKER_ENABLED === 'true' &&
     (result.data.SECRET_PROVIDER !== 'mounted-file' || !result.data.SECRET_MOUNT_DIRECTORY)

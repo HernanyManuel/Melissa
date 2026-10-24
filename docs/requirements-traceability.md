@@ -40,18 +40,18 @@ Cada PR deve citar também os subitens da secção e anexar evidência concreta 
 | 31 | Agenda interna | P6 | Booking | Concorrência, invariantes, UTC/DST e UI | Planeado; não implementado |
 | 32 | Google Calendar | P7 | Calendar | OAuth, sync/reconciliation e teste real | Planeado; não implementado |
 | 33 | OAuth | P7 | Calendar | OAuth, sync/reconciliation e teste real | Planeado; não implementado |
-| 34 | Human Handoff | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Planeado; não implementado |
-| 35 | Inbox | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Planeado; não implementado |
+| 34 | Human Handoff | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Parcial: handoff durável, takeover com fencing e reativação da IA, SSE e testes HTTP; faltam alertas multicanal e E2E com Meta real (ADRs 076–103) |
+| 35 | Inbox | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Parcial avançado: UI Flutter, histórico, resposta humana, SSE, pesquisa, tags, notas, não lidas, filtros/ordenação, fila de handoff; faltam ações completas, notificações e E2E externo (ADRs 076–103) |
 | 36 | Leads | P10 | Analytics/Admin | Ledger vs agregados e suporte auditado | Planeado; não implementado |
 | 37 | Dashboard | P10 | Analytics/Admin | Ledger vs agregados e suporte auditado | Planeado; não implementado |
 | 38 | Métrica de automação | P10 | Analytics/Admin | Ledger vs agregados e suporte auditado | Planeado; não implementado |
 | 39 | Usage Metering | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 40 | Custos internos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 41 | Cost Guard | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
-| 42 | Billing | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
-| 43 | Planos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
-| 44 | Subscriptions | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
-| 45 | Webhooks Stripe | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
+| 42 | Billing | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catálogo e subscription snapshot, ecrã Flutter read-only, ingest/reconcile test Stripe; Checkout test com associação verificada offline/opt-in (sem Stripe real validado); Portal test read-only e avaliação deny-only de quotas implementados; enforcement pendente (ADRs 104–120) |
+| 43 | Planos | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: catálogo API e visualização Flutter com preços configuráveis; criação administrativa e Checkout iniciado apenas em test mode sem associação (ADRs 104/108/109/110/111/112/113/114/115/116/117/118/119/120) |
+| 44 | Subscriptions | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: snapshot com RLS, reconciliação Stripe test, consulta Flutter segura; onboarding e alterações contratuais pendentes (ADRs 104–108) |
+| 45 | Webhooks Stripe | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Parcial: transporte HMAC test, inbox imutável e reconciliação manual sob papel DB mínimo (ADR-107); falta worker, credenciais/Stripe E2E real e gestão de eventos em produção (ADRs 105–107) |
 | 46 | Limites | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 47 | Overages | P9 | Billing/Usage | Stripe test real, limites/replay/custos | Planeado; não implementado |
 | 48 | Admin Platform | P10 | Analytics/Admin | Ledger vs agregados e suporte auditado | Planeado; não implementado |
@@ -71,7 +71,7 @@ Cada PR deve citar também os subitens da secção e anexar evidência concreta 
 | 62 | Storage | P4 | Messaging/Customers | Webhook assinado, dedup/outbox e recovery | Planeado; não implementado |
 | 63 | Knowledge Base — Fase posterior | Pós-MVP | Extensions | Backlog explícito e fronteiras preservadas | Diferido conforme especificação |
 | 64 | Webchat — futura extensão simples | Pós-MVP | Extensions | Backlog explícito e fronteiras preservadas | Diferido conforme especificação |
-| 65 | Notification Service | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Planeado; não implementado |
+| 65 | Notification Service | P8 | Inbox/Handoff | Takeover concorrente, reconexão e alertas | Parcial: alertas in-app verificados de mensagens e indicador persistente de handoffs pendentes (ADR-086/103); faltam NotificationService geral, email, preferências, entrega/retry e demais eventos |
 | 66 | n8n | P0 | Architecture | Revisão documental/ADRs e rastreabilidade | Planeado; não implementado |
 | 67 | Event Architecture | P4 | Messaging/Customers | Webhook assinado, dedup/outbox e recovery | Planeado; não implementado |
 | 68 | Queues | P4 | Messaging/Customers | Webhook assinado, dedup/outbox e recovery | Planeado; não implementado |

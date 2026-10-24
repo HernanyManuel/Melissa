@@ -79,7 +79,13 @@ test(
         VALUES (${tenantId}::uuid, ${outboxId}::uuid)
       `;
 
-      assert.deepEqual(await store.due(10), [{ id: outboxId, attempt: 0 }]);
+      // Discovery is global and other integration suites run concurrently.
+      // Verify this fixture without assuming it is the only due dispatch.
+      const initialDue = await store.due(100);
+      assert(initialDue.some((route) => route.id === outboxId && route.attempt === 0));
+      for (const route of initialDue) {
+        assert.deepEqual(Object.keys(route).sort(), ['attempt', 'id']);
+      }
       assert.equal(await store.claim(outboxId, 1), null);
       assert.equal(await store.claim(outboxId, 0), null);
 
@@ -137,7 +143,7 @@ test(
         SET next_attempt_at=CURRENT_TIMESTAMP + interval '1 hour'
         WHERE tenant_id=${tenantId}::uuid AND id=${outboxId}::uuid
       `;
-      assert.deepEqual(await store.due(10), []);
+      assert(!(await store.due(100)).some((route) => route.id === outboxId));
       assert.equal(await store.claim(outboxId, 0), null);
 
       await admin.$executeRaw`

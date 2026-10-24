@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { IsISO8601, IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class MockInboundDto {
@@ -26,4 +26,157 @@ export class ConversationQuery extends MessagePageDto {
   @IsString()
   @Length(0, 80)
   q?: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Only conversations with this tenant-owned tag; retain it on every page.',
+  })
+  @IsOptional()
+  @IsUUID()
+  tagId?: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Select conversations from this tenant-owned channel connection.',
+  })
+  @IsOptional()
+  @IsUUID()
+  channelId?: string;
+
+  @ApiPropertyOptional({
+    enum: ['true', 'false'],
+    description: 'Show only conversations with unread inbound events for the authenticated actor.',
+  })
+  @IsOptional()
+  @Matches(/^(true|false)$/)
+  unreadOnly?: string;
+
+  @ApiPropertyOptional({
+    enum: ['all', 'mine', 'unassigned'],
+    description: 'Filter assignment by the authenticated actor or select unassigned conversations.',
+  })
+  @IsOptional()
+  @Matches(/^(all|mine|unassigned)$/)
+  assignment?: string;
+
+  @ApiPropertyOptional({
+    enum: ['all', 'open', 'closed'],
+    description: 'Filter conversation lifecycle status before pagination; defaults to all.',
+  })
+  @IsOptional()
+  @Matches(/^(all|open|closed)$/)
+  status?: string;
+
+  @ApiPropertyOptional({
+    enum: ['all', 'mock', 'live'],
+    description: 'Filter by channel connection mode before pagination; default all.',
+  })
+  @IsOptional()
+  @Matches(/^(all|mock|live)$/)
+  channelMode?: string;
+
+  @ApiPropertyOptional({
+    enum: ['all', 'human', 'ai', 'paused', 'waiting'],
+    description:
+      'Filter by current conversation control state (human, AI, paused or waiting for a human), before pagination.',
+  })
+  @IsOptional()
+  @Matches(/^(all|human|ai|paused|waiting)$/)
+  controlMode?: string;
+
+  @ApiPropertyOptional({
+    enum: ['id', 'recent'],
+    description:
+      'Sort by ID ascending (default), or latest activity descending with ID as a stable tie-breaker.',
+  })
+  @IsOptional()
+  @Matches(/^(id|recent)$/)
+  sort?: string;
+
+  @ApiPropertyOptional({
+    format: 'date-time',
+    example: '2026-10-01T00:00:00.000Z',
+    description:
+      'Inclusive fixed UTC last-activity threshold. Keep the same value on every page and SSE refresh.',
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+  @IsISO8601({ strict: true, strictSeparator: true })
+  activitySince?: string;
+}
+
+export class ConversationTakeoverDto {
+  @ApiProperty({ format: 'uuid' }) @IsUUID() staffId!: string;
+}
+
+export class InboxCheckpointDto {
+  @ApiProperty({
+    description: 'A tenant event sequence applied by a successful authorized REST refresh.',
+    example: '42',
+  })
+  @Matches(/^[1-9]\d{0,18}$/)
+  after!: string;
+}
+
+export class InboxEventQuery {
+  @ApiPropertyOptional({
+    description: 'Tenant-local durable event cursor. Omit or use 0 for the beginning.',
+    example: '42',
+  })
+  @IsOptional()
+  @Matches(/^\d{1,19}$/)
+  after?: string;
+}
+
+export class ManualReplyDto {
+  @ApiProperty({
+    format: 'uuid',
+    description: 'Stable UUID reused with the exact same text after an uncertain response.',
+  })
+  @IsUUID()
+  requestId!: string;
+
+  @ApiProperty({ minLength: 1, maxLength: 4096 })
+  @IsString()
+  @Length(1, 4096)
+  text!: string;
+}
+
+export class AbandonManualReplyDto {
+  @ApiProperty({
+    format: 'uuid',
+    description: 'Request ID of the actor-owned preparation to abandon.',
+  })
+  @IsUUID()
+  requestId!: string;
+}
+
+export class MarkConversationReadDto {
+  @ApiProperty({
+    description: 'Last inbound Inbox event sequence observed in a conversation listing.',
+    example: '42',
+  })
+  @Matches(/^[1-9]\d{0,18}$/)
+  upTo!: string;
+}
+
+export class CreateInternalNoteDto {
+  @ApiProperty({
+    format: 'uuid',
+    description: 'Stable idempotency key; reuse with identical text after uncertain responses.',
+  })
+  @IsUUID()
+  requestId!: string;
+
+  @ApiProperty({ minLength: 1, maxLength: 2000 })
+  @IsString()
+  @Length(1, 2000)
+  text!: string;
+}
+
+export class CreateConversationTagDto {
+  @ApiProperty({ minLength: 1, maxLength: 40 })
+  @IsString()
+  @Length(1, 40)
+  name!: string;
 }
