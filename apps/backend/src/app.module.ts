@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { AnalyticsController } from './analytics/analytics.controller';
+import { AnalyticsService } from './analytics/analytics.service';
 import { CONFIG, Configuration } from './config';
 import { Dependencies } from './dependencies';
 import { InfrastructureModule } from './infrastructure.module';
@@ -43,6 +45,7 @@ import {
   imports: [InfrastructureModule],
   controllers: [
     AuthController,
+    AnalyticsController,
     TenantController,
     BusinessController,
     BillingController,
@@ -57,6 +60,7 @@ import {
   ],
   providers: [
     AuthService,
+    AnalyticsService,
     AuthGuard,
     IdentityMail,
     IdentityRateLimit,
