@@ -191,3 +191,24 @@ test('ADR-121: payout reader keeps 100-item cross-page result incomplete', async
   assert.equal(result.has_more,true);
   assert.equal(requests,2);
 });
+
+// prettier-ignore
+test('ADR-121: a complete short second page is not mistaken for partial payout evidence',async()=>{
+  const key='sk_test_'+'i'.repeat(32);
+  let calls=0;
+  const reader=new StripeTestPayoutReader(key,async()=>{
+    calls++;
+    const start=calls===1?0:40;
+    const count=calls===1?40:20;
+    return new Response(JSON.stringify({object:'list',has_more:calls===1,
+      data:Array.from({length:count},(_,i)=>({
+        object:'balance_transaction',id:'txn_short_'+(start+i+1),
+      }))}),{status:200,headers:{'content-type':'application/json'}});
+  });
+  const result=await reader.listAutomaticPayoutTransactions('po_short_complete') as
+    {object:string;has_more:boolean;data:unknown[]};
+  assert.equal(result.object,'list');
+  assert.equal(result.data.length,60);
+  assert.equal(result.has_more,false);
+  assert.equal(calls,2);
+});
