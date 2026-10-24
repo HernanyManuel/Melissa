@@ -3,7 +3,7 @@
 ## Âmbito e condições de segurança
 
 Este protocolo é um **guia**, não prova de que a validação externa tenha sido executada.
-O CI [#40124052569](https://github.com/HernanyManuel/Melissa/actions/runs/40124052569) do commit `f1e12ac` validou backend/Flutter/Compose, PostgreSQL com provider Stripe **simulado**, controlos RLS e auditoria de dependências de produção. **Isto não é um ensaio contra a API Stripe TEST real.** Antes de testar numa conta Stripe, obter aprovação do operador para usar apenas uma conta **TEST** isolada. Não ativar Checkout comercial, cobranças LIVE, direitos pagos, deploy nem merge.
+O CI [#40141835199](https://github.com/HernanyManuel/Melissa/actions/runs/40141835199) do commit `3dce3b6` validou backend/Flutter/Compose, PostgreSQL com provider Stripe **simulado**, controlos RLS e auditoria de dependências de produção. Os testes incluem rejeição de redirecionamentos HTTP, payloads acima de 128 KiB e respostas não JSON, mas não substituem uma chamada autorizada à Stripe TEST real. **Isto não é um ensaio contra a API Stripe TEST real.** Antes de testar numa conta Stripe, obter aprovação do operador para usar apenas uma conta **TEST** isolada. Não ativar Checkout comercial, cobranças LIVE, direitos pagos, deploy nem merge.
 
 Pré-requisitos: schema 79 aplicado apenas numa BD de teste; papel `melissa_billing_invoice_verifier` com credenciais independentes, sem superuser/BYPASSRLS; ligação `BILLING_INVOICE_VERIFIER_DATABASE_URL` sem acesso pelo runtime; chave `sk_test_` guardada fora de logs e ficheiros versionados; invoices de grupos com 2–8 pagamentos efetivos no ambiente TEST; payouts **automáticos** de TEST disponíveis (não assumir que a conta os suporta). Nunca copiar dados de clientes ou de produção.
 
