@@ -240,3 +240,18 @@ test('ADR-121: payout reader rejects successful HTML instead of Stripe JSON',asy
     /Stripe test evidence provider unavailable/i);
   assert.equal(requests,1);
 });
+
+// prettier-ignore
+test('ADR-121: payout reader rejects oversized provider response bodies',async()=>{
+  const key='sk_test_'+'m'.repeat(32);
+  let requests=0;
+  const reader=new StripeTestPayoutReader(key,async()=>{
+    requests++;
+    return new Response(JSON.stringify({object:'list',has_more:false,
+      data:[],padding:'x'.repeat(129*1024)}),{
+      status:200,headers:{'content-type':'application/json'}});
+  });
+  await assert.rejects(reader.listAutomaticPayoutTransactions('po_large_body'),
+    /Stripe invoice response too large/);
+  assert.equal(requests,1);
+});
