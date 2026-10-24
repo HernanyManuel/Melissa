@@ -12,7 +12,8 @@ allowBuilds:
   msgpackr-extract: false
 overrides:
   js-yaml: 4.3.2
-  multer: 2.3.0
+  multer: 2.5.0
+  'body-parser@>=2': 2.4.0
   lodash: 4.18.1
   proxy-addr: 2.0.8
   '@prisma/config>deepmerge-ts': 8.0.0

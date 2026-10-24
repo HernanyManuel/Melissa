@@ -1,0 +1,29 @@
+name: Security lockfile refresh (review artifact)
+on:
+  push:
+    branches: [feature/phase-8-inbox]
+    paths:
+      - apps/backend/package.json
+      - pnpm-workspace.yaml
+      - .github/workflows/security-lockfile-refresh.yml
+permissions:
+  contents: read
+jobs:
+  lockfile-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - name: Generate review-only lockfile
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Upload generated lockfile for reviewed commit
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-pnpm-lockfile
+          path: pnpm-lock.yaml
+          if-no-files-found: error
