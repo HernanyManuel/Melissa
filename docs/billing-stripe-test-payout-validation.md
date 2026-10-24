@@ -3,7 +3,7 @@
 ## Âmbito e condições de segurança
 
 Este protocolo é um **guia**, não prova de que a validação externa tenha sido executada.
-O CI #39075192879 validou backend/Flutter/Compose, PostgreSQL com provider Stripe **simulado** e os controlos RLS. Antes de testar numa conta Stripe, obter aprovação do operador para usar apenas uma conta **TEST** isolada. Não ativar Checkout comercial, cobranças LIVE, direitos pagos, deploy nem merge.
+O CI [#40124052569](https://github.com/HernanyManuel/Melissa/actions/runs/40124052569) do commit `f1e12ac` validou backend/Flutter/Compose, PostgreSQL com provider Stripe **simulado**, controlos RLS e auditoria de dependências de produção. **Isto não é um ensaio contra a API Stripe TEST real.** Antes de testar numa conta Stripe, obter aprovação do operador para usar apenas uma conta **TEST** isolada. Não ativar Checkout comercial, cobranças LIVE, direitos pagos, deploy nem merge.
 
 Pré-requisitos: schema 79 aplicado apenas numa BD de teste; papel `melissa_billing_invoice_verifier` com credenciais independentes, sem superuser/BYPASSRLS; ligação `BILLING_INVOICE_VERIFIER_DATABASE_URL` sem acesso pelo runtime; chave `sk_test_` guardada fora de logs e ficheiros versionados; invoices de grupos com 2–8 pagamentos efetivos no ambiente TEST; payouts **automáticos** de TEST disponíveis (não assumir que a conta os suporta). Nunca copiar dados de clientes ou de produção.
 
@@ -31,3 +31,26 @@ Registar somente commit e versão de schema, versão de API Stripe, modalidade d
 ## Pendências
 
 Execução real em conta Stripe TEST com payouts automáticos e confirmação do comportamento efetivo da API; revisão de gestão de segredos e credenciais segregadas; política financeira e autorização explícita de rollout separadas. O PR #7 deve permanecer draft. `billing_entitlement_activation_gate.enabled=false`.
+
+## Registo operacional de ensaio (sem segredos)
+
+Preencher uma cópia **fora do repositório** e publicar apenas a versão redigida. Este modelo não constitui prova de execução.
+
+| Campo | Valor a registar |
+| --- | --- |
+| Commit/CI | SHA exato e URL do CI verde do commit ensaiado |
+| Ambiente | BD TEST isolada, schema 79; sem dados LIVE |
+| Autorização | Aprovação do operador e janela de execução |
+| Credenciais | Apenas confirmação de chave TEST e role segregada; **nunca** segredos |
+| Stripe | Versão da API TEST e existência de payout automático |
+| IDs | Referências de invoice e payout redigidas |
+| Cadeia | Contagem de Charges (2–8), moeda e líquido agregado TEST |
+| Execução | recorded / replayed / deferred / rejected / não executado |
+| Replay | Resultado redigido e ausência de duplicação no ledger |
+| RLS | Role sem BYPASSRLS, ledger append-only |
+| Flags | payout_verified=false; settlement_verified=false; financial_clearance=false; billable=false |
+| Resultado | E2E TEST confirmado **só** com evidência Stripe real, ou pendente |
+
+### Decisão de não avançar
+
+Marcar **não aprovado / pendente** se não existir payout automático na conta TEST, se a segregação de privilégios não estiver comprovada, se a paginação permanecer incompleta, se o ID do payout divergir ou se não for possível verificar todas as flags financeiras bloqueadas. Este relatório nunca autoriza rollout, entitlement, merge ou deploy.
