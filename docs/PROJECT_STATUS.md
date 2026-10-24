@@ -1,3 +1,7 @@
+## Phase 10 — início do desenho de analytics (sem endpoint novo)
+
+Branch `feature/phase-10-analytics` criada a partir da branch do PR #7 (ainda draft), sem merge/deploy. [Plano de entrada P10](phase-10-analytics.md): contrato preliminar read-only tenant-scoped e critérios de segurança para métricas técnicas, custos e operações. **Esta alteração é apenas documentação; não implementa métricas nem confirma receita.** A validação Stripe TEST E2E real da ADR-121 continua pendente; todos os bloqueios financeiros se mantêm.
+
 ## Phase 9 — ADR-121: observação de payout automático Stripe TEST (schema 79, CI aprovado)
 
 Parser restritivo, leitor GET paginado, verificador offline segregado e CLI manual opt-in `stripe:payout-test in_... po_...`. Regista snapshots e auditoria imutáveis, com FORCE RLS, unicidade e serialização concorrente por invoice. O CI #39075192879 (HEAD `9335048`) passou backend, Flutter e Compose, incluindo integração PostgreSQL com Stripe simulado. **Falta E2E externo Stripe TEST real** e não existe prova de liquidação bancária; `payout_verified`, `settlement_verified`, `financial_clearance` e `billable` mantêm-se FALSE por CHECK SQL. PR #7 draft; sem merge, deploy, LIVE ou ativação de direitos pagos. [ADR-121](decisions/ADR-121-stripe-test-payout-reconciliation-foundation.md).
