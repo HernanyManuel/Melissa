@@ -135,3 +135,18 @@ test('ADR-121: refuses two expected payout transactions attributed to the same C
   assert.deepEqual(observe(payout,rows,overlapping),
     {outcome:'rejected',reason:'invalid_expected_graph'});
 });
+
+// prettier-ignore
+test('ADR-121: provider row order and trusted expected order do not change payout evidence',()=>{
+  const baseline=observe(payout,rows,expected);
+  const reordered=observe(payout,{...rows,data:[...rows.data].reverse()},[...expected].reverse());
+  assert.equal(baseline.outcome,'observed');
+  assert.equal(reordered.outcome,'observed');
+  if(baseline.outcome==='observed' && reordered.outcome==='observed'){
+    assert.equal(reordered.digest,baseline.digest);
+    assert.equal(reordered.observedNetMinor,baseline.observedNetMinor);
+    assert.equal(reordered.includedCount,baseline.includedCount);
+    assert.equal(reordered.settlementVerified,false);
+    assert.equal(reordered.billable,false);
+  }
+});
