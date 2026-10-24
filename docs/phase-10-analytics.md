@@ -25,3 +25,19 @@ Esta branch deriva de `feature/phase-8-inbox`, que contém a Phase 9/ADR-121 ain
 ## Gate operacional ainda pendente
 
 ADR-121 exige o ensaio E2E supervisionado numa conta Stripe TEST real, com payout automático, operador autorizado e credenciais segregadas. Esta fase pode iniciar desenvolvimento técnico **sem converter esse gate pendente em aprovação**. O PR #7 permanece independente e em draft.
+
+## Inventário inicial de fontes existentes (verificado no código)
+
+| Fonte | Campos ou garantias já presentes | Uso P10 proposto | Limite |
+| --- | --- | --- | --- |
+| `conversations` | `tenant_id`, `opened_at`, `closed_at`, `status`, `mode`, `last_message_at` | Contagens técnicas de conversas por janela | Abertura não é conversa faturável nem sucesso da automação |
+| `ai_turns` | `tenant_id`, `conversation_id`, `status`, `started_at`, `completed_at`, `failure_code` | Turnos iniciados/terminados e falhas por janela | Evitar duplicar ao juntar mensagens ou eventos |
+| `ai_usage_events` | Chave única `(tenant_id,turn_id)`, tokens, `cost_micros` opcional, `currency` opcional, preço observado | Diagnóstico técnico de tokens e custo **estimado** | Valores nulos e moedas distintas não podem ser somados indiscriminadamente |
+| `billing_usage_observations` | Observações imutáveis, fonte atual do relatório billing de 30 dias | Referência para deduplicação e confronto das contagens | `billable=false`; não confirma obrigação de pagar |
+| `audit_events` | `tenant_id`, `actor_id`, `actor_type`, `action`, `created_at` | Contagens operacionais por tipo de ação | Nunca publicar detalhes pessoais ou acesso implícito a suporte |
+
+O serviço já existente `BillingUsageService.report`, exposto em `GET /api/v1/tenants/:tenantId/billing/usage`, usa `TenantService.scoped(actor, tenantId, 'billing:read', ...)` e uma janela móvel UTC de 30×24 horas. Agrega contagens e tokens como strings de inteiros exatos; `conversationCandidate` é **draft_only**. A P10 deve reutilizar estas garantias, não criar contagens paralelas com semânticas divergentes.
+
+**Primeira decisão de engenharia:** antes de escrever uma nova query, definir se o dashboard precisa de janelas móveis ou dias de calendário na timezone da empresa; como `started_at`, `completed_at` e `observed_at` têm semânticas diferentes, cada métrica deve identificar explicitamente a coluna temporal de origem. Os custos nulos ficam `unavailable`, nunca zero; só se somam custos com mesma moeda e escala, sem converter USD/EUR implicitamente.
+
+**Próximo incremento executável:** ADR P10 com contrato de métricas técnicas agregadas, endpoint read-only separado de billing, testes A/B de autorização e consistência temporal, seguindo-se interface Flutter apenas após CI verde. Este inventário não valida execução E2E nem altera esquemas ou operações.
