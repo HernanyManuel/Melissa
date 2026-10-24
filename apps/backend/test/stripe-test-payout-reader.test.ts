@@ -255,3 +255,19 @@ test('ADR-121: payout reader rejects oversized provider response bodies',async()
     /Stripe invoice response too large/);
   assert.equal(requests,1);
 });
+
+// prettier-ignore
+test('ADR-121: payout reader does not accept Stripe provider redirects',async()=>{
+  const key='sk_test_'+'n'.repeat(32);
+  let requests=0;
+  const reader=new StripeTestPayoutReader(key,async(_input,init)=>{
+    requests++;
+    assert.equal(init?.redirect,'error');
+    return new Response(null,{status:302,headers:{
+      location:'https://example.invalid/stripe', 'content-type':'application/json',
+    }});
+  });
+  await assert.rejects(reader.listAutomaticPayoutTransactions('po_redirect'),
+    /Stripe test evidence provider unavailable/i);
+  assert.equal(requests,1);
+});
