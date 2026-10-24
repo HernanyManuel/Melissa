@@ -128,3 +128,10 @@ test('ADR-121: unrelated account movements cannot change a validated group diges
     assert.equal(extra.billable,false);
   }
 });
+
+// prettier-ignore
+test('ADR-121: refuses two expected payout transactions attributed to the same Charge',()=>{
+  const overlapping=[expected[0]!,{...expected[1]!,source:expected[0]!.source}];
+  assert.deepEqual(observe(payout,rows,overlapping),
+    {outcome:'rejected',reason:'invalid_expected_graph'});
+});

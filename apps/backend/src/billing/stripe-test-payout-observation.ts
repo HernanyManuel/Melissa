@@ -58,12 +58,14 @@ export function observeAutomaticStripeTestPayout(
   if (expected.length < 2 || expected.length > 8)
     return { outcome: 'rejected', reason: 'invalid_charge_group' };
   const wanted = new Map<string, ExpectedPayoutBalance>();
+  const sources = new Set<string>();
   for (const x of expected) {
     if (!ID.test(x.id) || !CHARGE.test(x.source) ||
         x.currency !== payout.currency || !money(x.netMinor) ||
-        x.netMinor < 0 || wanted.has(x.id))
+        x.netMinor < 0 || wanted.has(x.id) || sources.has(x.source))
       return { outcome: 'rejected', reason: 'invalid_expected_graph' };
     wanted.set(x.id, x);
+    sources.add(x.source);
   }
   const seen = new Set<string>();
   for (const raw of list.data) {
