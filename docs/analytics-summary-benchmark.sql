@@ -6,13 +6,13 @@
 \set ON_ERROR_STOP on
 BEGIN READ ONLY;
 -- Fail closed: a privileged login may bypass FORCE RLS and invalidate this baseline.
-DO $
+DO $benchmark_guard$
 BEGIN
   IF current_user <> 'melissa_runtime' THEN
     RAISE EXCEPTION 'benchmark requires melissa_runtime, got %', current_user;
   END IF;
 END
-$;
+$benchmark_guard$;
 SELECT set_config('app.tenant_id', :'tenant_id', true);
 SELECT current_user AS execution_role,
        current_setting('app.tenant_id', true) AS scoped_tenant;
