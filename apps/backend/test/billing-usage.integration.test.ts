@@ -173,11 +173,13 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
       period:{kind:string;from:string;to:string};financialStatus:string;
       billable:boolean;entitlementGranted:boolean;conversationsOpened:string;
       aiTurnsStarted:string;aiTurnsCompleted:string;aiTurnsFailed:string;
+      auditEvents:string;
     }>(await request('GET',analyticsPath,undefined,owner.token),200);
     assert.equal(analytics.conversationsOpened,'1');
     assert.equal(analytics.aiTurnsStarted,'2');
     assert.equal(analytics.aiTurnsCompleted,'2');
     assert.equal(analytics.aiTurnsFailed,'0');
+    assert.match(analytics.auditEvents,/^\\d+$/);
     assert.equal(analytics.billable,false);
     assert.equal(analytics.entitlementGranted,false);
     assert.equal(analytics.financialStatus,'not_defined');
