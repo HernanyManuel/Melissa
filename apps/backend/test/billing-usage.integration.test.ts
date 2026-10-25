@@ -216,6 +216,14 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
     assert.equal(withFailed.aiTurnsCompleted,'2');
     assert.equal(withFailed.aiTurnsFailed,'1');
     assert.equal(withFailed.billable,false);
+    const otherAfterFailures=await json<{
+      aiTurnsStarted:string;aiTurnsRunning:string;aiTurnsCompleted:string;
+      aiTurnsFailed:string;
+    }>(await request('GET','/tenants/'+b.id+'/analytics/summary',undefined,outsider.token),200);
+    assert.equal(otherAfterFailures.aiTurnsStarted,'1');
+    assert.equal(otherAfterFailures.aiTurnsRunning,'0');
+    assert.equal(otherAfterFailures.aiTurnsCompleted,'1');
+    assert.equal(otherAfterFailures.aiTurnsFailed,'0');
     assert.match(analytics.auditEvents,/^\d+$/);
     assert(BigInt(analytics.auditEvents) >= 1n,'tenant creation must create an audit event');
     assert.equal(analytics.billable,false);
