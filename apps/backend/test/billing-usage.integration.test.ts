@@ -168,6 +168,7 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
     const analyticsPath='/tenants/'+a.id+'/analytics/summary';
     assert.equal((await request('GET',analyticsPath)).status,401);
     assert.equal((await request('GET',analyticsPath,undefined,outsider.token)).status,403);
+    assert.equal((await request('GET','/tenants/'+b.id+'/analytics/summary',undefined,owner.token)).status,404);
     const analytics=await json<{
       period:{kind:string;from:string;to:string};financialStatus:string;
       billable:boolean;entitlementGranted:boolean;conversationsOpened:string;
