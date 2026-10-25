@@ -70,7 +70,7 @@ jobs:
       - name: Validate analytics benchmark SQL under tenant RLS
         run: |
           mkdir -p .ci-artifacts
-          psql "${DATABASE_URL%%\\?*}" -X -v ON_ERROR_STOP=1 \
+          psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 \
             -v tenant_id=00000000-0000-4000-8000-000000000001 \
             -f docs/analytics-summary-benchmark.sql > .ci-artifacts/analytics-sql-plan.txt
       - name: Upload analytics SQL plan (CI smoke test, not performance baseline)
