@@ -67,6 +67,11 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
+      - name: Validate analytics benchmark SQL under tenant RLS
+        run: |
+          psql "${DATABASE_URL%%\\?*}" -X -v ON_ERROR_STOP=1 \\
+            -v tenant_id=00000000-0000-4000-8000-000000000001 \\
+            -f docs/analytics-summary-benchmark.sql > /dev/null
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
