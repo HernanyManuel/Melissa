@@ -173,12 +173,14 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
       period:{kind:string;from:string;to:string};financialStatus:string;
       billable:boolean;entitlementGranted:boolean;conversationsOpened:string;
       aiTurnsStarted:string;aiTurnsCompleted:string;aiTurnsFailed:string;
+      aiTurnsRunning:string;
       auditEvents:string;
     }>(await request('GET',analyticsPath,undefined,owner.token),200);
     assert.equal(analytics.conversationsOpened,'1');
     assert.equal(analytics.aiTurnsStarted,'2');
     assert.equal(analytics.aiTurnsCompleted,'2');
     assert.equal(analytics.aiTurnsFailed,'0');
+    assert.equal(analytics.aiTurnsRunning,'0');
     assert.match(analytics.auditEvents,/^\d+$/);
     assert(BigInt(analytics.auditEvents) >= 1n,'tenant creation must create an audit event');
     assert.equal(analytics.billable,false);

@@ -15,6 +15,7 @@ export interface TechnicalAnalytics {
   aiTurnsStarted: string;
   aiTurnsCompleted: string;
   aiTurnsFailed: string;
+  aiTurnsRunning: string;
   auditEvents: string;
 }
 
@@ -30,11 +31,12 @@ export class AnalyticsService {
         SELECT COUNT(*)::text AS count FROM conversations
         WHERE tenant_id=${tenantId}::uuid AND opened_at >= ${from} AND opened_at < ${to}`;
       const [turns] = await tx.$queryRaw<
-        Array<{ started: string; completed: string; failed: string }>
+        Array<{ started: string; completed: string; failed: string; running: string }>
       >`
         SELECT COUNT(*)::text AS started,
           COUNT(*) FILTER (WHERE status='completed')::text AS completed,
-          COUNT(*) FILTER (WHERE status='failed')::text AS failed
+          COUNT(*) FILTER (WHERE status='failed')::text AS failed,
+          COUNT(*) FILTER (WHERE status='running')::text AS running
         FROM ai_turns
         WHERE tenant_id=${tenantId}::uuid AND started_at >= ${from} AND started_at < ${to}`;
       const [audit] = await tx.$queryRaw<CountRow[]>`
@@ -49,6 +51,7 @@ export class AnalyticsService {
         aiTurnsStarted: turns?.started ?? '0',
         aiTurnsCompleted: turns?.completed ?? '0',
         aiTurnsFailed: turns?.failed ?? '0',
+        aiTurnsRunning: turns?.running ?? '0',
         auditEvents: audit?.count ?? '0',
       };
     });
