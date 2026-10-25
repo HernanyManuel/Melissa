@@ -16,6 +16,15 @@ $benchmark_guard$;
 SELECT set_config('app.tenant_id', :'tenant_id', true);
 SELECT current_user AS execution_role,
        current_setting('app.tenant_id', true) AS scoped_tenant;
+-- Annotate the plan with PostgreSQL table estimates (not measured row counts).
+-- Small/empty CI datasets must never be mistaken for representative load.
+SELECT current_setting('server_version') AS postgres_version;
+SELECT relname AS table_name, n_live_tup AS estimated_live_rows,
+       last_analyze, last_autoanalyze
+FROM pg_stat_user_tables
+WHERE schemaname = 'public'
+  AND relname IN ('conversations','ai_turns','audit_events')
+ORDER BY relname;
 -- Every query uses the same [from,to) window; psql reuses it in one transaction.
 SELECT now() AS window_to, now()-interval '30 days' AS window_from \gset
 EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
