@@ -124,6 +124,18 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
       where:{tenantId_id:{tenantId:a.id,id:olderConversation}},
       data:{openedAt:new Date(Date.now()-45*86400000)},
     });
+    // Stable points on both sides of the 30-day lower bound (avoid
+    // millisecond-exact clock races with the endpoint's current time).
+    const recentConversation=await fixtures(a.id);
+    await admin.conversation.update({
+      where:{tenantId_id:{tenantId:a.id,id:recentConversation}},
+      data:{openedAt:new Date(Date.now()-29*86400000)},
+    });
+    const expiredConversation=await fixtures(a.id);
+    await admin.conversation.update({
+      where:{tenantId_id:{tenantId:a.id,id:expiredConversation}},
+      data:{openedAt:new Date(Date.now()-31*86400000)},
+    });
     const firstTurn=await createTurn(a.id,ca);
     const first=await write(a.id,firstTurn,'completed',120,30);
     const otherTurn=await createTurn(b.id,cb);
@@ -182,7 +194,7 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
       aiTurnsRunning:string;
       auditEvents:string;
     }>(await request('GET',analyticsPath,undefined,owner.token),200);
-    assert.equal(analytics.conversationsOpened,'1');
+    assert.equal(analytics.conversationsOpened,'2');
     assert.equal(analytics.aiTurnsStarted,'2');
     assert.equal(analytics.aiTurnsCompleted,'2');
     assert.equal(analytics.aiTurnsFailed,'0');
