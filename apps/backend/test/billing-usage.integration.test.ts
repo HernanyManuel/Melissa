@@ -163,6 +163,29 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
     assert(!JSON.stringify(usage).includes('mock:'));
     assert(!JSON.stringify(usage).includes('providerKey'));
     assert(!JSON.stringify(usage).includes('turnId'));
+    // P10: use the same real HTTP/RBAC/RLS test fixture to prove analytics
+    // never imports another tenant's conversations or AI turns.
+    const analyticsPath='/tenants/'+a.id+'/analytics/summary';
+    assert.equal((await request('GET',analyticsPath)).status,401);
+    assert.equal((await request('GET',analyticsPath,undefined,outsider.token)).status,403);
+    const analytics=await json<{
+      period:{kind:string;from:string;to:string};financialStatus:string;
+      billable:boolean;entitlementGranted:boolean;conversationsOpened:string;
+      aiTurnsStarted:string;aiTurnsCompleted:string;aiTurnsFailed:string;
+    }>(await request('GET',analyticsPath,undefined,owner.token),200);
+    assert.equal(analytics.conversationsOpened,'1');
+    assert.equal(analytics.aiTurnsStarted,'2');
+    assert.equal(analytics.aiTurnsCompleted,'2');
+    assert.equal(analytics.aiTurnsFailed,'0');
+    assert.equal(analytics.billable,false);
+    assert.equal(analytics.entitlementGranted,false);
+    assert.equal(analytics.financialStatus,'not_defined');
+    assert.equal(analytics.period.kind,'rolling_30_days_utc');
+    assert(!JSON.stringify(analytics).includes('providerKey'));
+    const otherAnalytics=await json<{conversationsOpened:string;aiTurnsStarted:string}>(
+      await request('GET','/tenants/'+b.id+'/analytics/summary',undefined,outsider.token),200);
+    assert.equal(otherAnalytics.conversationsOpened,'1');
+    assert.equal(otherAnalytics.aiTurnsStarted,'1');
     const foreign=await json<{events:string;inputTokens:string}>(
       await request('GET','/tenants/'+b.id+'/billing/usage',undefined,outsider.token),200);
     assert.equal(foreign.events,'1');
