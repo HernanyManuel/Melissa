@@ -190,6 +190,8 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
       await request('GET','/tenants/'+b.id+'/analytics/summary',undefined,outsider.token),200);
     assert.equal(otherAnalytics.conversationsOpened,'1');
     assert.equal(otherAnalytics.aiTurnsStarted,'1');
+    assert.match(otherAnalytics.conversationsOpened,/^\d+$/);
+    assert.equal((await request('POST',analyticsPath,{billable:true},owner.token)).status,404);
     const foreign=await json<{events:string;inputTokens:string}>(
       await request('GET','/tenants/'+b.id+'/billing/usage',undefined,outsider.token),200);
     assert.equal(foreign.events,'1');
