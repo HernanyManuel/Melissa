@@ -38,4 +38,16 @@ test('P10: summary is tenant-scoped, technical-only, and uses one fixed UTC wind
     assert.equal((query[3] as Date).getTime(),result.period.to.getTime());
   }
   assert.notEqual(result.period.from.getTime(),result.period.to.getTime());
+  // Query templates must retain exclusive upper bounds and the correct
+  // source timestamp for each independent operational metric.
+  const statements=calls.map(q=>(q[0] as readonly string[]).join('?'));
+  assert.match(statements[0],/FROM conversations/);
+  assert.match(statements[0],/opened_at >=/);
+  assert.match(statements[0],/opened_at </);
+  assert.match(statements[1],/FROM ai_turns/);
+  assert.match(statements[1],/started_at >=/);
+  assert.match(statements[1],/started_at </);
+  assert.match(statements[2],/FROM audit_events/);
+  assert.match(statements[2],/created_at >=/);
+  assert.match(statements[2],/created_at </);
 });
