@@ -179,7 +179,7 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
     assert.equal(analytics.aiTurnsStarted,'2');
     assert.equal(analytics.aiTurnsCompleted,'2');
     assert.equal(analytics.aiTurnsFailed,'0');
-    assert.match(analytics.auditEvents,/^\\d+$/);
+    assert.match(analytics.auditEvents,/^\d+$/);
     assert.equal(analytics.billable,false);
     assert.equal(analytics.entitlementGranted,false);
     assert.equal(analytics.financialStatus,'not_defined');
