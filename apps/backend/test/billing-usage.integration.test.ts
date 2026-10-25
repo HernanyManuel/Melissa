@@ -118,6 +118,12 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
 
     const ca=await fixtures(a.id);
     const cb=await fixtures(b.id);
+    // Conversation opened outside the window must not inflate recent activity.
+    const olderConversation=await fixtures(a.id);
+    await admin.conversation.update({
+      where:{tenantId_id:{tenantId:a.id,id:olderConversation}},
+      data:{openedAt:new Date(Date.now()-45*86400000)},
+    });
     const firstTurn=await createTurn(a.id,ca);
     const first=await write(a.id,firstTurn,'completed',120,30);
     const otherTurn=await createTurn(b.id,cb);
