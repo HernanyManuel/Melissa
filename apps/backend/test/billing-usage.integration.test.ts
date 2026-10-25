@@ -198,6 +198,23 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
     assert.equal(withRunning.aiTurnsCompleted,'2');
     assert.equal(withRunning.aiTurnsFailed,'0');
     assert.equal(withRunning.billable,false);
+    // A failed AI turn must not be counted as running or completed.
+    await admin.aiTurn.create({data:{
+      id:randomUUID(),tenantId:a.id,conversationId:ca,
+      customerId:(await admin.conversation.findUniqueOrThrow({
+        where:{tenantId_id:{tenantId:a.id,id:ca}},select:{customerId:true}
+      })).customerId,
+      modeEpoch:0n,stateVersion:0n,status:'failed',rounds:0,
+    }});
+    const withFailed=await json<{
+      aiTurnsStarted:string;aiTurnsRunning:string;aiTurnsCompleted:string;
+      aiTurnsFailed:string;billable:boolean;
+    }>(await request('GET',analyticsPath,undefined,owner.token),200);
+    assert.equal(withFailed.aiTurnsStarted,'4');
+    assert.equal(withFailed.aiTurnsRunning,'1');
+    assert.equal(withFailed.aiTurnsCompleted,'2');
+    assert.equal(withFailed.aiTurnsFailed,'1');
+    assert.equal(withFailed.billable,false);
     assert.match(analytics.auditEvents,/^\d+$/);
     assert(BigInt(analytics.auditEvents) >= 1n,'tenant creation must create an audit event');
     assert.equal(analytics.billable,false);
