@@ -74,3 +74,21 @@ Inspeção do schema Prisma e das migrations versionadas até à versão 79, cru
 **Hipóteses para ensaio, não aprovações de novos índices:** `CREATE INDEX CONCURRENTLY ... ON conversations(tenant_id,opened_at)` e `... ON ai_turns(tenant_id,started_at)`. Antes de qualquer migration, obter `EXPLAIN (ANALYZE, BUFFERS)` para as três agregações sob um tenant autenticado de teste e volumes representativos de tenants pequenos/grandes; registar latência, linhas examinadas, buffers e eventuais scans. Comparar antes/depois com `ANALYZE` e parâmetros de consulta equivalentes; ponderar custo de escrita, manutenção, tamanho e duplicação de índices. Não usar dados pessoais de produção nem interpretar planos em tabelas vazias como evidência de desempenho.
 
 RLS FORCED, `TenantService.scoped`, filtros `tenant_id`, limites `[from,to)` e o contrato read-only são obrigatórios. Não acrescentar índices ou alterar schema por inferência sem esse ensaio; `schema_version=79` permanece inalterado nesta revisão. **Sem benchmarks executados:** esta é uma inspeção estática do código versionado.
+
+## Protocolo de carga sintética e avaliação de índices (a executar)
+
+A validação SQL no CI usa um tenant UUID de teste sem garantir dados representativos: o artefacto `analytics-sql-plan-smoke` comprova execução das três queries sob `melissa_runtime`, **não** demonstra tempos de resposta sobre carga real. Para decidir sobre índices, preparar uma cópia descartável da base versão 79, apenas com entidades e eventos sintéticos criados pelos caminhos normais de fixture ou por um carregador dedicado que respeite FKs, checks e RLS. Nunca apontar a um ambiente LIVE ou copiar PII.
+
+Executar a matriz abaixo em, pelo menos, duas repetições independentes de cada cenário (aquecer caches e registar separadamente primeira execução e mediana). Distribuir `opened_at`, `started_at`, `created_at` dentro e fora dos últimos 30 dias e criar dois tenants para confirmar que não há mistura de dados:
+
+| Cenário | Tenant A: conversas / turnos / auditorias | Tenant B: conversas / turnos / auditorias | Objetivo |
+| --- | --- | --- | --- |
+| Pequeno | 100 / 300 / 300 | 100 / 300 / 300 | Comparar plano e overhead de índices |
+| Médio | 10 000 / 30 000 / 30 000 | 10 000 / 30 000 / 30 000 | Medir seletividade por tenant e data |
+| Elevado | 100 000 / 300 000 / 300 000 | 10 000 / 30 000 / 30 000 | Detetar scans custosos e assimetria de tenants |
+
+Depois de carregar fixtures: `ANALYZE conversations;`, `ANALYZE ai_turns;` e `ANALYZE audit_events;` **apenas no ambiente descartável**, pela conta autorizada a manutenção. Na medição, usar a role de aplicação `melissa_runtime`, a mesma janela e o script `docs/analytics-summary-benchmark.sql`; registar versão PostgreSQL, volume total por tabela, seletividade da janela, `Execution Time`, `actual rows`, `Buffers: shared hit/read`, tamanho dos índices e plano completo. Não recolher IDs ou conteúdo pessoal em artefactos públicos.
+
+Primeira comparação: schema 79 sem alterações. Segunda comparação opcional, **só na cópia descartável**, com índices experimentais `(tenant_id,opened_at)` e `(tenant_id,started_at)` (individualmente e em conjunto), seguido de `ANALYZE`; medir também custo de INSERT e tamanho dos índices. Não alterar migrations do produto por estes ensaios. Publicar um resumo reproduzível de resultados com valores efetivamente medidos, e só então decidir propor ou rejeitar uma migration indexada.
+
+**Critério de saída:** relatório com pelo menos duas amostras por cenário, análise de planos, isolamento A/B e trade-off de escrita e armazenamento. Sem esse relatório, o trabalho de índices continua **pendente**, ainda que o CI esteja verde.
