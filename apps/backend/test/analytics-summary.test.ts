@@ -31,4 +31,11 @@ test('P10: summary is tenant-scoped, technical-only, and uses one fixed UTC wind
   assert.equal(result.period.kind,'rolling_30_days_utc');
   assert.equal(result.period.to.getTime()-result.period.from.getTime(),30*86400000);
   assert.equal(calls.length,3);
+  // Each aggregate must use the authenticated tenant and identical fixed bounds.
+  for(const query of calls){
+    assert.equal(query[1],tenantId);
+    assert.equal((query[2] as Date).getTime(),result.period.from.getTime());
+    assert.equal((query[3] as Date).getTime(),result.period.to.getTime());
+  }
+  assert.notEqual(result.period.from.getTime(),result.period.to.getTime());
 });
