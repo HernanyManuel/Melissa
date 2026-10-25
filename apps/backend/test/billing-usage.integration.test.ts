@@ -205,6 +205,7 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
         where:{tenantId_id:{tenantId:a.id,id:ca}},select:{customerId:true}
       })).customerId,
       modeEpoch:0n,stateVersion:0n,status:'failed',rounds:0,
+      completedAt:new Date(),failureCode:'test_failure',
     }});
     const withFailed=await json<{
       aiTurnsStarted:string;aiTurnsRunning:string;aiTurnsCompleted:string;
