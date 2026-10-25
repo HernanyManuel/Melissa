@@ -68,7 +68,18 @@ jobs:
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
       - name: Validate analytics benchmark SQL under tenant RLS
-        run: psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -v tenant_id=00000000-0000-4000-8000-000000000001 -f docs/analytics-summary-benchmark.sql > /dev/null
+        run: |
+          mkdir -p .ci-artifacts
+          psql "${DATABASE_URL%%\\?*}" -X -v ON_ERROR_STOP=1 \
+            -v tenant_id=00000000-0000-4000-8000-000000000001 \
+            -f docs/analytics-summary-benchmark.sql > .ci-artifacts/analytics-sql-plan.txt
+      - name: Upload analytics SQL plan (CI smoke test, not performance baseline)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analytics-sql-plan-smoke
+          path: .ci-artifacts/analytics-sql-plan.txt
+          if-no-files-found: ignore
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
