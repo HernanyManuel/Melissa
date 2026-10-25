@@ -15,6 +15,7 @@ export interface TechnicalAnalytics {
   aiTurnsStarted: string;
   aiTurnsCompleted: string;
   aiTurnsFailed: string;
+  auditEvents: string;
 }
 
 @Injectable()
@@ -36,6 +37,9 @@ export class AnalyticsService {
           COUNT(*) FILTER (WHERE status='failed')::text AS failed
         FROM ai_turns
         WHERE tenant_id=${tenantId}::uuid AND started_at >= ${from} AND started_at < ${to}`;
+      const [audit] = await tx.$queryRaw<CountRow[]>`
+        SELECT COUNT(*)::text AS count FROM audit_events
+        WHERE tenant_id=${tenantId}::uuid AND created_at >= ${from} AND created_at < ${to}`;
       return {
         period: { kind: 'rolling_30_days_utc', from, to },
         financialStatus: 'not_defined',
@@ -45,6 +49,7 @@ export class AnalyticsService {
         aiTurnsStarted: turns?.started ?? '0',
         aiTurnsCompleted: turns?.completed ?? '0',
         aiTurnsFailed: turns?.failed ?? '0',
+        auditEvents: audit?.count ?? '0',
       };
     });
   }
