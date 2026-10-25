@@ -107,7 +107,10 @@ const run = async () => {
           startedAt: at,
           ...(status === 'running'
             ? {}
-            : { completedAt: at, ...(status === 'failed' ? { failureCode: 'benchmark_test' } : {}) }),
+            : {
+                completedAt: at,
+                ...(status === 'failed' ? { failureCode: 'benchmark_test' } : {}),
+              }),
         };
       });
       await db.aiTurn.createMany({ data });

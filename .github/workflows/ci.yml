@@ -82,8 +82,6 @@ jobs:
           name: analytics-sql-plan-smoke
           path: .ci-artifacts/analytics-sql-plan.txt
           if-no-files-found: ignore
-      - name: Diagnose synthetic loader formatting
-        run: pnpm exec prettier apps/backend/scripts/seed-analytics-benchmark.ts | diff -u apps/backend/scripts/seed-analytics-benchmark.ts - || true
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
