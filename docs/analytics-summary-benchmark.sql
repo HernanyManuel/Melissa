@@ -27,6 +27,23 @@ WHERE schemaname = 'public'
 ORDER BY relname;
 -- Every query uses the same [from,to) window; psql reuses it in one transaction.
 SELECT now() AS window_to, now()-interval '30 days' AS window_from \gset
+-- Exact tenant-visible totals are diagnostic sample sizes, not performance claims.
+-- Label missing synthetic load explicitly rather than comparing empty-table timings.
+SELECT 'conversations' AS source, COUNT(*)::bigint AS tenant_rows,
+       COUNT(*) FILTER (WHERE opened_at >= :'window_from'::timestamptz
+                         AND opened_at < :'window_to'::timestamptz)::bigint AS window_rows
+FROM conversations WHERE tenant_id=:'tenant_id'::uuid
+UNION ALL
+SELECT 'ai_turns', COUNT(*)::bigint,
+       COUNT(*) FILTER (WHERE started_at >= :'window_from'::timestamptz
+                         AND started_at < :'window_to'::timestamptz)::bigint
+FROM ai_turns WHERE tenant_id=:'tenant_id'::uuid
+UNION ALL
+SELECT 'audit_events', COUNT(*)::bigint,
+       COUNT(*) FILTER (WHERE created_at >= :'window_from'::timestamptz
+                         AND created_at < :'window_to'::timestamptz)::bigint
+FROM audit_events WHERE tenant_id=:'tenant_id'::uuid;
+
 EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
 SELECT COUNT(*)::text AS count FROM conversations
 WHERE tenant_id=:'tenant_id'::uuid
