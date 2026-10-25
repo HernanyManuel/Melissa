@@ -41,3 +41,22 @@ O serviço já existente `BillingUsageService.report`, exposto em `GET /api/v1/t
 **Primeira decisão de engenharia:** antes de escrever uma nova query, definir se o dashboard precisa de janelas móveis ou dias de calendário na timezone da empresa; como `started_at`, `completed_at` e `observed_at` têm semânticas diferentes, cada métrica deve identificar explicitamente a coluna temporal de origem. Os custos nulos ficam `unavailable`, nunca zero; só se somam custos com mesma moeda e escala, sem converter USD/EUR implicitamente.
 
 **Próximo incremento executável:** ADR P10 com contrato de métricas técnicas agregadas, endpoint read-only separado de billing, testes A/B de autorização e consistência temporal, seguindo-se interface Flutter apenas após CI verde. Este inventário não valida execução E2E nem altera esquemas ou operações.
+
+## Implementação técnica atual — PR #10 (draft)
+
+O endpoint `GET /api/v1/tenants/:tenantId/analytics/summary` é exclusivamente de leitura e usa `TenantService.scoped(actor, tenantId, 'audit:read', ...)`, com RLS e autorização por tenant. A janela é móvel, `[from,to)`, com duração fixa de 30×24 horas UTC, e não corresponde a meses civis ou aos dias locais do tenant.
+
+| Campo | Fonte e instante contado | Interpretação |
+| --- | --- | --- |
+| `conversationsOpened` | `conversations.opened_at` | Conversas abertas na janela |
+| `aiTurnsStarted` | `ai_turns.started_at` | Turnos iniciados na janela, independentemente do desfecho |
+| `aiTurnsCompleted` | `ai_turns.started_at`, `status='completed'` | Turnos iniciados na janela cujo estado atual é concluído |
+| `aiTurnsFailed` | `ai_turns.started_at`, `status='failed'` | Turnos iniciados na janela cujo estado atual é falhado |
+| `aiTurnsRunning` | `ai_turns.started_at`, `status='running'` | Turnos iniciados na janela ainda em execução |
+| `auditEvents` | `audit_events.created_at` | Contagem de eventos, sem expor identidades nem conteúdo |
+
+As contagens são strings decimais inteiras. Os desfechos dos turnos representam **estado atual para turnos iniciados na janela**, não o número de conclusões/falhas ocorridas durante o período, nem uma partição necessariamente exaustiva de todos os estados de turno. O `period` devolvido é calculado no servidor. Este endpoint não retorna tokens, custo, receita, MRR, entitlement ou liquidação verificada. `financialStatus='not_defined'`, `billable=false` e `entitlementGranted=false` são invariantes.
+
+A integração PostgreSQL valida 401 sem autenticação, 403 para papel sem `audit:read`, 404 para acesso ao tenant errado, rejeição de POST, isolamento A/B, turnos em execução e falhados, e corte de conversas aos 29/31/45 dias. Estes são testes do endpoint técnico, não uma prova de Stripe TEST E2E, nem de disponibilidade de dados financeiros.
+
+**Estado:** schema 79; PR #10 draft empilhado sobre PR #7 draft; sem merge, deploy, Stripe LIVE nem ativação comercial. O gate externo de payout Stripe TEST da ADR-121 permanece pendente. Os critérios acima referentes a ADR próprio, concorrência e interface Flutter são objetivos de fase, não devem ser inferidos como todos concluídos por este primeiro endpoint.
