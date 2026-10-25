@@ -60,3 +60,17 @@ As contagens são strings decimais inteiras. Os desfechos dos turnos representam
 A integração PostgreSQL valida 401 sem autenticação, 403 para papel sem `audit:read`, 404 para acesso ao tenant errado, rejeição de POST, isolamento A/B, turnos em execução e falhados, e corte de conversas aos 29/31/45 dias. Estes são testes do endpoint técnico, não uma prova de Stripe TEST E2E, nem de disponibilidade de dados financeiros.
 
 **Estado:** schema 79; PR #10 draft empilhado sobre PR #7 draft; sem merge, deploy, Stripe LIVE nem ativação comercial. O gate externo de payout Stripe TEST da ADR-121 permanece pendente. Os critérios acima referentes a ADR próprio, concorrência e interface Flutter são objetivos de fase, não devem ser inferidos como todos concluídos por este primeiro endpoint.
+
+## Revisão de desempenho — índices e plano de medição (sem migration)
+
+Inspeção do schema Prisma e das migrations versionadas até à versão 79, cruzada com as três consultas de `AnalyticsService.summary`:
+
+| Query | Índice existente | Observação |
+| --- | --- | --- |
+| `audit_events` por `tenant_id,created_at` | `audit_events_tenant_id_created_at_idx(tenant_id, created_at)` | Índice alinhado ao filtro do resumo; ainda sem medição de seletividade real |
+| `conversations` por `tenant_id,opened_at` | `conversations_tenant_last_id_idx(tenant_id,last_message_at,id)` e chave primária `(tenant_id,id)` | Falta um índice comprovadamente adequado à combinação tenant + `opened_at` |
+| `ai_turns` por `tenant_id,started_at` | `ai_turns_conversation_started_idx(tenant_id,conversation_id,started_at,id)` e chave primária `(tenant_id,id)` | `conversation_id` é coluna intermédia não restringida nesta agregação; medir um índice alternativo |
+
+**Hipóteses para ensaio, não aprovações de novos índices:** `CREATE INDEX CONCURRENTLY ... ON conversations(tenant_id,opened_at)` e `... ON ai_turns(tenant_id,started_at)`. Antes de qualquer migration, obter `EXPLAIN (ANALYZE, BUFFERS)` para as três agregações sob um tenant autenticado de teste e volumes representativos de tenants pequenos/grandes; registar latência, linhas examinadas, buffers e eventuais scans. Comparar antes/depois com `ANALYZE` e parâmetros de consulta equivalentes; ponderar custo de escrita, manutenção, tamanho e duplicação de índices. Não usar dados pessoais de produção nem interpretar planos em tabelas vazias como evidência de desempenho.
+
+RLS FORCED, `TenantService.scoped`, filtros `tenant_id`, limites `[from,to)` e o contrato read-only são obrigatórios. Não acrescentar índices ou alterar schema por inferência sem esse ensaio; `schema_version=79` permanece inalterado nesta revisão. **Sem benchmarks executados:** esta é uma inspeção estática do código versionado.
