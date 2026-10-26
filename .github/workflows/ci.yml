@@ -78,7 +78,7 @@ jobs:
           tenant_id="$(grep -oE 'P10 synthetic 0: tenant=[0-9a-f-]+' .ci-artifacts/analytics-seed-output.txt | head -n 1 | cut -d= -f2)"
           test "${#tenant_id}" -eq 36
           psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 \
-            -v tenant_id="$tenant_id" \
+            -v tenant_id="$tenant_id" -v expect_small=1 \
             -f docs/analytics-summary-benchmark.sql > .ci-artifacts/analytics-sql-plan.txt
           test "$(grep -c 'Execution Time:' .ci-artifacts/analytics-sql-plan.txt)" -eq 3
           grep -q 'melissa_runtime' .ci-artifacts/analytics-sql-plan.txt

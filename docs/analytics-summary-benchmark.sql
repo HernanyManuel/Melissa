@@ -44,6 +44,43 @@ SELECT 'audit_events', COUNT(*)::bigint,
                          AND created_at < :'window_to'::timestamptz)::bigint
 FROM audit_events WHERE tenant_id=:'tenant_id'::uuid;
 
+-- Fail the CI smoke test if the expected synthetic tenant is empty or skewed.
+-- Optional: real/non-small benchmarking omits expect_small and these checks.
+\if :{?expect_small}
+DO $synthetic_small_guard$
+DECLARE
+  conversation_total bigint;
+  turn_total bigint;
+  audit_total bigint;
+  conversation_window bigint;
+  turn_window bigint;
+  audit_window bigint;
+  start_bound timestamptz := now() - interval '30 days';
+  end_bound timestamptz := now();
+BEGIN
+  SELECT COUNT(*), COUNT(*) FILTER (WHERE opened_at >= start_bound AND opened_at < end_bound)
+    INTO conversation_total, conversation_window
+    FROM conversations WHERE tenant_id = current_setting('app.tenant_id')::uuid;
+  SELECT COUNT(*), COUNT(*) FILTER (WHERE started_at >= start_bound AND started_at < end_bound)
+    INTO turn_total, turn_window
+    FROM ai_turns WHERE tenant_id = current_setting('app.tenant_id')::uuid;
+  SELECT COUNT(*), COUNT(*) FILTER (WHERE created_at >= start_bound AND created_at < end_bound)
+    INTO audit_total, audit_window
+    FROM audit_events WHERE tenant_id = current_setting('app.tenant_id')::uuid;
+  IF conversation_total <> 100 OR turn_total <> 300 OR audit_total <> 300 THEN
+    RAISE EXCEPTION 'unexpected synthetic totals: conversations %, turns %, audits %',
+      conversation_total, turn_total, audit_total;
+  END IF;
+  IF conversation_window NOT BETWEEN 40 AND 60
+     OR turn_window NOT BETWEEN 120 AND 180
+     OR audit_window NOT BETWEEN 120 AND 180 THEN
+    RAISE EXCEPTION 'unexpected 30-day synthetic window coverage: conversations %, turns %, audits %',
+      conversation_window, turn_window, audit_window;
+  END IF;
+END
+$synthetic_small_guard$;
+\endif
+
 EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
 SELECT COUNT(*)::text AS count FROM conversations
 WHERE tenant_id=:'tenant_id'::uuid
