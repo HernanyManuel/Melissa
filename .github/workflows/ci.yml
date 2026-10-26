@@ -91,6 +91,20 @@ jobs:
             -f docs/analytics-summary-benchmark.sql > .ci-artifacts/analytics-sql-plan-tenant-b.txt
           test "$(grep -c 'Execution Time:' .ci-artifacts/analytics-sql-plan-tenant-b.txt)" -eq 3
           grep -q 'melissa_runtime' .ci-artifacts/analytics-sql-plan-tenant-b.txt
+          # Second observation for each tenant; CI remains a smoke test, not a latency SLA.
+          for label in a b; do
+            if [ "$label" = a ]; then
+              scoped_tenant="$tenant_id"
+            else
+              scoped_tenant="$tenant_b"
+            fi
+            output=".ci-artifacts/analytics-sql-plan-tenant-${label}-repeat.txt"
+            psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 \
+              -v tenant_id="$scoped_tenant" -v expect_small=1 \
+              -f docs/analytics-summary-benchmark.sql > "$output"
+            test "$(grep -c 'Execution Time:' "$output")" -eq 3
+            grep -q 'melissa_runtime' "$output"
+          done
       - name: Upload analytics SQL plans for both tenants (CI smoke, not performance baseline)
         if: always()
         uses: actions/upload-artifact@v4
@@ -99,6 +113,8 @@ jobs:
           path: |
             .ci-artifacts/analytics-sql-plan.txt
             .ci-artifacts/analytics-sql-plan-tenant-b.txt
+            .ci-artifacts/analytics-sql-plan-tenant-a-repeat.txt
+            .ci-artifacts/analytics-sql-plan-tenant-b-repeat.txt
           if-no-files-found: ignore
       - run: pnpm format:check
       - run: pnpm lint
