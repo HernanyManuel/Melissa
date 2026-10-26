@@ -69,13 +69,16 @@ jobs:
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
       - name: Seed small synthetic analytics dataset in disposable CI PostgreSQL
         run: |
+          mkdir -p .ci-artifacts
           NODE_ENV=test P10_SYNTHETIC_LOAD=YES P10_SYNTHETIC_SIZE=small \
-            pnpm --filter @melissa/backend exec tsx scripts/seed-analytics-benchmark.ts
+            pnpm --filter @melissa/backend exec tsx scripts/seed-analytics-benchmark.ts \
+            | tee .ci-artifacts/analytics-seed-output.txt
       - name: Validate analytics benchmark SQL under tenant RLS
         run: |
-          mkdir -p .ci-artifacts
+          tenant_id="$(grep -oE 'P10 synthetic 0: tenant=[0-9a-f-]+' .ci-artifacts/analytics-seed-output.txt | head -n 1 | cut -d= -f2)"
+          test "${#tenant_id}" -eq 36
           psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 \
-            -v tenant_id=00000000-0000-4000-8000-000000000001 \
+            -v tenant_id="$tenant_id" \
             -f docs/analytics-summary-benchmark.sql > .ci-artifacts/analytics-sql-plan.txt
           test "$(grep -c 'Execution Time:' .ci-artifacts/analytics-sql-plan.txt)" -eq 3
           grep -q 'melissa_runtime' .ci-artifacts/analytics-sql-plan.txt
