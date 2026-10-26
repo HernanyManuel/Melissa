@@ -38,10 +38,7 @@ const stamp = Date.now();
 
 const run = async () => {
   for (let tenantIndex = 0; tenantIndex < 2; tenantIndex++) {
-    const [conversations, turns, audits] =
-      size === 'large' && tenantIndex === 1
-        ? volumes.medium!
-        : volumes[size]!;
+    const [conversations, turns, audits] = size === 'large' && tenantIndex === 1 ? volumes.medium! : volumes[size]!;
     const tenant = await db.tenant.create({
       data: {
         id: randomUUID(),
