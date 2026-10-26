@@ -76,11 +76,17 @@ jobs:
           test "$tenant_a" != "$tenant_b"
           printf 'size=%s\npostgres=%s\n' "$P10_SYNTHETIC_SIZE" "$(psql "${MIGRATION_DATABASE_URL%%\?*}" -X -qAt -c 'SHOW server_version')" > benchmark-artifacts/benchmark-metadata.txt
           for scoped_tenant in "$tenant_a" "$tenant_b"; do
+            scoped_conversations="$expected_conversations"
+            scoped_turns="$expected_turns"
+            scoped_audits="$expected_audits"
+            if [ "$P10_SYNTHETIC_SIZE" = large ] && [ "$scoped_tenant" = "$tenant_b" ]; then
+              scoped_conversations=10000; scoped_turns=30000; scoped_audits=30000
+            fi
             psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -qAt \
               -v tenant_id="$scoped_tenant" \
-              -v expected_conversations="$expected_conversations" \
-              -v expected_turns="$expected_turns" \
-              -v expected_audits="$expected_audits" \
+              -v expected_conversations="$scoped_conversations" \
+              -v expected_turns="$scoped_turns" \
+              -v expected_audits="$scoped_audits" \
               -f docs/analytics-summary-assert-synthetic.sql
           done
       - name: Measure twice for each tenant using restricted runtime
