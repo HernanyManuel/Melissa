@@ -391,6 +391,15 @@ jobs:
               grep -q 'melissa_runtime' "$file"
             done
           done
+      - name: Capture baseline INSERT probe (three repetitions)
+        run: |
+          tenant_id="$(grep -oE 'P10 synthetic 0: tenant=[0-9a-f-]+' benchmark-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
+          test "${#tenant_id}" -eq 36
+          for n in 1 2 3; do
+            file="benchmark-artifacts/baseline-insert-probe-${n}.txt"
+            psql "${MIGRATION_DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -v tenant_id="$tenant_id" -f docs/analytics-index-insert-probe.sql > "$file"
+            test "$(grep -c 'Execution Time:' "$file")" -eq 2
+          done
       - name: Capture baseline write probe (three repetitions)
         run: |
           for n in 1 2 3; do
@@ -432,6 +441,11 @@ jobs:
               psql "$admin" -X -v ON_ERROR_STOP=1 -f docs/analytics-index-write-probe.sql > "$file"
               test "$(grep -c 'Execution Time:' "$file")" -eq 2
             done
+            for n in 1 2 3; do
+              file="benchmark-artifacts/${scenario}-insert-probe-${n}.txt"
+              psql "$admin" -X -v ON_ERROR_STOP=1 -v tenant_id="$tenant_id" -f docs/analytics-index-insert-probe.sql > "$file"
+              test "$(grep -c 'Execution Time:' "$file")" -eq 2
+            done
             cleanup
             psql "$admin" -X -v ON_ERROR_STOP=1 -c "ANALYZE conversations; ANALYZE ai_turns;"
           done
@@ -445,6 +459,10 @@ jobs:
               test -s "$file"
               test "$(grep -c 'Execution Time:' "$file")" -eq 2
               grep -q 'WAL:' "$file"
+              insert_file="benchmark-artifacts/${scenario}-insert-probe-${n}.txt"
+              test -s "$insert_file"
+              test "$(grep -c 'Execution Time:' "$insert_file")" -eq 2
+              grep -q 'WAL:' "$insert_file"
             done
           done
       - name: Upload synthetic query plans
@@ -456,6 +474,7 @@ jobs:
             benchmark-artifacts/tenant-*-run-*.txt
             benchmark-artifacts/benchmark-metadata.txt
             benchmark-artifacts/*-write-probe-*.txt
+            benchmark-artifacts/*-insert-probe-*.txt
             benchmark-artifacts/*-index-sizes.txt
             benchmark-artifacts/*-tenant-*-run-*.txt
           retention-days: 14
