@@ -31,6 +31,9 @@ jobs:
       P10_SYNTHETIC_LOAD: 'YES'
       P10_SYNTHETIC_LARGE_ACK: 'YES'
       P10_SYNTHETIC_SIZE: ${{ inputs.size }}
+    defaults:
+      run:
+        shell: bash --noprofile --norc -e -o pipefail {0}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,12 +42,21 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11.25.0
+      - name: Verify locked toolchain
+        run: test "$(pnpm --version)" = "11.25.0"
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       - name: Provision runtime role and migrate
         run: |
           RUNTIME_PASSWORD=ci-runtime-only psql "${MIGRATION_DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -v runtime_password=ci-runtime-only -f infra/scripts/runtime-role.sql
           DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm db:migrate
+      - name: Verify disposable benchmark target and selected size
+        run: |
+          case "$P10_SYNTHETIC_SIZE" in medium|large) ;; *) echo 'Only medium/large are supported'; exit 1 ;; esac
+          test "$NODE_ENV" = test
+          test "$P10_SYNTHETIC_LOAD" = YES
+          test "$P10_SYNTHETIC_LARGE_ACK" = YES
+          test "$(psql "${MIGRATION_DATABASE_URL%%\?*}" -X -qAt -v ON_ERROR_STOP=1 -c 'SELECT current_database()')" = melissa_test
       - name: Load benchmark data and analyze synthetic tables
         run: |
           mkdir -p .ci-artifacts
@@ -62,6 +74,7 @@ jobs:
           test "${#tenant_a}" -eq 36
           test "${#tenant_b}" -eq 36
           test "$tenant_a" != "$tenant_b"
+          printf 'size=%s\npostgres=%s\n' "$P10_SYNTHETIC_SIZE" "$(psql "${MIGRATION_DATABASE_URL%%\?*}" -X -qAt -c 'SHOW server_version')" > .ci-artifacts/benchmark-metadata.txt
           for scoped_tenant in "$tenant_a" "$tenant_b"; do
             psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -qAt \
               -v tenant_id="$scoped_tenant" \
@@ -87,5 +100,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: p10-synthetic-${{ inputs.size }}-sql-plans
-          path: .ci-artifacts/tenant-*-run-*.txt
+          path: |
+            .ci-artifacts/tenant-*-run-*.txt
+            .ci-artifacts/benchmark-metadata.txt
+          retention-days: 14
           if-no-files-found: ignore
