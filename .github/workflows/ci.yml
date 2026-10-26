@@ -436,6 +436,17 @@ jobs:
             psql "$admin" -X -v ON_ERROR_STOP=1 -c "ANALYZE conversations; ANALYZE ai_turns;"
           done
           test "$(psql "$admin" -X -qAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_indexes WHERE indexname LIKE 'p10_bench_%'")" = 0
+      - name: Require all repeated write-probe files
+        if: always()
+        run: |
+          for scenario in baseline conversations turns combined; do
+            for n in 1 2 3; do
+              file="benchmark-artifacts/${scenario}-write-probe-${n}.txt"
+              test -s "$file"
+              test "$(grep -c 'Execution Time:' "$file")" -eq 2
+              grep -q 'WAL:' "$file"
+            done
+          done
       - name: Upload synthetic query plans
         if: always()
         uses: actions/upload-artifact@v4
@@ -444,7 +455,7 @@ jobs:
           path: |
             benchmark-artifacts/tenant-*-run-*.txt
             benchmark-artifacts/benchmark-metadata.txt
-            benchmark-artifacts/*-write-probe.txt
+            benchmark-artifacts/*-write-probe-*.txt
             benchmark-artifacts/*-index-sizes.txt
             benchmark-artifacts/*-tenant-*-run-*.txt
           retention-days: 14
