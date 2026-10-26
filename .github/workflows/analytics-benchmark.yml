@@ -1,0 +1,71 @@
+name: P10 manual synthetic analytics benchmark
+on:
+  workflow_dispatch:
+    inputs:
+      size:
+        description: Synthetic volume for disposable PostgreSQL
+        required: true
+        type: choice
+        options: [medium, large]
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16-bookworm
+        env:
+          POSTGRES_USER: melissa
+          POSTGRES_PASSWORD: ci-disposable-only
+          POSTGRES_DB: melissa_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U melissa -d melissa_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      NODE_ENV: test
+      MIGRATION_DATABASE_URL: postgresql://melissa:ci-disposable-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
+      DATABASE_URL: postgresql://melissa_runtime:ci-runtime-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
+      P10_SYNTHETIC_LOAD: 'YES'
+      P10_SYNTHETIC_LARGE_ACK: 'YES'
+      P10_SYNTHETIC_SIZE: ${{ inputs.size }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - name: Provision runtime role and migrate
+        run: |
+          RUNTIME_PASSWORD=ci-runtime-only psql "${MIGRATION_DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -v runtime_password=ci-runtime-only -f infra/scripts/runtime-role.sql
+          DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm db:migrate
+      - name: Load benchmark data and analyze synthetic tables
+        run: |
+          mkdir -p .ci-artifacts
+          pnpm --filter @melissa/backend exec tsx scripts/seed-analytics-benchmark.ts | tee .ci-artifacts/seed-output.txt
+          psql "${MIGRATION_DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -c "ANALYZE conversations; ANALYZE ai_turns; ANALYZE audit_events;"
+      - name: Measure twice for each tenant using restricted runtime
+        run: |
+          for i in 0 1; do
+            tenant_id="$(grep -oE "P10 synthetic ${i}: tenant=[0-9a-f-]+" .ci-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
+            test "${#tenant_id}" -eq 36
+            for n in 1 2; do
+              file=".ci-artifacts/tenant-${i}-run-${n}.txt"
+              psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -v tenant_id="$tenant_id" -f docs/analytics-summary-benchmark.sql > "$file"
+              test "$(grep -c 'Execution Time:' "$file")" -eq 3
+              grep -q 'melissa_runtime' "$file"
+            done
+          done
+      - name: Upload synthetic query plans
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p10-synthetic-${{ inputs.size }}-sql-plans
+          path: .ci-artifacts/tenant-*-run-*.txt
+          if-no-files-found: ignore
