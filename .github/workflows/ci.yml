@@ -82,6 +82,15 @@ jobs:
             -f docs/analytics-summary-benchmark.sql > .ci-artifacts/analytics-sql-plan.txt
           test "$(grep -c 'Execution Time:' .ci-artifacts/analytics-sql-plan.txt)" -eq 3
           grep -q 'melissa_runtime' .ci-artifacts/analytics-sql-plan.txt
+          # Independently validate the second seeded tenant and reject duplicate IDs.
+          tenant_b="$(grep -oE 'P10 synthetic 1: tenant=[0-9a-f-]+' .ci-artifacts/analytics-seed-output.txt | head -n 1 | cut -d= -f2)"
+          test "${#tenant_b}" -eq 36
+          test "$tenant_id" != "$tenant_b"
+          psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 \
+            -v tenant_id="$tenant_b" -v expect_small=1 \
+            -f docs/analytics-summary-benchmark.sql > .ci-artifacts/analytics-sql-plan-tenant-b.txt
+          test "$(grep -c 'Execution Time:' .ci-artifacts/analytics-sql-plan-tenant-b.txt)" -eq 3
+          grep -q 'melissa_runtime' .ci-artifacts/analytics-sql-plan-tenant-b.txt
       - name: Upload analytics SQL plan (CI smoke test, not performance baseline)
         if: always()
         uses: actions/upload-artifact@v4
