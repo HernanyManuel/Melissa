@@ -391,10 +391,13 @@ jobs:
               grep -q 'melissa_runtime' "$file"
             done
           done
-      - name: Capture baseline write probe (rollback-only)
+      - name: Capture baseline write probe (three repetitions)
         run: |
-          psql "${MIGRATION_DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -f docs/analytics-index-write-probe.sql > benchmark-artifacts/baseline-write-probe.txt
-          test "$(grep -c 'Execution Time:' benchmark-artifacts/baseline-write-probe.txt)" -eq 2
+          for n in 1 2 3; do
+            file="benchmark-artifacts/baseline-write-probe-${n}.txt"
+            psql "${MIGRATION_DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -f docs/analytics-index-write-probe.sql > "$file"
+            test "$(grep -c 'Execution Time:' "$file")" -eq 2
+          done
       - name: Compare disposable candidate indexes under runtime RLS
         run: |
           admin="${MIGRATION_DATABASE_URL%%\?*}"
@@ -403,7 +406,8 @@ jobs:
             psql "$admin" -X -v ON_ERROR_STOP=1 -c "DROP INDEX IF EXISTS public.p10_bench_conversations_opened_idx; DROP INDEX IF EXISTS public.p10_bench_ai_turns_started_idx;" || true
           }
           trap cleanup EXIT
-          for scenario in conversations turns combined; do
+          # Reverse scenario order on alternate runs to reduce fixed-order bias.
+          for scenario in combined turns conversations; do
             case "$scenario" in
               conversations)
                 psql "$admin" -X -v ON_ERROR_STOP=1 -c "CREATE INDEX p10_bench_conversations_opened_idx ON conversations (tenant_id, opened_at); ANALYZE conversations;" ;;
@@ -423,8 +427,11 @@ jobs:
                 grep -q 'melissa_runtime' "$file"
               done
             done
-            psql "$admin" -X -v ON_ERROR_STOP=1 -f docs/analytics-index-write-probe.sql > "benchmark-artifacts/${scenario}-write-probe.txt"
-            test "$(grep -c 'Execution Time:' "benchmark-artifacts/${scenario}-write-probe.txt")" -eq 2
+            for n in 1 2 3; do
+              file="benchmark-artifacts/${scenario}-write-probe-${n}.txt"
+              psql "$admin" -X -v ON_ERROR_STOP=1 -f docs/analytics-index-write-probe.sql > "$file"
+              test "$(grep -c 'Execution Time:' "$file")" -eq 2
+            done
             cleanup
             psql "$admin" -X -v ON_ERROR_STOP=1 -c "ANALYZE conversations; ANALYZE ai_turns;"
           done
