@@ -105,6 +105,25 @@ jobs:
             test "$(grep -c 'Execution Time:' "$output")" -eq 3
             grep -q 'melissa_runtime' "$output"
           done
+      - name: Validate reusable synthetic volume guard (positive and negative cases)
+        run: |
+          for index in 0 1; do
+            tenant_id="$(grep -oE "P10 synthetic ${index}: tenant=[0-9a-f-]+" .ci-artifacts/analytics-seed-output.txt | head -n 1 | cut -d= -f2)"
+            test "${#tenant_id}" -eq 36
+            psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -qAt \
+              -v tenant_id="$tenant_id" \
+              -v expected_conversations=100 -v expected_turns=300 -v expected_audits=300 \
+              -f docs/analytics-summary-assert-synthetic.sql > /dev/null
+          done
+          tenant_id="$(grep -oE 'P10 synthetic 0: tenant=[0-9a-f-]+' .ci-artifacts/analytics-seed-output.txt | head -n 1 | cut -d= -f2)"
+          if psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -qAt \
+              -v tenant_id="$tenant_id" \
+              -v expected_conversations=101 -v expected_turns=300 -v expected_audits=300 \
+              -f docs/analytics-summary-assert-synthetic.sql > /dev/null 2> .ci-artifacts/expected-assert-failure.txt; then
+            echo "Expected volume guard to reject an incorrect conversation count"
+            exit 1
+          fi
+          grep -q 'division by zero' .ci-artifacts/expected-assert-failure.txt
       - name: Upload analytics SQL plans for both tenants (CI smoke, not performance baseline)
         if: always()
         uses: actions/upload-artifact@v4
