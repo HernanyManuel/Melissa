@@ -59,8 +59,8 @@ jobs:
           test "$(psql "${MIGRATION_DATABASE_URL%%\?*}" -X -qAt -v ON_ERROR_STOP=1 -c 'SELECT current_database()')" = melissa_test
       - name: Load benchmark data and analyze synthetic tables
         run: |
-          mkdir -p .ci-artifacts
-          pnpm --filter @melissa/backend exec tsx scripts/seed-analytics-benchmark.ts | tee .ci-artifacts/seed-output.txt
+          mkdir -p benchmark-artifacts
+          pnpm --filter @melissa/backend exec tsx scripts/seed-analytics-benchmark.ts | tee benchmark-artifacts/seed-output.txt
           psql "${MIGRATION_DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -c "ANALYZE conversations; ANALYZE ai_turns; ANALYZE audit_events;"
       - name: Assert synthetic row counts for both tenants under runtime RLS
         run: |
@@ -69,12 +69,12 @@ jobs:
             large) expected_conversations=100000; expected_turns=300000; expected_audits=300000 ;;
             *) echo "Unsupported synthetic size"; exit 1 ;;
           esac
-          tenant_a="$(grep -oE 'P10 synthetic 0: tenant=[0-9a-f-]+' .ci-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
-          tenant_b="$(grep -oE 'P10 synthetic 1: tenant=[0-9a-f-]+' .ci-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
+          tenant_a="$(grep -oE 'P10 synthetic 0: tenant=[0-9a-f-]+' benchmark-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
+          tenant_b="$(grep -oE 'P10 synthetic 1: tenant=[0-9a-f-]+' benchmark-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
           test "${#tenant_a}" -eq 36
           test "${#tenant_b}" -eq 36
           test "$tenant_a" != "$tenant_b"
-          printf 'size=%s\npostgres=%s\n' "$P10_SYNTHETIC_SIZE" "$(psql "${MIGRATION_DATABASE_URL%%\?*}" -X -qAt -c 'SHOW server_version')" > .ci-artifacts/benchmark-metadata.txt
+          printf 'size=%s\npostgres=%s\n' "$P10_SYNTHETIC_SIZE" "$(psql "${MIGRATION_DATABASE_URL%%\?*}" -X -qAt -c 'SHOW server_version')" > benchmark-artifacts/benchmark-metadata.txt
           for scoped_tenant in "$tenant_a" "$tenant_b"; do
             psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -qAt \
               -v tenant_id="$scoped_tenant" \
@@ -86,10 +86,10 @@ jobs:
       - name: Measure twice for each tenant using restricted runtime
         run: |
           for i in 0 1; do
-            tenant_id="$(grep -oE "P10 synthetic ${i}: tenant=[0-9a-f-]+" .ci-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
+            tenant_id="$(grep -oE "P10 synthetic ${i}: tenant=[0-9a-f-]+" benchmark-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
             test "${#tenant_id}" -eq 36
             for n in 1 2; do
-              file=".ci-artifacts/tenant-${i}-run-${n}.txt"
+              file="benchmark-artifacts/tenant-${i}-run-${n}.txt"
               psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -v tenant_id="$tenant_id" -f docs/analytics-summary-benchmark.sql > "$file"
               test "$(grep -c 'Execution Time:' "$file")" -eq 3
               grep -q 'melissa_runtime' "$file"
@@ -101,7 +101,7 @@ jobs:
         with:
           name: p10-synthetic-${{ inputs.size }}-sql-plans
           path: |
-            .ci-artifacts/tenant-*-run-*.txt
-            .ci-artifacts/benchmark-metadata.txt
+            benchmark-artifacts/tenant-*-run-*.txt
+            benchmark-artifacts/benchmark-metadata.txt
           retention-days: 14
-          if-no-files-found: ignore
+          if-no-files-found: error
