@@ -129,7 +129,7 @@ const run = async () => {
       });
     }
     process.stdout.write(
-      `P10 synthetic ${tenantIndex}: tenant=${tenant.id}, conversations=${conversations}, turns=${turns}, audits=${audits}\\n`,
+      `P10 synthetic ${tenantIndex}: tenant=${tenant.id}, conversations=${conversations}, turns=${turns}, audits=${audits}\n`,
     );
   }
 };
