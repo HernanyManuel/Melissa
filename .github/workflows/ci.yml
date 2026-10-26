@@ -393,8 +393,8 @@ jobs:
           done
       - name: Compare disposable candidate indexes under runtime RLS
         run: |
-          admin="${MIGRATION_DATABASE_URL%%\\?*}"
-          runtime="${DATABASE_URL%%\\?*}"
+          admin="${MIGRATION_DATABASE_URL%%\?*}"
+          runtime="${DATABASE_URL%%\?*}"
           cleanup() {
             psql "$admin" -X -v ON_ERROR_STOP=1 -c "DROP INDEX IF EXISTS public.p10_bench_conversations_opened_idx; DROP INDEX IF EXISTS public.p10_bench_ai_turns_started_idx;" || true
           }
@@ -431,5 +431,7 @@ jobs:
           path: |
             benchmark-artifacts/tenant-*-run-*.txt
             benchmark-artifacts/benchmark-metadata.txt
+            benchmark-artifacts/*-index-sizes.txt
+            benchmark-artifacts/*-tenant-*-run-*.txt
           retention-days: 14
           if-no-files-found: error
