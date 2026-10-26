@@ -91,12 +91,14 @@ jobs:
             -f docs/analytics-summary-benchmark.sql > .ci-artifacts/analytics-sql-plan-tenant-b.txt
           test "$(grep -c 'Execution Time:' .ci-artifacts/analytics-sql-plan-tenant-b.txt)" -eq 3
           grep -q 'melissa_runtime' .ci-artifacts/analytics-sql-plan-tenant-b.txt
-      - name: Upload analytics SQL plan (CI smoke test, not performance baseline)
+      - name: Upload analytics SQL plans for both tenants (CI smoke, not performance baseline)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: analytics-sql-plan-smoke
-          path: .ci-artifacts/analytics-sql-plan.txt
+          path: |
+            .ci-artifacts/analytics-sql-plan.txt
+            .ci-artifacts/analytics-sql-plan-tenant-b.txt
           if-no-files-found: ignore
       - run: pnpm format:check
       - run: pnpm lint
