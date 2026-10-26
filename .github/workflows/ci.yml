@@ -294,6 +294,8 @@ jobs:
           path: |
             benchmark-artifacts/tenant-*-run-*.txt
             benchmark-artifacts/benchmark-metadata.txt
+            benchmark-artifacts/*-index-sizes.txt
+            benchmark-artifacts/*-tenant-*-run-*.txt
           retention-days: 14
           if-no-files-found: error
 
@@ -389,6 +391,38 @@ jobs:
               grep -q 'melissa_runtime' "$file"
             done
           done
+      - name: Compare disposable candidate indexes under runtime RLS
+        run: |
+          admin="${MIGRATION_DATABASE_URL%%\\?*}"
+          runtime="${DATABASE_URL%%\\?*}"
+          cleanup() {
+            psql "$admin" -X -v ON_ERROR_STOP=1 -c "DROP INDEX IF EXISTS public.p10_bench_conversations_opened_idx; DROP INDEX IF EXISTS public.p10_bench_ai_turns_started_idx;" || true
+          }
+          trap cleanup EXIT
+          for scenario in conversations turns combined; do
+            case "$scenario" in
+              conversations)
+                psql "$admin" -X -v ON_ERROR_STOP=1 -c "CREATE INDEX p10_bench_conversations_opened_idx ON conversations (tenant_id, opened_at); ANALYZE conversations;" ;;
+              turns)
+                psql "$admin" -X -v ON_ERROR_STOP=1 -c "CREATE INDEX p10_bench_ai_turns_started_idx ON ai_turns (tenant_id, started_at); ANALYZE ai_turns;" ;;
+              combined)
+                psql "$admin" -X -v ON_ERROR_STOP=1 -c "CREATE INDEX p10_bench_conversations_opened_idx ON conversations (tenant_id, opened_at); CREATE INDEX p10_bench_ai_turns_started_idx ON ai_turns (tenant_id, started_at); ANALYZE conversations; ANALYZE ai_turns;" ;;
+            esac
+            psql "$admin" -X -v ON_ERROR_STOP=1 -qAt -c "SELECT indexrelid::regclass, pg_relation_size(indexrelid) FROM pg_index WHERE indexrelid::regclass::text LIKE 'p10_bench_%' ORDER BY 1;" > "benchmark-artifacts/${scenario}-index-sizes.txt"
+            for i in 0 1; do
+              tenant_id="$(grep -oE "P10 synthetic ${i}: tenant=[0-9a-f-]+" benchmark-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
+              test "${#tenant_id}" -eq 36
+              for n in 1 2; do
+                file="benchmark-artifacts/${scenario}-tenant-${i}-run-${n}.txt"
+                psql "$runtime" -X -v ON_ERROR_STOP=1 -v tenant_id="$tenant_id" -f docs/analytics-summary-benchmark.sql > "$file"
+                test "$(grep -c 'Execution Time:' "$file")" -eq 3
+                grep -q 'melissa_runtime' "$file"
+              done
+            done
+            cleanup
+            psql "$admin" -X -v ON_ERROR_STOP=1 -c "ANALYZE conversations; ANALYZE ai_turns;"
+          done
+          test "$(psql "$admin" -X -qAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_indexes WHERE indexname LIKE 'p10_bench_%'")" = 0
       - name: Upload synthetic query plans
         if: always()
         uses: actions/upload-artifact@v4
