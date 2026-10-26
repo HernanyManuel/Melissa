@@ -67,6 +67,10 @@ jobs:
         run: |
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
           DEMO_PASSWORD=ci-demo-password-only pnpm db:seed
+      - name: Seed small synthetic analytics dataset in disposable CI PostgreSQL
+        run: |
+          NODE_ENV=test P10_SYNTHETIC_LOAD=YES P10_SYNTHETIC_SIZE=small \
+            pnpm --filter @melissa/backend exec tsx scripts/seed-analytics-benchmark.ts
       - name: Validate analytics benchmark SQL under tenant RLS
         run: |
           mkdir -p .ci-artifacts
