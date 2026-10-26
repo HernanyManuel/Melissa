@@ -391,6 +391,10 @@ jobs:
               grep -q 'melissa_runtime' "$file"
             done
           done
+      - name: Capture baseline write probe (rollback-only)
+        run: |
+          psql "${MIGRATION_DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -f docs/analytics-index-write-probe.sql > benchmark-artifacts/baseline-write-probe.txt
+          test "$(grep -c 'Execution Time:' benchmark-artifacts/baseline-write-probe.txt)" -eq 2
       - name: Compare disposable candidate indexes under runtime RLS
         run: |
           admin="${MIGRATION_DATABASE_URL%%\?*}"
@@ -419,6 +423,8 @@ jobs:
                 grep -q 'melissa_runtime' "$file"
               done
             done
+            psql "$admin" -X -v ON_ERROR_STOP=1 -f docs/analytics-index-write-probe.sql > "benchmark-artifacts/${scenario}-write-probe.txt"
+            test "$(grep -c 'Execution Time:' "benchmark-artifacts/${scenario}-write-probe.txt")" -eq 2
             cleanup
             psql "$admin" -X -v ON_ERROR_STOP=1 -c "ANALYZE conversations; ANALYZE ai_turns;"
           done
@@ -431,6 +437,7 @@ jobs:
           path: |
             benchmark-artifacts/tenant-*-run-*.txt
             benchmark-artifacts/benchmark-metadata.txt
+            benchmark-artifacts/*-write-probe.txt
             benchmark-artifacts/*-index-sizes.txt
             benchmark-artifacts/*-tenant-*-run-*.txt
           retention-days: 14
