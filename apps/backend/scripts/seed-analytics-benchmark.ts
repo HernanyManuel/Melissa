@@ -13,6 +13,7 @@ const volumes: Record<string, [number, number, number]> = {
   small: [100, 300, 300],
   medium: [10000, 30000, 30000],
   large: [100000, 300000, 300000],
+  // The second tenant in the large scenario is deliberately 10x smaller.
 };
 if (process.env.NODE_ENV !== 'test' || process.env.P10_SYNTHETIC_LOAD !== 'YES' || !url) {
   throw new Error('Synthetic benchmark requires test mode, explicit consent and migration URL');
@@ -37,7 +38,10 @@ const stamp = Date.now();
 
 const run = async () => {
   for (let tenantIndex = 0; tenantIndex < 2; tenantIndex++) {
-    const [conversations, turns, audits] = volumes[size]!;
+    const [conversations, turns, audits] =
+      size === 'large' && tenantIndex === 1
+        ? volumes.medium!
+        : volumes[size]!;
     const tenant = await db.tenant.create({
       data: {
         id: randomUUID(),
