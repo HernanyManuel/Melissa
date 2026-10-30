@@ -118,6 +118,24 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
 
     const ca=await fixtures(a.id);
     const cb=await fixtures(b.id);
+    // Conversation opened outside the window must not inflate recent activity.
+    const olderConversation=await fixtures(a.id);
+    await admin.conversation.update({
+      where:{tenantId_id:{tenantId:a.id,id:olderConversation}},
+      data:{openedAt:new Date(Date.now()-45*86400000)},
+    });
+    // Stable points on both sides of the 30-day lower bound (avoid
+    // millisecond-exact clock races with the endpoint's current time).
+    const recentConversation=await fixtures(a.id);
+    await admin.conversation.update({
+      where:{tenantId_id:{tenantId:a.id,id:recentConversation}},
+      data:{openedAt:new Date(Date.now()-29*86400000)},
+    });
+    const expiredConversation=await fixtures(a.id);
+    await admin.conversation.update({
+      where:{tenantId_id:{tenantId:a.id,id:expiredConversation}},
+      data:{openedAt:new Date(Date.now()-31*86400000)},
+    });
     const firstTurn=await createTurn(a.id,ca);
     const first=await write(a.id,firstTurn,'completed',120,30);
     const otherTurn=await createTurn(b.id,cb);
@@ -163,6 +181,80 @@ test('technical AI usage observations stay exact-once, immutable and tenant-isol
     assert(!JSON.stringify(usage).includes('mock:'));
     assert(!JSON.stringify(usage).includes('providerKey'));
     assert(!JSON.stringify(usage).includes('turnId'));
+    // P10: use the same real HTTP/RBAC/RLS test fixture to prove analytics
+    // never imports another tenant's conversations or AI turns.
+    const analyticsPath='/tenants/'+a.id+'/analytics/summary';
+    assert.equal((await request('GET',analyticsPath)).status,401);
+    assert.equal((await request('GET',analyticsPath,undefined,outsider.token)).status,403);
+    assert.equal((await request('GET','/tenants/'+b.id+'/analytics/summary',undefined,owner.token)).status,404);
+    const analytics=await json<{
+      period:{kind:string;from:string;to:string};financialStatus:string;
+      billable:boolean;entitlementGranted:boolean;conversationsOpened:string;
+      aiTurnsStarted:string;aiTurnsCompleted:string;aiTurnsFailed:string;
+      aiTurnsRunning:string;
+      auditEvents:string;
+    }>(await request('GET',analyticsPath,undefined,owner.token),200);
+    assert.equal(analytics.conversationsOpened,'2');
+    assert.equal(analytics.aiTurnsStarted,'2');
+    assert.equal(analytics.aiTurnsCompleted,'2');
+    assert.equal(analytics.aiTurnsFailed,'0');
+    assert.equal(analytics.aiTurnsRunning,'0');
+    // Distinguish a live in-flight turn from a completed or failed turn.
+    await admin.aiTurn.create({data:{
+      id:randomUUID(),tenantId:a.id,conversationId:ca,
+      customerId:(await admin.conversation.findUniqueOrThrow({
+        where:{tenantId_id:{tenantId:a.id,id:ca}},select:{customerId:true}
+      })).customerId,
+      modeEpoch:0n,stateVersion:0n,status:'running',rounds:0,
+    }});
+    const withRunning=await json<{
+      aiTurnsStarted:string;aiTurnsRunning:string;aiTurnsCompleted:string;
+      aiTurnsFailed:string;billable:boolean;
+    }>(await request('GET',analyticsPath,undefined,owner.token),200);
+    assert.equal(withRunning.aiTurnsStarted,'3');
+    assert.equal(withRunning.aiTurnsRunning,'1');
+    assert.equal(withRunning.aiTurnsCompleted,'2');
+    assert.equal(withRunning.aiTurnsFailed,'0');
+    assert.equal(withRunning.billable,false);
+    // A failed AI turn must not be counted as running or completed.
+    await admin.aiTurn.create({data:{
+      id:randomUUID(),tenantId:a.id,conversationId:ca,
+      customerId:(await admin.conversation.findUniqueOrThrow({
+        where:{tenantId_id:{tenantId:a.id,id:ca}},select:{customerId:true}
+      })).customerId,
+      modeEpoch:0n,stateVersion:0n,status:'failed',rounds:0,
+      completedAt:new Date(),failureCode:'test_failure',
+    }});
+    const withFailed=await json<{
+      aiTurnsStarted:string;aiTurnsRunning:string;aiTurnsCompleted:string;
+      aiTurnsFailed:string;billable:boolean;
+    }>(await request('GET',analyticsPath,undefined,owner.token),200);
+    assert.equal(withFailed.aiTurnsStarted,'4');
+    assert.equal(withFailed.aiTurnsRunning,'1');
+    assert.equal(withFailed.aiTurnsCompleted,'2');
+    assert.equal(withFailed.aiTurnsFailed,'1');
+    assert.equal(withFailed.billable,false);
+    const otherAfterFailures=await json<{
+      aiTurnsStarted:string;aiTurnsRunning:string;aiTurnsCompleted:string;
+      aiTurnsFailed:string;
+    }>(await request('GET','/tenants/'+b.id+'/analytics/summary',undefined,outsider.token),200);
+    assert.equal(otherAfterFailures.aiTurnsStarted,'1');
+    assert.equal(otherAfterFailures.aiTurnsRunning,'0');
+    assert.equal(otherAfterFailures.aiTurnsCompleted,'1');
+    assert.equal(otherAfterFailures.aiTurnsFailed,'0');
+    assert.match(analytics.auditEvents,/^\d+$/);
+    assert(BigInt(analytics.auditEvents) >= 1n,'tenant creation must create an audit event');
+    assert.equal(analytics.billable,false);
+    assert.equal(analytics.entitlementGranted,false);
+    assert.equal(analytics.financialStatus,'not_defined');
+    assert.equal(analytics.period.kind,'rolling_30_days_utc');
+    assert(!JSON.stringify(analytics).includes('providerKey'));
+    const otherAnalytics=await json<{conversationsOpened:string;aiTurnsStarted:string}>(
+      await request('GET','/tenants/'+b.id+'/analytics/summary',undefined,outsider.token),200);
+    assert.equal(otherAnalytics.conversationsOpened,'1');
+    assert.equal(otherAnalytics.aiTurnsStarted,'1');
+    assert.match(otherAnalytics.conversationsOpened,/^\d+$/);
+    assert.equal((await request('POST',analyticsPath,{billable:true},owner.token)).status,404);
     const foreign=await json<{events:string;inputTokens:string}>(
       await request('GET','/tenants/'+b.id+'/billing/usage',undefined,outsider.token),200);
     assert.equal(foreign.events,'1');

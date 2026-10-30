@@ -1,0 +1,113 @@
+name: P10 manual synthetic analytics benchmark
+on:
+  workflow_dispatch:
+    inputs:
+      size:
+        description: Synthetic volume for disposable PostgreSQL
+        required: true
+        type: choice
+        options: [medium, large]
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16-bookworm
+        env:
+          POSTGRES_USER: melissa
+          POSTGRES_PASSWORD: ci-disposable-only
+          POSTGRES_DB: melissa_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U melissa -d melissa_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      NODE_ENV: test
+      MIGRATION_DATABASE_URL: postgresql://melissa:ci-disposable-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
+      DATABASE_URL: postgresql://melissa_runtime:ci-runtime-only@localhost:5432/melissa_test?connection_limit=5&connect_timeout=3
+      P10_SYNTHETIC_LOAD: 'YES'
+      P10_SYNTHETIC_LARGE_ACK: 'YES'
+      P10_SYNTHETIC_SIZE: ${{ inputs.size }}
+    defaults:
+      run:
+        shell: bash --noprofile --norc -e -o pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - name: Verify locked toolchain
+        run: test "$(pnpm --version)" = "11.25.0"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - name: Provision runtime role and migrate
+        run: |
+          RUNTIME_PASSWORD=ci-runtime-only psql "${MIGRATION_DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -v runtime_password=ci-runtime-only -f infra/scripts/runtime-role.sql
+          DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm db:migrate
+      - name: Verify disposable benchmark target and selected size
+        run: |
+          case "$P10_SYNTHETIC_SIZE" in medium|large) ;; *) echo 'Only medium/large are supported'; exit 1 ;; esac
+          test "$NODE_ENV" = test
+          test "$P10_SYNTHETIC_LOAD" = YES
+          test "$P10_SYNTHETIC_LARGE_ACK" = YES
+          test "$(psql "${MIGRATION_DATABASE_URL%%\?*}" -X -qAt -v ON_ERROR_STOP=1 -c 'SELECT current_database()')" = melissa_test
+      - name: Load benchmark data and analyze synthetic tables
+        run: |
+          mkdir -p benchmark-artifacts
+          pnpm --filter @melissa/backend exec tsx scripts/seed-analytics-benchmark.ts | tee benchmark-artifacts/seed-output.txt
+          psql "${MIGRATION_DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -c "ANALYZE conversations; ANALYZE ai_turns; ANALYZE audit_events;"
+      - name: Assert synthetic row counts for both tenants under runtime RLS
+        run: |
+          case "$P10_SYNTHETIC_SIZE" in
+            medium) expected_conversations=10000; expected_turns=30000; expected_audits=30000 ;;
+            large) expected_conversations=100000; expected_turns=300000; expected_audits=300000 ;;
+            *) echo "Unsupported synthetic size"; exit 1 ;;
+          esac
+          tenant_a="$(grep -oE 'P10 synthetic 0: tenant=[0-9a-f-]+' benchmark-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
+          tenant_b="$(grep -oE 'P10 synthetic 1: tenant=[0-9a-f-]+' benchmark-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
+          test "${#tenant_a}" -eq 36
+          test "${#tenant_b}" -eq 36
+          test "$tenant_a" != "$tenant_b"
+          printf 'size=%s\npostgres=%s\n' "$P10_SYNTHETIC_SIZE" "$(psql "${MIGRATION_DATABASE_URL%%\?*}" -X -qAt -c 'SHOW server_version')" > benchmark-artifacts/benchmark-metadata.txt
+          for scoped_tenant in "$tenant_a" "$tenant_b"; do
+            scoped_conversations="$expected_conversations"
+            scoped_turns="$expected_turns"
+            scoped_audits="$expected_audits"
+            if [ "$P10_SYNTHETIC_SIZE" = large ] && [ "$scoped_tenant" = "$tenant_b" ]; then
+              scoped_conversations=10000; scoped_turns=30000; scoped_audits=30000
+            fi
+            psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -qAt \
+              -v tenant_id="$scoped_tenant" \
+              -v expected_conversations="$scoped_conversations" \
+              -v expected_turns="$scoped_turns" \
+              -v expected_audits="$scoped_audits" \
+              -f docs/analytics-summary-assert-synthetic.sql
+          done
+      - name: Measure twice for each tenant using restricted runtime
+        run: |
+          for i in 0 1; do
+            tenant_id="$(grep -oE "P10 synthetic ${i}: tenant=[0-9a-f-]+" benchmark-artifacts/seed-output.txt | head -n 1 | cut -d= -f2)"
+            test "${#tenant_id}" -eq 36
+            for n in 1 2; do
+              file="benchmark-artifacts/tenant-${i}-run-${n}.txt"
+              psql "${DATABASE_URL%%\?*}" -X -v ON_ERROR_STOP=1 -v tenant_id="$tenant_id" -f docs/analytics-summary-benchmark.sql > "$file"
+              test "$(grep -c 'Execution Time:' "$file")" -eq 3
+              grep -q 'melissa_runtime' "$file"
+            done
+          done
+      - name: Upload synthetic query plans
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p10-synthetic-${{ inputs.size }}-sql-plans
+          path: |
+            benchmark-artifacts/tenant-*-run-*.txt
+            benchmark-artifacts/benchmark-metadata.txt
+          retention-days: 14
+          if-no-files-found: error
